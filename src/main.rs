@@ -9,7 +9,8 @@ use winit::{
 use futures::executor::block_on;
 use glam::{vec3, Vec3, Quat};
 
-use shader::{sdf, march, normal, ShaderConstants};
+use shader::ShaderConstants;
+use shader::sdf::{scene, march, normal};
 use graphics::GraphicsState;
 
 const FRICTION: f32 = 0.9;
@@ -119,12 +120,13 @@ impl State {
     }
 
     fn update(&mut self) {
-        let forward_vec = 
+        let camera_forward_vec = 
             Quat::from_rotation_y(self.horizontal_rotation) * 
             Quat::from_rotation_x(self.vertical_rotation) * 
             Vec3::Z;
         let up_vec = Vec3::Y;
-        let right_vec = forward_vec.cross(up_vec);
+        let right_vec = camera_forward_vec.cross(up_vec);
+        let forward_vec = up_vec.cross(right_vec);
 
         let horizontal = 
             (if self.left { -1.0 } else { 0.0 } +
@@ -147,13 +149,13 @@ impl State {
         self.velocity.z *= FRICTION;
         self.velocity += Vec3::Y * GRAVITY;
 
-        let distance = sdf(self.position, self.time);
+        let distance = scene(self.position, self.time);
         if distance < 0.5 {
             let normal = normal(self.position, self.time);
             self.position += (0.5 - distance) * normal;
         }
 
-        let (ground, _) = march(self.position, -Vec3::Y, self.time);
+        let ground = march(self.position, -Vec3::Y, self.time);
         let distance = (self.position - ground).length();
         if distance < 2.5 {
             self.position += (2.5 - distance) * Vec3::Y;

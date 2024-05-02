@@ -5,10 +5,8 @@ use spirv_std::num_traits::Float;
 
 use spirv_std::glam::{vec3, Vec3, Quat};
 
-use crate::utils::*;
-
 pub trait Shape: Copy {
-    fn distance(self, position: Vec3) -> (f32, Vec3);
+    fn distance(self, position: Vec3) -> f32;
 
     fn translate(self, translation: Vec3) -> ShapeWrapper<Translation<Self>> {
         ShapeWrapper(Translation(self, translation))
@@ -37,17 +35,13 @@ pub trait Shape: Copy {
     fn difference<S>(self, other: S) -> ShapeWrapper<Difference<Self, S>> {
         ShapeWrapper(Difference(self, other))
     }
-
-    fn with_color<S>(self, color_source: S) -> ShapeWrapper<WithColor<Self, S>> {
-        ShapeWrapper(WithColor(self, color_source))
-    }
 }
 
 #[derive(Copy, Clone)]
 pub struct ShapeWrapper<A>(pub A);
 
 impl<A: Shape> Shape for ShapeWrapper<A> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
+    fn distance(self, position: Vec3) -> f32 {
         self.0.distance(position)
     }
 }
@@ -56,7 +50,7 @@ impl<A: Shape> Shape for ShapeWrapper<A> {
 pub struct Translation<A>(A, Vec3);
 
 impl<A: Shape> Shape for Translation<A> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
+    fn distance(self, position: Vec3) -> f32 {
         self.0.distance(position - self.1)
     }
 }
@@ -65,7 +59,7 @@ impl<A: Shape> Shape for Translation<A> {
 pub struct Rotation<A>(A, Quat);
 
 impl<A: Shape> Shape for Rotation<A> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
+    fn distance(self, position: Vec3) -> f32 {
         self.0.distance(self.1.inverse() * position)
     }
 }
@@ -80,7 +74,7 @@ fn modulo(x: f32, m: f32) -> f32 {
 }
 
 impl<A: Shape> Shape for Repeat<A> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
+    fn distance(self, position: Vec3) -> f32 {
         let period = self.1;
         let position = vec3(
             modulo(position.x, period.x), 
@@ -95,16 +89,8 @@ impl<A: Shape> Shape for Repeat<A> {
 pub struct Union<A, B>(A, B);
 
 impl<A: Shape, B: Shape> Shape for Union<A, B> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
-        let (distance_a, color_a) = self.0.distance(position);
-        let (distance_b, color_b) = self.1.distance(position);
-
-        // TODO: remove branch
-        if distance_a < distance_b {
-            (distance_a, color_a)
-        } else {
-            (distance_b, color_b)
-        }
+    fn distance(self, position: Vec3) -> f32 {
+        self.0.distance(position).min(self.1.distance(position))
     }
 }
 
@@ -112,14 +98,12 @@ impl<A: Shape, B: Shape> Shape for Union<A, B> {
 pub struct SmoothUnion<A, B>(A, B, f32);
 
 impl<A: Shape, B: Shape> Shape for SmoothUnion<A, B> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
-        let (distance_a, color_a) = self.0.distance(position);
-        let (distance_b, color_b) = self.1.distance(position);
+    fn distance(self, position: Vec3) -> f32 {
+        let distance_a = self.0.distance(position);
+        let distance_b = self.1.distance(position);
 
-        let h = (0.5 + 0.5 * (distance_b - distance_a) / self.2).max(0.0).min(1.0);
-        let distance = mix(distance_b, distance_a, h) - self.2 * h * (1.0 - h);
-
-        (distance, color_a)
+        let h = (0.5 - (distance_b - distance_a).abs()).max(0.0) / 0.5;
+        distance_a.min(distance_b) - h * h * 0.125
     }
 }
 
@@ -127,16 +111,8 @@ impl<A: Shape, B: Shape> Shape for SmoothUnion<A, B> {
 pub struct Intersection<A, B>(A, B);
 
 impl<A: Shape, B: Shape> Shape for Intersection<A, B> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
-        let (distance_a, color_a) = self.0.distance(position);
-        let (distance_b, color_b) = self.1.distance(position);
-
-        // TODO: remove branch
-        if distance_a > distance_b {
-            (distance_a, color_a)
-        } else {
-            (distance_b, color_b)
-        }
+    fn distance(self, position: Vec3) -> f32 {
+        self.0.distance(position).max(self.1.distance(position))
     }
 }
 
@@ -144,24 +120,8 @@ impl<A: Shape, B: Shape> Shape for Intersection<A, B> {
 pub struct Difference<A, B>(A, B);
 
 impl<A: Shape, B: Shape> Shape for Difference<A, B> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
-        let (distance_a, color_a) = self.0.distance(position);
-        let (distance_b, color_b) = self.1.distance(position);
-
-        // TODO: remove branch
-        ((-distance_b).max(distance_a), color_a)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct WithColor<A, B>(A, B);
-
-impl<A: Shape, B: Shape> Shape for WithColor<A, B> {
-    fn distance(self, position: Vec3) -> (f32, Vec3) {
-        let (distance, _) = self.0.distance(position);
-        let (_, color) = self.1.distance(position);
-
-        (distance, color)
+    fn distance(self, position: Vec3) -> f32 {
+        (-self.1.distance(position)).max(self.0.distance(position))
     }
 }
 
@@ -171,6 +131,15 @@ impl<A: Shape> Add<Vec3> for ShapeWrapper<A> {
 
     fn add(self, amount: Vec3) -> Self::Output {
         self.translate(amount)
+    }
+}
+
+// Rotation via * operator
+impl<A: Shape> Mul<Quat> for ShapeWrapper<A> {
+    type Output = ShapeWrapper<Rotation<ShapeWrapper<A>>>;
+
+    fn mul(self, rotation: Quat) -> Self::Output {
+        self.rotate(rotation)
     }
 }
 

@@ -7,6 +7,10 @@ pub fn mix(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
+pub fn abs2d(vec: Vec2) -> Vec2 {
+    vec2(vec.x.abs(), vec.y.abs())
+}
+
 pub fn abs(vec: Vec3) -> Vec3 {
     vec3(vec.x.abs(), vec.y.abs(), vec.z.abs())
 }

@@ -9,8 +9,6 @@ use shader::ShaderConstants;
 #[folder = "spirv"]
 struct Asset;
 
-const SHADER: &[u8] = include_bytes!(env!("shader.spv"));
-
 pub struct GraphicsState {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -66,6 +64,7 @@ impl GraphicsState {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
+                // bind_group_layouts: &[&uniform_bind_group_layout],
                 bind_group_layouts: &[],
                 push_constant_ranges: &[wgpu::PushConstantRange {
                     stages: wgpu::ShaderStage::all(),
