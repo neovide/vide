@@ -63,10 +63,9 @@ fn main() {
                         Quad::new(
                             vec2(mouse_pos.x as f32, mouse_pos.y as f32),
                             vec2(100., 100.),
-                            vec4(0., 0., 0., 0.5),
+                            vec4(0.5, 0.5, 1., 0.5),
                         )
-                        .with_corner_radius(30.0)
-                        .with_blur(10.0),
+                        .with_blur(5.0),
                     );
 
                     renderer.draw_scene(&scene);

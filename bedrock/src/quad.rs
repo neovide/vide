@@ -123,7 +123,7 @@ impl Drawable for QuadState {
                         .unwrap_or(constants.surface_size),
                     layer.background_color.unwrap_or(Vec4::ONE),
                 )
-                .with_blur(-layer.background_blur_radius)
+                .with_background_blur(layer.background_blur_radius)
                 .to_instanced(),
             );
         }

@@ -5,24 +5,34 @@ use spirv_std::{image::Image2d, spirv, Sampler};
 
 use crate::ShaderConstants;
 
+const UNIT_QUAD_VERTICES: [Vec2; 6] = [
+    vec2(0.0, 0.0),
+    vec2(1.0, 0.0),
+    vec2(1.0, 1.0),
+    vec2(0.0, 0.0),
+    vec2(1.0, 1.0),
+    vec2(0.0, 1.0),
+];
+
 #[derive(Copy, Clone)]
 #[cfg_attr(
     not(target_arch = "spirv"),
     derive(Debug, bytemuck::Pod, bytemuck::Zeroable, Default)
 )]
-#[repr(C, align(16))]
+#[repr(C, align(64))]
 // An axis aligned quad supporting positioning, scaling, corner radius, and optionally an internal blur with
 // the previous layer or an external blur for use with shadows.
 pub struct InstancedQuad {
+    pub color: Vec4,
+    pub _padding: Vec4,
+    pub top_left: Vec2,
+    pub size: Vec2,
+    pub __padding: Vec2,
     pub corner_radius: f32,
     // 0: no blur
     // <0: internal blur of the background with kernel radius `blur`
     // >0: external blur of quad edge with radius `blur`
     pub blur: f32,
-    pub top_left: Vec2,
-    pub __padding: Vec2,
-    pub size: Vec2,
-    pub color: Vec4,
 }
 
 impl InstancedQuad {
@@ -45,15 +55,7 @@ pub fn vertex(
 ) {
     *out_instance_index = instance_index;
 
-    let unit_vertex_pos = match vert_index {
-        0 => vec2(0.0, 0.0),
-        1 => vec2(1.0, 0.0),
-        2 => vec2(1.0, 1.0),
-        3 => vec2(0.0, 0.0),
-        4 => vec2(1.0, 1.0),
-        5 => vec2(0.0, 1.0),
-        _ => unreachable!(),
-    };
+    let unit_vertex_pos = UNIT_QUAD_VERTICES[vert_index as usize];
 
     let quad = quads[instance_index as usize];
     let blur_extension = quad.blur.max(0.0) * 3.0 * Vec2::ONE;
@@ -79,7 +81,7 @@ pub fn fragment(
 
     let distance = quad.distance(surface_position.xy());
     if quad.blur > 0.0 {
-        // External squircle blur
+        // Blurs the quad edge. Good for shadows.
         let min_edge = quad.size.min_element();
         let inverse_blur = 1.0 / quad.blur;
         let scale = 0.5

@@ -218,12 +218,6 @@ impl<'a> Resources<'a> {
             let frame_view = frame.texture.create_view(&Default::default());
             let multisampled_view = self.multisampled_texture.create_view(&Default::default());
 
-            let mut encoder = self
-                .device
-                .create_command_encoder(&CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
             let constants = ShaderConstants {
                 surface_size: vec2(
                     self.surface_config.width as f32,
@@ -235,6 +229,11 @@ impl<'a> Resources<'a> {
 
             let mut first = true;
             for layer in scene.layers.iter() {
+                let mut encoder = self
+                    .device
+                    .create_command_encoder(&CommandEncoderDescriptor {
+                        label: Some("Render Encoder"),
+                    });
                 for drawable in drawables.iter_mut() {
                     // Either clear the offscreen texture or copy the previous layer to it
                     if first {
@@ -314,9 +313,9 @@ impl<'a> Resources<'a> {
 
                     first = false;
                 }
+                self.queue.submit(std::iter::once(encoder.finish()));
             }
 
-            self.queue.submit(std::iter::once(encoder.finish()));
             frame.present();
         }
 
