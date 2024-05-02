@@ -1,0 +1,1 @@
+scene_viewer: cargo run -p scene_viewer

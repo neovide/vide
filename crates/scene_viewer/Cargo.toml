@@ -1,0 +1,18 @@
+[package]
+name = "scene_viewer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+vide = { path = "../.." }
+futures = "0.3"
+glam = { workspace = true }
+winit = { workspace = true }
+serde = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
+notify = { workspace = true }
+parking_lot = "0.12.1"
+rust-embed = { workspace = true }
+env_logger = "0.10.0"

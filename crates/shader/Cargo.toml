@@ -1,0 +1,13 @@
+[package]
+name = "shader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["dylib", "lib"]
+
+[dependencies]
+bytemuck = { workspace = true }
+spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-std", rev = "8678d58d61a78f01201ec854cb5e3835c014fa3b" }
+glam = { version = "0.22.0", default-features = false, features = ["libm", "bytemuck"] }
