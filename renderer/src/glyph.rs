@@ -239,7 +239,7 @@ impl GlyphState {
 
         // Add the glyph to instances
         Some(InstancedGlyph {
-            bottom_left: bottom_left
+            bottom_left: bottom_left.floor()
                 + vec2(
                     placement.left as f32,
                     placement.height as f32 - placement.top as f32,

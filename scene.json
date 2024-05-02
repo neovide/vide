@@ -91,6 +91,30 @@
           "size": 36,
           "color": [0, 0, 0, 1],
           "text": "Sphinx of black quartz, judge my vow."
+        },
+        {
+          "bottom_left": [0, 330],
+          "size": 38,
+          "color": [0, 0, 0, 1],
+          "text": "Sphinx of black quartz, judge my vow."
+        },
+        {
+          "bottom_left": [0, 365],
+          "size": 40,
+          "color": [0, 0, 0, 1],
+          "text": "Sphinx of black quartz, judge my vow."
+        },
+        {
+          "bottom_left": [0, 400],
+          "size": 42,
+          "color": [0, 0, 0, 1],
+          "text": "Sphinx of black quartz, judge my vow."
+        },
+        {
+          "bottom_left": [0, 440],
+          "size": 44,
+          "color": [0, 0, 0, 1],
+          "text": "Sphinx of black quartz, judge my vow."
         }
       ]
     },
