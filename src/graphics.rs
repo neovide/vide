@@ -1,32 +1,52 @@
-use std::time::Instant;
-use std::sync::Arc;
-
-use chrono::Timelike;
-use glam::{vec2, vec4};
+use crate::{glyph::GlyphState, quad::QuadState, shape::TextShapingState};
+use glam::{vec2, Vec2, Vec4};
 use rust_embed::*;
-use shader::{ShaderConstants, InstancedQuad};
-use wgpu::util::DeviceExt;
+use shader::{InstancedQuad, ShaderConstants};
+use swash::FontRef;
+use wgpu::{
+    util, Adapter, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingResource, BindingType, Color, CommandEncoderDescriptor, Device,
+    DeviceDescriptor, Extent3d, Features, ImageCopyTexture, Instance, Limits, LoadOp, Operations,
+    Origin3d, PowerPreference, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor,
+    RequestAdapterOptions, SamplerBindingType, ShaderModuleDescriptor, ShaderStages, Surface,
+    SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
+    TextureSampleType, TextureUsages, TextureViewDescriptor, TextureViewDimension,
+};
 use winit::{
-    window::Window,
     event::{Event, WindowEvent},
     event_loop::ControlFlow,
+    window::Window,
 };
+
+pub const ATLAS_SIZE: Vec2 = vec2(1024., 1024.);
 
 #[derive(RustEmbed)]
 #[folder = "spirv"]
 struct Asset;
 
-pub struct GraphicsState {
-    instance: wgpu::Instance,
-    surface: Option<wgpu::Surface>,
-    surface_config: wgpu::SurfaceConfiguration,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    render_pipeline: wgpu::RenderPipeline,
+pub trait Drawable {
+    fn draw<'b, 'a: 'b>(
+        &'a self,
+        queue: &Queue,
+        render_pass: &mut wgpu::RenderPass<'b>,
+        constants: ShaderConstants,
+        universal_bind_group: &'a BindGroup,
+    );
+}
 
-    quad_buffer: wgpu::Buffer,
-    uniform_bind_group: wgpu::BindGroup,
+pub struct GraphicsState {
+    instance: Instance,
+    surface: Option<Surface>,
+    surface_config: SurfaceConfiguration,
+    adapter: Adapter,
+    device: Device,
+    queue: Queue,
+
+    offscreen_texture: Texture,
+    universal_bind_group: BindGroup,
+    quad_state: QuadState,
+    glyph_state: GlyphState,
+    text_shaping_state: TextShapingState,
 }
 
 impl GraphicsState {
@@ -35,138 +55,130 @@ impl GraphicsState {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
-        let instance = wgpu::Instance::default();
+        let instance = Instance::default();
         let surface = unsafe { instance.create_surface(window) }.unwrap();
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+        let adapter = instance
+            .request_adapter(&RequestAdapterOptions {
+                power_preference: PowerPreference::default(),
                 force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
-            },
-        ).await.unwrap();
+            })
+            .await
+            .unwrap();
 
-        let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::PUSH_CONSTANTS 
-                    | wgpu::Features::SPIRV_SHADER_PASSTHROUGH
-                    | wgpu::Features::VERTEX_WRITABLE_STORAGE,
-                limits: wgpu::Limits {
-                    max_push_constant_size: 256,
-                    ..Default::default()
-                },
-                label: None,
-            },
-            None,
-        ).await.unwrap();
-
-        // Create uniform buffer bind group layout
-        let uniform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Uniform Bind Group Layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+        let (device, queue) = adapter
+            .request_device(
+                &DeviceDescriptor {
+                    features: Features::PUSH_CONSTANTS
+                        | Features::SPIRV_SHADER_PASSTHROUGH
+                        | Features::VERTEX_WRITABLE_STORAGE,
+                    limits: Limits {
+                        max_push_constant_size: 256,
+                        ..Default::default()
                     },
-                    count: None,
-                }],
-            });
-
-        let quads = vec! [
-            InstancedQuad {
-                top_left: vec2(10.0, 10.0),
-                size: vec2(30.0, 30.0),
-                color: vec4(1.0, 1.0, 0.0, 1.0),
-            },
-            InstancedQuad {
-                top_left: vec2(100.0, 100.0),
-                size: vec2(300.0, 300.0),
-                color: vec4(0.0, 1.0, 1.0, 1.0),
-            },
-        ];
-
-        let quad_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Uniform Buffer"),
-            contents: bytemuck::cast_slice(&quads[..]),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Uniform Bind Group"),
-            layout: &uniform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: quad_buffer.as_entire_binding(),
-            }],
-        });
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
-                push_constant_ranges: &[wgpu::PushConstantRange {
-                    stages: wgpu::ShaderStages::all(),
-                    range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-                }],
-            });
+                    label: None,
+                },
+                None,
+            )
+            .await
+            .unwrap();
 
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
 
-        let surface_config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        let surface_config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,
             format: swapchain_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: PresentMode::Fifo,
             alpha_mode: swapchain_capabilities.alpha_modes[0],
-            view_formats: vec![]
+            view_formats: vec![],
         };
-
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::util::make_spirv(&Asset::get("shader.spv").expect("Could not load shader")),
-        });
 
         surface.configure(&device, &surface_config);
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "quad::vertex",
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "quad::fragment",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: swapchain_format,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None, // 1.
-            multisample: wgpu::MultisampleState {
-                count: 1, // 2.
-                mask: !0, // 3.
-                alpha_to_coverage_enabled: false, // 4.
-            },
-            multiview: None,
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: util::make_spirv(&Asset::get("shader.spv").expect("Could not load shader")),
         });
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let offscreen_texture = device.create_texture(&TextureDescriptor {
+            size: Extent3d {
+                width: size.width,
+                height: size.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: swapchain_format,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            label: Some(&format!("Offscreen Texture")),
+            view_formats: &[],
+        });
+
+        let universal_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("Universal bind group layout"),
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
+                            sample_type: TextureSampleType::Float { filterable: true },
+                            view_dimension: TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+        let universal_bind_group = {
+            let offscreen_texture_view =
+                offscreen_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+            device.create_bind_group(&BindGroupDescriptor {
+                label: Some("Universal bind group"),
+                layout: &universal_bind_group_layout,
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: BindingResource::TextureView(&offscreen_texture_view),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                ],
+            })
+        };
+
+        let quad_state = QuadState::new(&device, &shader, swapchain_format);
+        let glyph_state = GlyphState::new(
+            &device,
+            &shader,
+            swapchain_format,
+            &universal_bind_group_layout,
+        );
+        let text_shaping_state = TextShapingState::new();
 
         Self {
             instance,
@@ -175,45 +187,87 @@ impl GraphicsState {
             adapter,
             device,
             queue,
-            render_pipeline,
-            quad_buffer,
-            uniform_bind_group,
+
+            offscreen_texture,
+            universal_bind_group,
+            quad_state,
+            glyph_state,
+            text_shaping_state,
         }
     }
 
-    pub fn render(&mut self, window: &Window, constants: ShaderConstants) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self) -> Result<(), SurfaceError> {
         if let Some(surface) = &mut self.surface {
             let frame = surface.get_current_texture()?;
-            let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+            let frame_view = frame.texture.create_view(&TextureViewDescriptor::default());
 
-            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-            {
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut encoder = self
+                .device
+                .create_command_encoder(&CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
+
+            let constants = ShaderConstants {
+                surface_size: vec2(
+                    self.surface_config.width as f32,
+                    self.surface_config.height as f32,
+                ),
+                atlas_size: ATLAS_SIZE,
+            };
+
+            let drawables = [&self.quad_state as &dyn Drawable, &self.glyph_state];
+            for (index, drawable) in drawables.iter().enumerate() {
+                encoder.copy_texture_to_texture(
+                    ImageCopyTexture {
+                        texture: &frame.texture,
+                        mip_level: 0,
+                        origin: Origin3d::ZERO,
+                        aspect: Default::default(),
+                    },
+                    ImageCopyTexture {
+                        texture: &self.offscreen_texture,
+                        mip_level: 0,
+                        origin: Origin3d::ZERO,
+                        aspect: Default::default(),
+                    },
+                    Extent3d {
+                        width: self.surface_config.width,
+                        height: self.surface_config.height,
+                        depth_or_array_layers: 1,
+                    },
+                );
+
+                // The first drawable should clear the output textures
+                let attachment_op = if index == 0 {
+                    Operations::<Color> {
+                        load: LoadOp::<_>::Clear(Color::WHITE),
+                        store: true,
+                    }
+                } else {
+                    Operations::<Color> {
+                        load: LoadOp::<_>::Load,
+                        store: true,
+                    }
+                };
+
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                     label: Some("Render Pass"),
-                    color_attachments: &[
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: &frame_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                                store: true,
-                            }
-                        })
-                    ],
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &frame_view,
+                        resolve_target: None,
+                        ops: attachment_op,
+                    })],
                     depth_stencil_attachment: None,
                 });
 
-                render_pass.set_pipeline(&self.render_pipeline); // 2.
-                render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
-                render_pass.set_push_constants(wgpu::ShaderStages::all(), 0, unsafe {
-                    ::std::slice::from_raw_parts((&constants as *const ShaderConstants) as *const u8, ::std::mem::size_of::<ShaderConstants>())
-                });
-                render_pass.draw(0..6, 0..2); // 3.
+                drawable.draw(
+                    &self.queue,
+                    &mut render_pass,
+                    constants,
+                    &self.universal_bind_group,
+                );
             }
 
-            // submit will accept anything that implements IntoIter
             self.queue.submit(std::iter::once(encoder.finish()));
             frame.present();
         }
@@ -221,12 +275,60 @@ impl GraphicsState {
         Ok(())
     }
 
-    pub fn handle_event<F>(&mut self, window: &Window, event: &Event<()>, control_flow: &mut ControlFlow, construct_constants: F)
-    where F: FnOnce() -> ShaderConstants {
+    pub fn clear(&mut self) {
+        self.quad_state.clear();
+        self.glyph_state.clear();
+    }
+
+    pub fn add_quad(&mut self, top_left: Vec2, size: Vec2, color: Vec4) {
+        self.quad_state.quads.push(InstancedQuad {
+            top_left,
+            size,
+            color,
+        });
+    }
+
+    pub fn add_glyph<'a, 'b: 'a>(
+        &'b mut self,
+        font_ref: FontRef<'a>,
+        glyph: swash::GlyphId,
+        bottom_left: Vec2,
+        size: f32,
+        color: Vec4,
+    ) {
+        self.glyph_state
+            .add_glyph(&mut self.queue, font_ref, glyph, bottom_left, size, color);
+    }
+
+    pub fn add_text<'a, 'b: 'a>(
+        &'b mut self,
+        font_ref: FontRef<'a>,
+        text: &str,
+        bottom_left: Vec2,
+        size: f32,
+        color: Vec4,
+    ) {
+        self.text_shaping_state.add_text(
+            &mut self.queue,
+            &mut self.glyph_state,
+            font_ref,
+            text,
+            bottom_left,
+            size,
+            color,
+        );
+    }
+
+    pub fn handle_event(
+        &mut self,
+        window: &Window,
+        event: &Event<()>,
+        control_flow: &mut ControlFlow,
+    ) {
         match event {
             Event::MainEventsCleared => {
                 window.request_redraw();
-            },
+            }
             Event::Resumed => {
                 let surface = unsafe { self.instance.create_surface(window) }.unwrap();
 
@@ -236,10 +338,10 @@ impl GraphicsState {
                 self.surface_config.alpha_mode = swapchain_capabilities.alpha_modes[0];
                 surface.configure(&self.device, &self.surface_config);
                 self.surface = Some(surface);
-            },
+            }
             Event::Suspended => {
                 self.surface = None;
-            },
+            }
             // If doesn't resize properly on scale change, also handle ScaleFactorChanged using
             // new_inner_size
             Event::WindowEvent {
@@ -254,25 +356,25 @@ impl GraphicsState {
                         surface.configure(&self.device, &self.surface_config);
                     }
                 }
-            },
+            }
             Event::RedrawRequested(_) => {
-                if let Err(render_error) = self.render(window, construct_constants()) {
+                if let Err(render_error) = self.render() {
                     eprintln!("Render error: {:?}", render_error);
                     match render_error {
-                        wgpu::SurfaceError::Lost => {
+                        SurfaceError::Lost => {
                             if let Some(surface) = &self.surface {
                                 surface.configure(&self.device, &self.surface_config);
                             }
-                        },
-                        wgpu::SurfaceError::OutOfMemory => {
+                        }
+                        SurfaceError::OutOfMemory => {
                             eprintln!("Out of memory");
                             *control_flow = ControlFlow::Exit;
-                        },
-                        _ => {},
+                        }
+                        _ => {}
                     }
                 }
-            },
-            _ => {} 
+            }
+            _ => {}
         };
     }
 }

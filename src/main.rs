@@ -1,77 +1,51 @@
+mod font;
+mod glyph;
 mod graphics;
+mod quad;
+mod shape;
 
-use winit::{
-    dpi::PhysicalSize,
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
-};
 use futures::executor::block_on;
-use glam::Vec3;
+use glam::{vec2, vec4, Vec2, Vec4};
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
 
-use shader::ShaderConstants;
+use font::Font;
 use graphics::GraphicsState;
 
-struct State {
-    size: winit::dpi::PhysicalSize<u32>,
-}
-
-impl State {
-    fn new(window: &Window) -> Self {
-        let size = window.inner_size();
-
-        Self {
-            size,
-        }
-    }
-
-    fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        self.size = new_size;
-    }
-
-    fn update(&mut self) {
-        let camera_forward_vec = 
-            Vec3::Z;
-
-        let up_vec = Vec3::Y;
-        let right_vec = camera_forward_vec.cross(Vec3::Y);
-        let forward_vec = up_vec.cross(right_vec);
-    }
-
-    fn construct_constants(&mut self) -> ShaderConstants {
-        ShaderConstants {
-            pixel_width: self.size.width,
-            pixel_height: self.size.height,
-        }
-    }
-}
-
 fn main() {
-    env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut graphics_state = block_on(GraphicsState::new(&window));
-    let mut game_state = State::new(&window);
+    let mut gfx = block_on(GraphicsState::new(&window));
+
+    let font = Font::from_name("Courier New").unwrap();
 
     event_loop.run(move |event, _, control_flow| {
-        graphics_state.handle_event(&window, &event, control_flow, || game_state.construct_constants());
-
         match event {
+            Event::RedrawRequested(_) => {
+                gfx.clear();
+                gfx.add_quad(vec2(0., 25.), vec2(300., 25.), vec4(1., 0., 0., 1.));
+                gfx.add_text(
+                    font.as_ref().unwrap(),
+                    "Hello, world!",
+                    vec2(0.0, 50.0),
+                    32.0,
+                    vec4(0.0, 0.0, 0.0, 1.0),
+                );
+            }
             Event::WindowEvent {
                 ref event,
                 window_id,
             } if window_id == window.id() => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(physical_size) => {
-                    game_state.resize(*physical_size);
-                },
                 _ => {}
-            },
-            Event::RedrawRequested(_) => {
-                game_state.update();
             },
             _ => {}
         };
+
+        gfx.handle_event(&window, &event, control_flow);
     });
 }
