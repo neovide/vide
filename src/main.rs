@@ -17,7 +17,7 @@ use futures::executor::block_on;
 use glam::{vec3, Vec3, Quat};
 
 use shader::ShaderConstants;
-use shader::model::model;
+use shader::model::{model, ModelConstants};
 use graphics::GraphicsState;
 pub use repaint_signaler::RepaintSignaler;
 use marching_cubes::marching_cubes;
@@ -152,7 +152,7 @@ impl State {
         self.focus += self.input_dir * SPEED;
     }
 
-    fn construct_constants(&mut self) -> ShaderConstants {
+    fn construct_constants(&mut self, model_constants: ModelConstants) -> ShaderConstants {
         let forward_vec = 
             Quat::from_rotation_y(self.horizontal_rotation) * 
             Quat::from_rotation_x(self.vertical_rotation) * 
@@ -173,6 +173,7 @@ impl State {
             position: position.into(),
             forward: forward_vec.into(),
             sun: sun.into(),
+            model_constants
         }
     }
 }
@@ -190,7 +191,7 @@ fn main() {
     let mut drag_start = None;
 
     event_loop.run(move |event, _, control_flow| {
-        if graphics_state.handle_event(&window, &event, control_flow, || game_state.construct_constants()) {
+        if graphics_state.handle_event(&window, &event, control_flow, |model_constants| game_state.construct_constants(model_constants)) {
             return;
         }
 
@@ -237,7 +238,7 @@ fn main() {
                         ..
                     } => {
                         println!("Exporting mesh");
-                        let model_shape = model();
+                        let model_shape = model(graphics_state.model_constants());
                         let mesh = marching_cubes(model_shape, 5.0, 0.01);
                         write([".", "test.3mf"].iter().collect(), &mesh).expect("Could not write model to file");
                         println!("Mesh exported");

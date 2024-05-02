@@ -25,6 +25,9 @@ wgpu = { version = "0.11", features = ["spirv"] }
 winit = "0.25" # Window library for constructing a window and handling window events
 chrono = "0.4.4" # Chrono library for time management
 
+[target.'cfg(not(target_arch = "spirv"))'.dependencies]
+bevy_reflect = "0.5.0" # Library for dynamically accessing struct fields
+
 [build-dependencies]
 # Build script which compiles the shader to spirv
 spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder" }

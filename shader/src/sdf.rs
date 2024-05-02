@@ -63,7 +63,7 @@ pub fn apply_fog(base_color: Vec3, distance_traveled: f32) -> Vec3 {
 }
 
 pub fn compute_color(start: Vec3, direction: Vec3, constants: &ShaderConstants) -> Vec3 {
-    let model = model().scale(0.01);
+    let model = model(constants.model_constants).scale(0.01);
     let intersection = march(model, start, direction);
 
     let sun: Vec3 = constants.sun.into();

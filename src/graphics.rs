@@ -7,7 +7,10 @@ use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use epi::*;
 use rust_embed::*;
-use shader::ShaderConstants;
+use shader::{
+    ShaderConstants,
+    model::ModelConstants,
+};
 use winit::{
     window::Window,
     event::{Event, WindowEvent},
@@ -94,7 +97,7 @@ impl GraphicsState {
 
         surface.configure(&device, &surface_config);
 
-        let mut platform = Platform::new(PlatformDescriptor {
+        let platform = Platform::new(PlatformDescriptor {
             physical_width: size.width as u32,
             physical_height: size.height as u32,
             scale_factor: window.scale_factor(),
@@ -244,7 +247,7 @@ impl GraphicsState {
     }
 
     pub fn handle_event<F>(&mut self, window: &Window, event: &Event<()>, control_flow: &mut ControlFlow, construct_constants: F) -> bool
-    where F: FnOnce() -> ShaderConstants {
+    where F: FnOnce(ModelConstants) -> ShaderConstants {
         self.platform.handle_event::<()>(event);
 
         match event {
@@ -277,7 +280,8 @@ impl GraphicsState {
             },
             Event::RedrawRequested(_) => {
                 self.platform.update_time(self.start_time.elapsed().as_secs_f64());
-                if let Err(render_error) = self.render(window, construct_constants()) {
+                let model_constants = self.egui_ui.model_constants;
+                if let Err(render_error) = self.render(window, construct_constants(model_constants)) {
                     eprintln!("Render error: {:?}", render_error);
                     match render_error {
                         wgpu::SurfaceError::Lost => {
@@ -297,6 +301,10 @@ impl GraphicsState {
         };
 
         self.platform.captures_event(event)
+    }
+
+    pub fn model_constants(&self) -> ModelConstants {
+        self.egui_ui.model_constants
     }
 }
 

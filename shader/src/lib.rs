@@ -20,6 +20,7 @@ use spirv_std::num_traits::Float;
 use spirv_std::glam::*;
 
 use sdf::compute_color;
+use model::ModelConstants;
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -35,6 +36,8 @@ pub struct ShaderConstants {
     pub forward: [f32; 3],
 
     pub sun: [f32; 3],
+
+    pub model_constants: ModelConstants,
 }
 
 #[spirv(fragment)]

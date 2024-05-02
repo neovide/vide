@@ -9,3 +9,6 @@ crate-type = ["dylib", "lib"]
 [dependencies]
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-std", features = ["glam"] }
 glam = { version = "0.19.0", default-features = false, features = ["libm"] }
+
+[target.'cfg(not(target_arch = "spirv"))'.dependencies]
+bevy_reflect = "0.5.0" # Library for dynamically accessing struct fields
