@@ -9,7 +9,10 @@ use winit::{
     window::Window,
 };
 
-use crate::{glyph::GlyphState, quad::QuadState, shape::TextShapingState, Asset, ATLAS_SIZE};
+use crate::{
+    glyph::GlyphState, quad::QuadState, scene::Layer, shape::TextShapingState, Asset, Scene,
+    ATLAS_SIZE,
+};
 
 pub trait Drawable {
     fn draw<'b, 'a: 'b>(
@@ -18,6 +21,7 @@ pub trait Drawable {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        layer: &Layer,
     );
 }
 
@@ -33,7 +37,7 @@ pub struct Renderer {
     sampler: Sampler,
     universal_bind_group_layout: BindGroupLayout,
     universal_bind_group: BindGroup,
-    pub(crate) clear_color: Vec4,
+
     pub(crate) quad_state: QuadState,
     pub(crate) glyph_state: GlyphState,
     pub(crate) text_shaping_state: TextShapingState,
@@ -156,14 +160,14 @@ impl Renderer {
             universal_bind_group_layout,
             universal_bind_group,
             sampler,
-            clear_color: Vec4::ONE,
+
             quad_state,
             glyph_state,
             text_shaping_state,
         }
     }
 
-    pub fn render(&mut self) -> Result<(), SurfaceError> {
+    pub fn render(&mut self, scene: &Scene) -> Result<(), SurfaceError> {
         if self.surface_config.width == 0 || self.surface_config.height == 0 {
             return Ok(());
         }
@@ -186,62 +190,75 @@ impl Renderer {
                 atlas_size: ATLAS_SIZE,
             };
 
-            let drawables = [&self.quad_state as &dyn Drawable, &self.glyph_state];
-            for (index, drawable) in drawables.iter().enumerate() {
-                encoder.copy_texture_to_texture(
-                    ImageCopyTexture {
-                        texture: &frame.texture,
-                        mip_level: 0,
-                        origin: Origin3d::ZERO,
-                        aspect: Default::default(),
-                    },
-                    ImageCopyTexture {
-                        texture: &self.offscreen_texture,
-                        mip_level: 0,
-                        origin: Origin3d::ZERO,
-                        aspect: Default::default(),
-                    },
-                    Extent3d {
-                        width: self.surface_config.width,
-                        height: self.surface_config.height,
-                        depth_or_array_layers: 1,
-                    },
-                );
+            for layer in scene.layers.iter() {
+                let drawables = [&self.quad_state as &dyn Drawable, &self.glyph_state];
+                for (index, drawable) in drawables.iter().enumerate() {
+                    encoder.copy_texture_to_texture(
+                        ImageCopyTexture {
+                            texture: &frame.texture,
+                            mip_level: 0,
+                            origin: Origin3d::ZERO,
+                            aspect: Default::default(),
+                        },
+                        ImageCopyTexture {
+                            texture: &self.offscreen_texture,
+                            mip_level: 0,
+                            origin: Origin3d::ZERO,
+                            aspect: Default::default(),
+                        },
+                        Extent3d {
+                            width: self.surface_config.width,
+                            height: self.surface_config.height,
+                            depth_or_array_layers: 1,
+                        },
+                    );
 
-                // The first drawable should clear the output textures
-                let attachment_op = if index == 0 {
-                    Operations::<Color> {
-                        load: LoadOp::<_>::Clear(Color {
-                            r: self.clear_color.x as f64,
-                            g: self.clear_color.y as f64,
-                            b: self.clear_color.z as f64,
-                            a: self.clear_color.w as f64,
-                        }),
-                        store: true,
+                    // The first drawable should clear the output textures
+                    let attachment_op = if index == 0 {
+                        let clear_color = layer.background_color.unwrap_or(Vec4::ONE);
+                        Operations::<Color> {
+                            load: LoadOp::<_>::Clear(Color {
+                                r: clear_color.x as f64,
+                                g: clear_color.y as f64,
+                                b: clear_color.z as f64,
+                                a: clear_color.w as f64,
+                            }),
+                            store: true,
+                        }
+                    } else {
+                        Operations::<Color> {
+                            load: LoadOp::<_>::Load,
+                            store: true,
+                        }
+                    };
+
+                    let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                        label: Some("Render Pass"),
+                        color_attachments: &[Some(RenderPassColorAttachment {
+                            view: &frame_view,
+                            resolve_target: None,
+                            ops: attachment_op,
+                        })],
+                        depth_stencil_attachment: None,
+                    });
+
+                    if let Some(clip) = layer.clip {
+                        render_pass.set_scissor_rect(
+                            clip.x as u32,
+                            clip.y as u32,
+                            clip.z as u32,
+                            clip.w as u32,
+                        );
                     }
-                } else {
-                    Operations::<Color> {
-                        load: LoadOp::<_>::Load,
-                        store: true,
-                    }
-                };
 
-                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &frame_view,
-                        resolve_target: None,
-                        ops: attachment_op,
-                    })],
-                    depth_stencil_attachment: None,
-                });
-
-                drawable.draw(
-                    &self.queue,
-                    &mut render_pass,
-                    constants,
-                    &self.universal_bind_group,
-                );
+                    drawable.draw(
+                        &self.queue,
+                        &mut render_pass,
+                        constants,
+                        &self.universal_bind_group,
+                        &layer,
+                    );
+                }
             }
 
             self.queue.submit(std::iter::once(encoder.finish()));

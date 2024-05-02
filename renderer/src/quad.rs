@@ -1,12 +1,11 @@
 use shader::{InstancedQuad, ShaderConstants};
 use wgpu::*;
 
-use crate::renderer::Drawable;
+use crate::{renderer::Drawable, scene::Layer};
 
 #[cfg(not(target_arch = "spirv"))]
 pub struct QuadState {
     buffer: Buffer,
-    pub quads: Vec<InstancedQuad>,
     bind_group: BindGroup,
     render_pipeline: RenderPipeline,
 }
@@ -91,13 +90,8 @@ impl QuadState {
         Self {
             buffer,
             bind_group,
-            quads: Vec::new(),
             render_pipeline,
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.quads.clear();
     }
 }
 
@@ -108,12 +102,23 @@ impl Drawable for QuadState {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         _universal_bind_group: &'a BindGroup,
+        layer: &Layer,
     ) {
+        let quads: Vec<InstancedQuad> = layer
+            .quads
+            .iter()
+            .map(|quad| InstancedQuad {
+                top_left: quad.top_left,
+                size: quad.size,
+                color: quad.color,
+            })
+            .collect();
+
         render_pass.set_pipeline(&self.render_pipeline); // 2.
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.quads[..]));
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&quads[..]));
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.draw(0..6, 0..self.quads.len() as u32);
+        render_pass.draw(0..6, 0..quads.len() as u32);
     }
 }

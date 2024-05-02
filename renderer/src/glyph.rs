@@ -1,26 +1,29 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use etagere::{size2, AllocId, AtlasAllocator};
 use glam::{vec2, Vec2, Vec4};
+use ordered_float::OrderedFloat;
 use shader::{InstancedGlyph, ShaderConstants};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
-    zeno::Format,
-    FontRef, GlyphId,
+    shape::{cluster::Glyph, ShapeContext},
+    zeno::{Format, Placement, Vector},
+    CacheKey, FontRef, GlyphId,
 };
 use wgpu::*;
 
-use crate::renderer::Drawable;
+use crate::{renderer::Drawable, scene::Layer, ATLAS_SIZE};
 
 pub struct GlyphState {
     buffer: Buffer,
     atlas_texture: Texture,
-    pub glyphs: Vec<InstancedGlyph>,
     bind_group: BindGroup,
     render_pipeline: RenderPipeline,
 
-    glyph_lookup: HashMap<GlyphId, AllocId>,
     scale_context: ScaleContext,
+    shaping_context: ShapeContext,
+    glyph_lookup: HashMap<GlyphKey, (Placement, AllocId)>,
+    shaped_text_lookup: HashMap<ShapeKey, Vec<Glyph>>,
     atlas_allocator: AtlasAllocator,
 }
 
@@ -41,8 +44,8 @@ impl GlyphState {
         let atlas_texture = device.create_texture(&TextureDescriptor {
             label: Some("Glyph atlas texture descriptor"),
             size: Extent3d {
-                width: 1000,
-                height: 1000,
+                width: ATLAS_SIZE.x as u32,
+                height: ATLAS_SIZE.y as u32,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -147,12 +150,12 @@ impl GlyphState {
             glyphs: Vec::new(),
             render_pipeline,
             scale_context: ScaleContext::new(),
-            atlas_allocator: AtlasAllocator::new(size2(1024, 1024)),
+            atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
             glyph_lookup: HashMap::new(),
         }
     }
 
-    pub fn add_glyph<'a, 'b: 'a>(
+    fn prepare_glyph<'a, 'b: 'a>(
         &'b mut self,
         queue: &mut Queue,
         font_ref: FontRef<'a>,
@@ -160,7 +163,7 @@ impl GlyphState {
         bottom_left: Vec2,
         size: f32,
         color: Vec4,
-    ) {
+    ) -> InstancedGlyph {
         // Create a font scaler for the given font and size
         let mut scaler = self
             .scale_context
@@ -169,86 +172,83 @@ impl GlyphState {
             .hint(true)
             .build();
 
-        // Compute fractional offset
-        // TODO: Quantize this like the swash demo: https://github.com/dfrg/swash_demo/blob/master/src/comp/image_cache/glyph.rs#L325
-        let offset = swash::zeno::Vector::new(bottom_left.x.fract(), bottom_left.y.fract());
+        let glyph_key = GlyphKey::new(font_ref, glyph, size, bottom_left);
 
         // Get or find atlas allocation
-        let allocation_rectangle = if let Some(alloc_id) = self.glyph_lookup.get(&glyph) {
-            self.atlas_allocator.get(*alloc_id)
-        } else {
-            let image = Render::new(&[
-                Source::ColorOutline(0),
-                Source::ColorBitmap(StrikeWith::BestFit),
-                Source::Outline,
-            ])
-            // Select a subpixel format
-            .format(Format::Subpixel)
-            // Apply the fractional offset
-            .offset(offset)
-            // Render the image
-            .render(&mut scaler, glyph)
-            .expect("Could not render glyph into an image");
+        let (placement, allocation_rectangle) =
+            if let Some((placement, alloc_id)) = self.glyph_lookup.get(&glyph_key) {
+                (*placement, self.atlas_allocator.get(*alloc_id))
+            } else {
+                let image = Render::new(&[
+                    Source::ColorOutline(0),
+                    Source::ColorBitmap(StrikeWith::BestFit),
+                    Source::Outline,
+                ])
+                // Select a subpixel format
+                .format(Format::Subpixel)
+                // Apply the fractional offset
+                .offset(glyph_key.quantized_offset())
+                // Render the image
+                .render(&mut scaler, glyph)
+                .expect("Could not render glyph into an image");
 
-            if image.placement.width == 0 || image.placement.height == 0 {
-                return;
-            }
+                if image.placement.width == 0 || image.placement.height == 0 {
+                    return;
+                }
 
-            let allocation = self
-                .atlas_allocator
-                .allocate(size2(
-                    image.placement.width as i32,
-                    image.placement.height as i32,
-                ))
-                .expect("Could not allocate glyph to atlas");
+                let allocation = self
+                    .atlas_allocator
+                    .allocate(size2(
+                        image.placement.width as i32,
+                        image.placement.height as i32,
+                    ))
+                    .expect("Could not allocate glyph to atlas");
 
-            self.glyph_lookup.insert(glyph, allocation.id);
+                self.glyph_lookup
+                    .insert(glyph_key, (image.placement, allocation.id));
 
-            queue.write_texture(
-                ImageCopyTexture {
-                    texture: &self.atlas_texture,
-                    mip_level: 0,
-                    origin: Origin3d {
-                        x: allocation.rectangle.min.x as u32,
-                        y: allocation.rectangle.min.y as u32,
-                        z: 0,
+                queue.write_texture(
+                    ImageCopyTexture {
+                        texture: &self.atlas_texture,
+                        mip_level: 0,
+                        origin: Origin3d {
+                            x: allocation.rectangle.min.x as u32,
+                            y: allocation.rectangle.min.y as u32,
+                            z: 0,
+                        },
+                        aspect: TextureAspect::All,
                     },
-                    aspect: TextureAspect::All,
-                },
-                &image.data,
-                ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * image.placement.width),
-                    rows_per_image: Some(image.placement.height),
-                },
-                Extent3d {
-                    width: image.placement.width,
-                    height: image.placement.height,
-                    depth_or_array_layers: 1,
-                },
-            );
+                    &image.data,
+                    ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * image.placement.width as u32),
+                        rows_per_image: Some(image.placement.height as u32),
+                    },
+                    Extent3d {
+                        width: image.placement.width as u32,
+                        height: image.placement.height as u32,
+                        depth_or_array_layers: 1,
+                    },
+                );
 
-            allocation.rectangle
-        };
+                (image.placement, allocation.rectangle)
+            };
 
         // Add the glyph to instances
-        self.glyphs.push(InstancedGlyph {
-            bottom_left,
+        InstancedGlyph {
+            bottom_left: bottom_left
+                + vec2(
+                    placement.left as f32,
+                    placement.height as f32 - placement.top as f32,
+                ),
             atlas_top_left: vec2(
                 allocation_rectangle.min.x as f32,
                 allocation_rectangle.min.y as f32,
             ),
-            atlas_size: vec2(
-                allocation_rectangle.width() as f32,
-                allocation_rectangle.height() as f32,
-            ),
+            atlas_size: vec2(placement.width as f32, placement.height as f32),
             _padding: Default::default(),
             color,
-        });
-    }
-
-    pub fn clear(&mut self) {
-        self.glyphs.clear();
+        }
     }
 }
 
@@ -259,6 +259,7 @@ impl Drawable for GlyphState {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        layer: &Layer,
     ) {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
@@ -266,5 +267,87 @@ impl Drawable for GlyphState {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, &universal_bind_group, &[]);
         render_pass.draw(0..6, 0..self.glyphs.len() as u32);
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+enum SubpixelOffset {
+    Zero,
+    Quarter,
+    Half,
+    ThreeQuarters,
+}
+
+impl SubpixelOffset {
+    fn quantize(value: f32) -> Self {
+        let value = value.fract();
+        if value < 0.125 {
+            Self::Zero
+        } else if value < 0.375 {
+            Self::Quarter
+        } else if value < 0.625 {
+            Self::Half
+        } else if value < 0.875 {
+            Self::ThreeQuarters
+        } else {
+            Self::Zero
+        }
+    }
+
+    fn to_f32(&self) -> f32 {
+        match self {
+            Self::Zero => 0.0,
+            Self::Quarter => 0.25,
+            Self::Half => 0.5,
+            Self::ThreeQuarters => 0.75,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct GlyphKey {
+    glyph: GlyphId,
+    font_cache_key: CacheKey,
+    size: OrderedFloat<f32>,
+    x_offset: SubpixelOffset,
+    y_offset: SubpixelOffset,
+}
+
+impl GlyphKey {
+    fn new(font_ref: FontRef, glyph: GlyphId, size: f32, offset: Vec2) -> Self {
+        let font_cache_key = font_ref.key;
+        let size = size.into();
+        let x_offset = SubpixelOffset::quantize(offset.x);
+        let y_offset = SubpixelOffset::quantize(offset.y);
+        Self {
+            glyph,
+            font_cache_key,
+            size,
+            x_offset,
+            y_offset,
+        }
+    }
+
+    fn quantized_offset(&self) -> Vector {
+        Vector::new(self.x_offset.to_f32(), self.y_offset.to_f32())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ShapeKey {
+    text: Arc<str>,
+    size: OrderedFloat<f32>,
+    font_cache_key: CacheKey,
+}
+
+impl ShapeKey {
+    fn new(text: Arc<str>, font_ref: FontRef, size: f32) -> Self {
+        let font_cache_key = font_ref.key;
+        let size = size.into();
+        Self {
+            text,
+            size,
+            font_cache_key,
+        }
     }
 }
