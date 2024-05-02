@@ -270,12 +270,11 @@ impl Renderer {
                 });
 
                 if let Some(clip) = layer.clip {
-                    render_pass.set_scissor_rect(
-                        clip.x.max(0.0) as u32,
-                        clip.y.max(0.0) as u32,
-                        (clip.z as u32).min(self.width),
-                        (clip.w as u32).min(self.height),
-                    );
+                    let x = (clip.x.ceil().max(0.0) as u32).min(self.width);
+                    let y = (clip.y.ceil().max(0.0) as u32).min(self.height);
+                    let w = (clip.z as u32).min(self.width - x);
+                    let h = (clip.w as u32).min(self.height - y);
+                    render_pass.set_scissor_rect(x, y, w, h);
                 }
 
                 drawable.draw(
