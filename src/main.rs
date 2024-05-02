@@ -9,12 +9,14 @@ use winit::{
 use futures::executor::block_on;
 use glam::{vec3, Vec3, Quat};
 
-use shader::{terrain, ShaderConstants};
+use shader::{sdf, march, normal, ShaderConstants};
 use graphics::GraphicsState;
 
 const FRICTION: f32 = 0.9;
 const SPEED: f32 = 0.01;
 const SENSITIVITY: f32 = 0.001;
+const GRAVITY: f32 = -0.005;
+const JUMP_SPEED: f32 = 0.2;
 
 struct State {
     size: winit::dpi::PhysicalSize<u32>,
@@ -32,6 +34,8 @@ struct State {
     forward: bool, back: bool,
     up: bool, down: bool,
 
+    grounded: bool,
+
     time: f32,
 }
 
@@ -43,7 +47,7 @@ impl State {
             size,
             horizontal_rotation: 0.0,
             vertical_rotation: 0.0,
-            position: vec3(0.0, 0.0, terrain(Vec3::ZERO)),
+            position: vec3(0.0, 10.0, 0.0),
 
             input_dir: Vec3::ZERO,
             velocity: Vec3::ZERO,
@@ -53,6 +57,8 @@ impl State {
             left: false, right: false,
             forward: false, back: false,
             up: false, down: false,
+
+            grounded: false,
 
             time: 0.0,
         }
@@ -93,8 +99,12 @@ impl State {
                 Some(VirtualKeyCode::A) => self.left = true,
                 Some(VirtualKeyCode::W) => self.forward = true,
                 Some(VirtualKeyCode::S) => self.back = true,
-                Some(VirtualKeyCode::E) => self.up = true,
-                Some(VirtualKeyCode::C) => self.down = true,
+                Some(VirtualKeyCode::Space) | Some(VirtualKeyCode::Back) => {
+                    if self.grounded {
+                        self.velocity += Vec3::Y * JUMP_SPEED;
+                        self.grounded = false;
+                    }
+                },
                 _ => {}
             }
         } else if event.state == ElementState::Released {
@@ -103,8 +113,6 @@ impl State {
                 Some(VirtualKeyCode::A) => self.left = false,
                 Some(VirtualKeyCode::W) => self.forward = false,
                 Some(VirtualKeyCode::S) => self.back = false,
-                Some(VirtualKeyCode::E) => self.up = false,
-                Some(VirtualKeyCode::C) => self.down = false,
                 _ => {}
             }
         }
@@ -122,20 +130,40 @@ impl State {
             (if self.left { -1.0 } else { 0.0 } +
             if self.right { 1.0 } else { 0.0 }) * right_vec;
 
-        let vertical = 
-            (if self.down { -1.0 } else { 0.0 } +
-            if self.up { 1.0 } else { 0.0 }) * up_vec;
-
         let aligned =
             (if self.back { -1.0 } else { 0.0 } +
             if self.forward { 1.0 } else { 0.0 }) * forward_vec;
 
-        self.input_dir = horizontal + vertical + aligned;
+
+        self.input_dir = horizontal + aligned;
+        if self.input_dir.length() > 0.0 {
+            self.input_dir = self.input_dir.normalize();
+        }
 
         self.time += 0.005;
 
         self.velocity += self.input_dir * SPEED;
-        self.velocity *= FRICTION;
+        self.velocity.x *= FRICTION;
+        self.velocity.z *= FRICTION;
+        self.velocity += Vec3::Y * GRAVITY;
+
+        let distance = sdf(self.position, self.time);
+        if distance < 0.5 {
+            let normal = normal(self.position, self.time);
+            self.position += (0.5 - distance) * normal;
+        }
+
+        let (ground, _) = march(self.position, -Vec3::Y, self.time);
+        let distance = (self.position - ground).length();
+        if distance < 2.5 {
+            self.position += (2.5 - distance) * Vec3::Y;
+
+            self.velocity.y = self.velocity.y.max(0.0);
+
+            if self.velocity.y <= 0.0 {
+                self.grounded = true;
+            }
+        }
 
         self.position += self.velocity;
     }
@@ -154,6 +182,7 @@ impl State {
             screen_depth: 0.1,
             position: self.position.into(),
             forward: forward_vec.into(),
+            sun: Vec3::ONE.normalize().into(),
             time: self.time,
         }
     }

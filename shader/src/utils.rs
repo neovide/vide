@@ -1,10 +1,14 @@
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use spirv_std::glam::{vec2, Vec2, Vec3, Vec4};
+use spirv_std::glam::*;
 
 pub fn mix(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
+}
+
+pub fn abs(vec: Vec3) -> Vec3 {
+    vec3(vec.x.abs(), vec.y.abs(), vec.z.abs())
 }
 
 pub fn random(seed: f32) -> f32 {
@@ -44,4 +48,29 @@ pub fn fbm(mut input: Vec2) -> f32 {
     }
 
     value
+}
+
+pub fn turbulence(mut input: Vec2) -> f32 {
+    let mut value = 0.0;
+    let mut amplitude = 0.5;
+
+    for _ in 0..10 {
+        value += amplitude * noise(input).abs();
+        input *= 2.0;
+        amplitude *= 0.5;
+    }
+
+    value
+}
+
+pub fn animated_fbm(mut input: Vec2, time: f32) -> f32 {
+    let q = vec2(
+        fbm(input + Vec2::splat(0.01 * time)),
+        fbm(input + Vec2::ONE));
+
+    let r = vec2(
+        fbm(input + 1.0 * q + vec2(1.7, 9.2) + Vec2::splat(0.15 * time)),
+        fbm(input + 1.0 * q + vec2(8.3, 2.8) + Vec2::splat(0.126 * time)));
+
+    fbm(input + r)
 }

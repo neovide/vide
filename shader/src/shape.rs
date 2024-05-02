@@ -5,6 +5,8 @@ use spirv_std::num_traits::Float;
 
 use spirv_std::glam::{vec3, Vec3, Quat};
 
+use crate::utils::*;
+
 pub trait Shape: Copy {
     fn distance(self, position: Vec3) -> (f32, Vec3);
 
@@ -22,6 +24,10 @@ pub trait Shape: Copy {
 
     fn union<S>(self, other: S) -> ShapeWrapper<Union<Self, S>> {
         ShapeWrapper(Union(self, other))
+    }
+
+    fn smooth_union<S>(self, other: S, amount: f32) -> ShapeWrapper<SmoothUnion<Self, S>> {
+        ShapeWrapper(SmoothUnion(self, other, amount))
     }
 
     fn intersect<S>(self, other: S) -> ShapeWrapper<Intersection<Self, S>> {
@@ -103,6 +109,21 @@ impl<A: Shape, B: Shape> Shape for Union<A, B> {
 }
 
 #[derive(Copy, Clone)]
+pub struct SmoothUnion<A, B>(A, B, f32);
+
+impl<A: Shape, B: Shape> Shape for SmoothUnion<A, B> {
+    fn distance(self, position: Vec3) -> (f32, Vec3) {
+        let (distance_a, color_a) = self.0.distance(position);
+        let (distance_b, color_b) = self.1.distance(position);
+
+        let h = (0.5 + 0.5 * (distance_b - distance_a) / self.2).max(0.0).min(1.0);
+        let distance = mix(distance_b, distance_a, h) - self.2 * h * (1.0 - h);
+
+        (distance, color_a)
+    }
+}
+
+#[derive(Copy, Clone)]
 pub struct Intersection<A, B>(A, B);
 
 impl<A: Shape, B: Shape> Shape for Intersection<A, B> {
@@ -141,6 +162,15 @@ impl<A: Shape, B: Shape> Shape for WithColor<A, B> {
         let (_, color) = self.1.distance(position);
 
         (distance, color)
+    }
+}
+
+// Translate via + operator
+impl<A: Shape> Add<Vec3> for ShapeWrapper<A> {
+    type Output = ShapeWrapper<Translation<ShapeWrapper<A>>>;
+
+    fn add(self, amount: Vec3) -> Self::Output {
+        self.translate(amount)
     }
 }
 

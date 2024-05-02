@@ -35,41 +35,76 @@ pub struct ShaderConstants {
     pub position: [f32; 3],
     pub forward: [f32; 3],
 
+    pub sun: [f32; 3],
+
     pub time: f32,
 }
 
-pub fn bend(position: Vec3, amount: f32) -> Vec3 {
-    let cos = (amount * position.x).cos() * (amount * position.y).sin();
-    let sin = (amount * position.x).sin() * (amount * position.y).cos();
-    let matrix = Mat2::from_cols_array(&[cos, -sin, sin, cos]);
-    (matrix * position.truncate()).extend(position.z)
-}
+pub fn sdf(position: Vec3, time: f32) -> f32 {
+    let ball_x = time.sin() * 2.0;
+    let ball_y = time.cos() * 4.0;
 
-pub fn terrain(mut position: Vec3) -> f32 {
-    position += vec3(46380.0, 71833.0, 0.0);
-    fbm(vec2(position.x / 100.0, position.z / 100.0)) * 50.0
-}
-
-pub fn sdf(position: Vec3, _time: f32) -> f32 {
-    let position = bend(position, 0.05);
+    let ball = sphere(Vec3::Z * 5.0 + vec3(ball_x, ball_y, 0.0), 1.0);
     let ground = plane(Vec3::ZERO, Vec3::Y);
-    let (ground_distance, _) = ground.distance(position);
-    let displacement = terrain(position);
 
-    ground_distance + displacement
+    let arch = cube(vec3(3.0, 6.0, 1.0)) - cylinder(vec3(0.0, 3.0, 3.0), vec3(0.0, 3.0, -3.0), 2.0) - cube(vec3(2.0, 3.0, 2.0));
+    let arch = arch + (Vec3::Z * 7.0);
+
+    let field = ground.smooth_union(ball, 1.0).smooth_union(arch, 0.8);
+
+    let (distance, _) = field.distance(position);
+
+    distance
 }
 
-pub fn march(mut position: Vec3, direction: Vec3, time: f32) -> Vec3 {
-    for _ in 0..MAX_ITERATIONS {
-        let distance = sdf(position, time);
-        if distance < MIN_DISTANCE {
-            break;
-        }
+const EPSILON: f32 = 0.001;
+pub fn normal(position: Vec3, time: f32) -> Vec3 {
+    vec3(
+        sdf(position + Vec3::X * EPSILON, time) - sdf(position - Vec3::X * EPSILON, time),
+        sdf(position + Vec3::Y * EPSILON, time) - sdf(position - Vec3::Y * EPSILON, time),
+        sdf(position + Vec3::Z * EPSILON, time) - sdf(position - Vec3::Z * EPSILON, time)).normalize()
+}
 
+pub fn march(mut position: Vec3, direction: Vec3, time: f32) -> (Vec3, f32) {
+    let mut closest = core::f32::MAX;
+    for i in 0..MAX_ITERATIONS {
+        let distance = sdf(position, time);
         position += direction * distance;
+
+        closest = closest.min(2.0 * distance / (i as f32));
+        if distance < MIN_DISTANCE {
+            return (position, closest);
+        }
     }
 
-    return position;
+    return (position, closest);
+}
+
+pub fn apply_fog(base_color: Vec3, distance_traveled: f32) -> Vec3 {
+    let fog_color = Vec3::ONE;
+    let fog_max = 100.0;
+
+    base_color.lerp(fog_color, distance_traveled.min(fog_max) / fog_max)
+}
+
+pub fn compute_color(start: Vec3, direction: Vec3, constants: &ShaderConstants) -> Vec3 {
+    let (intersection, _) = march(start, direction, constants.time);
+
+    let sun: Vec3 = constants.sun.into();
+
+    let ground_color = Vec3::splat(0.9);
+    let shadow_color = Vec3::splat(0.0125);
+    let shadow_drop_off = 3.0;
+
+    let normal = normal(intersection, constants.time);
+    // let sun_angle = normal.dot(sun);
+    
+    let (_, closest_obscurer) = march(intersection + normal * 0.1, sun, constants.time);
+    let shadow_mix_factor = closest_obscurer.min(shadow_drop_off) / shadow_drop_off;
+
+    let base_color = shadow_color.lerp(ground_color, closest_obscurer.min(1.0));
+
+    apply_fog(base_color, (intersection - start).length())
 }
 
 #[spirv(fragment)]
@@ -78,7 +113,7 @@ pub fn fragment(
     #[spirv(push_constant)] constants: &ShaderConstants,
     output: &mut Vec4
 ) {
-    let position: Vec3 = constants.position.into();
+    let start: Vec3 = constants.position.into();
     let forward: Vec3 = constants.forward.into();
     let right = forward.cross(Vec3::Y).normalize();
     let up = forward.cross(-right).normalize();
@@ -88,20 +123,15 @@ pub fn fragment(
         / constants.pixel_height as f32;
     uv.y = -uv.y;
 
-    let screen_center = position + forward * constants.screen_depth;
+    let screen_center = start + forward * constants.screen_depth;
 
     let target_pixel = screen_center + 
         up * uv.y * constants.screen_height +
         right * uv.x * constants.screen_width;
 
-    let direction = (target_pixel - position).normalize();
-    let location = march(position, direction, constants.time);
+    let direction = (target_pixel - start).normalize();
 
-    let distance = (position - location).length();
-
-    let color = Vec3::splat(distance / 200.0);
-
-    *output = color.extend(1.0);
+    *output = compute_color(start, direction, constants).extend(1.0);
 }
 
 #[spirv(vertex)]
