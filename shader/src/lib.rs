@@ -5,8 +5,10 @@
     register_attr(spirv)
 )]
 
-mod primitives;
-pub mod shape;
+mod primitives_3d;
+pub mod shape_3d;
+mod primitives_2d;
+pub mod shape_2d;
 mod utils;
 pub mod model;
 pub mod sdf;

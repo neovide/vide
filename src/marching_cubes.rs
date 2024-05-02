@@ -4,7 +4,7 @@ use threemf::mesh::TriangleMesh;
 use glam::{vec3, Vec3};
 use lazy_static::lazy_static;
 
-use shader::shape::Shape;
+use shader::shape_3d::Shape3D;
 
 lazy_static! {
     static ref VERTICES: Vec<Vec3> = vec![
@@ -305,7 +305,7 @@ fn edge_to_boundary_vertex(position: Vec3, cell_size: f32, edge_index: usize, sa
     position + (vertex_0_position * t0 + vertex_1_position * t1) * cell_size
 }
 
-fn marching_cubes_single_cell(shape: impl Shape, position: Vec3, cell_size: f32, mesh: &mut TriangleMesh) {
+fn marching_cubes_single_cell(shape: impl Shape3D, position: Vec3, cell_size: f32, mesh: &mut TriangleMesh) {
     // Evaluate the field on each vertex of the cube
     let mut samples = vec![0.0; 8];
     for i in 0..8 {
@@ -333,7 +333,7 @@ fn marching_cubes_single_cell(shape: impl Shape, position: Vec3, cell_size: f32,
     }
 }
 
-pub fn marching_cubes(shape: impl Shape, model_size: f32, cell_size: f32) -> TriangleMesh {
+pub fn marching_cubes(shape: impl Shape3D, model_size: f32, cell_size: f32) -> TriangleMesh {
     let mut mesh = TriangleMesh {
         vertices: Vec::new(),
         triangles: Vec::new(),

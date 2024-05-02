@@ -3,7 +3,7 @@ mod repaint_signaler;
 mod marching_cubes;
 
 use std::sync::{Arc, Mutex};
-use std::path::PathBuf;
+use std::f32::consts;
 
 use threemf::write::write;
 use winit::{
@@ -16,26 +16,23 @@ use futures::executor::block_on;
 use glam::{vec3, Vec3, Quat};
 
 use shader::ShaderConstants;
-use shader::sdf::{scene, march, normal};
 use shader::model::model;
 use graphics::GraphicsState;
 pub use repaint_signaler::RepaintSignaler;
 use marching_cubes::marching_cubes;
 
-const FRICTION: f32 = 0.9;
 const SPEED: f32 = 0.01;
 const SENSITIVITY: f32 = 0.001;
-const PLAYER_HEIGHT: f32 = 2.5;
 
 struct State {
     size: winit::dpi::PhysicalSize<u32>,
 
     horizontal_rotation: f32,
     vertical_rotation: f32,
-    position: Vec3,
+    focus: Vec3,
+    offset: f32,
 
     input_dir: Vec3,
-    velocity: Vec3,
 
     dragging: bool,
 
@@ -52,10 +49,10 @@ impl State {
             size,
             horizontal_rotation: 0.0,
             vertical_rotation: 0.0,
-            position: vec3(0.0, PLAYER_HEIGHT, -1.0),
+            focus: Vec3::ZERO,
+            offset: 3.0,
 
             input_dir: Vec3::ZERO,
-            velocity: Vec3::ZERO,
 
             dragging: false,
 
@@ -83,11 +80,15 @@ impl State {
         }
     }
 
+    fn mouse_wheel(&mut self, delta: &MouseScrollDelta) {
+        if let MouseScrollDelta::LineDelta(_x, y) = delta {
+            self.offset -= y * 0.1;
+        }
+    }
+
     fn mouse_moved(&mut self, (delta_x, delta_y): (f64, f64)) {
         if self.dragging {
             self.horizontal_rotation -= delta_x as f32 * SENSITIVITY;
-
-            use std::f32::consts;
 
             let vertical_range = consts::FRAC_PI_2 - consts::FRAC_PI_8 / 4.0;
             self.vertical_rotation += delta_y as f32 * SENSITIVITY;
@@ -146,24 +147,7 @@ impl State {
             self.input_dir = self.input_dir.normalize();
         }
 
-        self.velocity += self.input_dir * SPEED;
-        self.velocity *= FRICTION;
-
-        let distance = scene(self.position);
-        if distance < 0.5 {
-            let normal = normal(self.position);
-            self.position += (0.5 - distance) * normal;
-        }
-
-        let ground = march(self.position, -Vec3::Y);
-        let distance = (self.position - ground).length();
-        if distance < PLAYER_HEIGHT {
-            self.position += (PLAYER_HEIGHT - distance) * Vec3::Y;
-
-            self.velocity.y = self.velocity.y.max(0.0);
-        }
-
-        self.position += self.velocity;
+        self.focus += self.input_dir * SPEED;
     }
 
     fn construct_constants(&mut self) -> ShaderConstants {
@@ -172,15 +156,21 @@ impl State {
             Quat::from_rotation_x(self.vertical_rotation) * 
             Vec3::Z;
 
+        let position = self.focus - forward_vec * self.offset;
+        let sun =
+            Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 / 10.0) *
+            Quat::from_rotation_x(std::f32::consts::FRAC_PI_2 / 10.0) *
+            -forward_vec;
+
         ShaderConstants {
             pixel_width: self.size.width,
             pixel_height: self.size.height,
             screen_width: 0.1,
             screen_height: 0.1,
             screen_depth: 0.1,
-            position: self.position.into(),
+            position: position.into(),
             forward: forward_vec.into(),
-            sun: Vec3::ONE.normalize().into(),
+            sun: sun.into(),
         }
     }
 }
@@ -227,6 +217,9 @@ fn main() {
                     }
                     game_state.mouse_input(state)
                 },
+                WindowEvent::MouseWheel { delta, .. } => {
+                    game_state.mouse_wheel(delta);
+                },
                 WindowEvent::KeyboardInput { input, .. } => match input {
                     KeyboardInput {
                         state: ElementState::Pressed,
@@ -242,7 +235,7 @@ fn main() {
                     } => {
                         println!("Exporting mesh");
                         let model_shape = model();
-                        let mesh = marching_cubes(model_shape, 100.0, 0.1);
+                        let mesh = marching_cubes(model_shape, 5.0, 0.01);
                         write([".", "test.3mf"].iter().collect(), &mesh).expect("Could not write model to file");
                         println!("Mesh exported");
                     },
