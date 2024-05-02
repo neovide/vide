@@ -1,5 +1,6 @@
 [workspace]
 
+resolver = "2"
 members = ["*"]
 exclude = [".git", "target"]
 default-members = ["scene_viewer"]

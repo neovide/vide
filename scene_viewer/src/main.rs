@@ -2,23 +2,28 @@ use std::{fs::File, io::Read, path::Path, sync::Arc};
 
 use futures::executor::block_on;
 
+use glam::{vec2, Vec4};
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use rust_embed::RustEmbed;
 use winit::{
+    dpi::PhysicalPosition,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
 
-use bedrock::{Renderer, Scene};
+use bedrock::{Renderer, Scene, Sprite};
 
 #[derive(RustEmbed)]
 #[folder = "assets"]
 struct Assets;
 
 fn main() {
-    let event_loop = EventLoop::new();
+    env_logger::init();
+
+    let event_loop = EventLoop::new().expect("Couldn't create event loop");
+    event_loop.set_control_flow(ControlFlow::Poll);
 
     let scene: Arc<RwLock<Scene>> = Arc::new(RwLock::new(Scene::new()));
     let scene_path = Arc::from(Path::new("./scene.json"));
@@ -46,32 +51,42 @@ fn main() {
         .unwrap();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let mut renderer = block_on(Renderer::new(&window)).with_default_drawables::<Assets>();
+    let mut mouse_pos: PhysicalPosition<f64> = Default::default();
 
-    let mut renderer = block_on(Renderer::<Assets>::new(&window));
+    event_loop
+        .run(|event, target| {
+            match event {
+                Event::NewEvents(_) => {
+                    let mut scene = scene.read().clone();
+                    scene.add_sprite(Sprite {
+                        top_left: vec2(mouse_pos.x as f32, mouse_pos.y as f32),
+                        size: vec2(100., 100.),
+                        color: Vec4::ONE,
+                        texture: "Leaf.png".to_string(),
+                    });
 
-    event_loop.run(move |event, _, control_flow| {
-        match event {
-            Event::RedrawRequested(_) => {
-                renderer.draw_scene(&scene.read());
-            }
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    renderer.draw_scene(&scene);
+                }
+                Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == window.id() => match event {
+                    WindowEvent::CloseRequested => target.exit(),
+                    WindowEvent::CursorMoved { position, .. } => {
+                        mouse_pos = *position;
+                    }
+                    _ => {}
+                },
+                Event::UserEvent(()) => {
+                    window.request_redraw();
+                }
                 _ => {}
-            },
-            Event::UserEvent(()) => {
-                window.request_redraw();
-            }
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            _ => {}
-        };
+            };
 
-        renderer.handle_event(&window, &event);
-    });
+            renderer.handle_event(&window, &event);
+        })
+        .expect("Could not run event loop");
 }
 
 fn read_scene(path: &Path, scene: &RwLock<Scene>) {

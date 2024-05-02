@@ -1,7 +1,7 @@
 use glam::{Vec2, Vec4};
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Scene {
     pub layers: Vec<Layer>,
 }
@@ -46,20 +46,40 @@ impl Scene {
         self.layers.last_mut().unwrap().add_quad(quad);
     }
 
+    pub fn with_quad(mut self, quad: Quad) -> Self {
+        self.add_quad(quad);
+        self
+    }
+
     pub fn add_text(&mut self, text: Text) {
         self.layers.last_mut().unwrap().add_text(text);
+    }
+
+    pub fn with_text(mut self, text: Text) -> Self {
+        self.add_text(text);
+        self
     }
 
     pub fn add_path(&mut self, path: Path) {
         self.layers.last_mut().unwrap().add_path(path);
     }
 
+    pub fn with_path(mut self, path: Path) -> Self {
+        self.add_path(path);
+        self
+    }
+
     pub fn add_sprite(&mut self, sprite: Sprite) {
         self.layers.last_mut().unwrap().add_sprite(sprite);
     }
+
+    pub fn with_sprite(mut self, sprite: Sprite) -> Self {
+        self.add_sprite(sprite);
+        self
+    }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Layer {
     #[serde(default)]
     pub clip: Option<Vec4>,
@@ -172,14 +192,14 @@ impl Layer {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Quad {
     pub top_left: Vec2,
     pub size: Vec2,
     pub color: Vec4,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Text {
     pub text: String,
     pub bottom_left: Vec2,
@@ -226,7 +246,7 @@ impl Text {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum PathCommand {
     CubicBezierTo {
@@ -243,7 +263,7 @@ pub enum PathCommand {
     },
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Path {
     #[serde(default)]
     pub fill: Option<Vec4>,
@@ -312,7 +332,7 @@ impl Path {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Sprite {
     pub top_left: Vec2,
     pub size: Vec2,

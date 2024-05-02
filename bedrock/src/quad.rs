@@ -13,8 +13,8 @@ pub struct QuadState {
     render_pipeline: RenderPipeline,
 }
 
-impl QuadState {
-    pub(crate) fn new(
+impl Drawable for QuadState {
+    fn new(
         Resources {
             device,
             universal_bind_group_layout,
@@ -36,7 +36,7 @@ impl QuadState {
                 binding: 0,
                 visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                 ty: BindingType::Buffer {
-                    ty: BufferBindingType::Storage { read_only: false },
+                    ty: BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -102,9 +102,7 @@ impl QuadState {
             render_pipeline,
         }
     }
-}
 
-impl Drawable for QuadState {
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
@@ -113,16 +111,19 @@ impl Drawable for QuadState {
         universal_bind_group: &'a BindGroup,
         layer: &Layer,
     ) {
-        let mut quads = vec![InstancedQuad {
-            top_left: layer.clip.map(|clip| clip.xy()).unwrap_or(Vec2::ZERO),
-            size: layer
-                .clip
-                .map(|clip| clip.zw())
-                .unwrap_or(constants.surface_size),
-            color: layer.background_color.unwrap_or(Vec4::ONE),
-            blur: layer.background_blur_radius,
-            ..Default::default()
-        }];
+        let mut quads = Vec::new();
+        if layer.background_color.is_some() || layer.background_blur_radius != 0 {
+            quads.push(InstancedQuad {
+                top_left: layer.clip.map(|clip| clip.xy()).unwrap_or(Vec2::ZERO),
+                size: layer
+                    .clip
+                    .map(|clip| clip.zw())
+                    .unwrap_or(constants.surface_size),
+                color: layer.background_color.unwrap_or(Vec4::ONE),
+                blur: layer.background_blur_radius,
+                ..Default::default()
+            });
+        }
 
         quads.extend(layer.quads.iter().map(|quad| InstancedQuad {
             top_left: quad.top_left,
@@ -134,7 +135,8 @@ impl Drawable for QuadState {
         render_pass.set_pipeline(&self.render_pipeline); // 2.
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&quads[..]));
+        let quad_data: &[u8] = bytemuck::cast_slice(&quads[..]);
+        queue.write_buffer(&self.buffer, 0, quad_data);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, &universal_bind_group, &[]);
         render_pass.draw(0..6, 0..quads.len() as u32);

@@ -1,7 +1,9 @@
 [package]
-name = "scene_viewer"
+name = "pando"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bedrock = { path = "../bedrock" }
@@ -11,7 +13,5 @@ winit = "0.29.10"
 serde = "1.0.196"
 serde_derive = "1.0.196"
 serde_json = "1.0.113"
-notify = "6.1.1"
 parking_lot = "0.12.1"
 rust-embed = "8.2.0"
-env_logger = "0.10.0"

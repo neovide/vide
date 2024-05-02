@@ -25,7 +25,68 @@ pub struct SpriteState<A: RustEmbed> {
 }
 
 impl<A: RustEmbed> SpriteState<A> {
-    pub(crate) fn new(
+    pub fn upload_sprite(&mut self, queue: &Queue, sprite: &Sprite) -> InstancedSprite {
+        let allocation_rectangle = if let Some(alloc_id) = self.image_lookup.get(&sprite.texture) {
+            self.atlas_allocator.get(*alloc_id)
+        } else {
+            let image_file = A::get(&sprite.texture).unwrap();
+            let image = image::load_from_memory(image_file.data.as_ref()).unwrap();
+            let data = image.to_rgba8();
+            let (image_width, image_height) = image.dimensions();
+
+            let allocation = self
+                .atlas_allocator
+                .allocate(size2(image_width as i32, image_height as i32))
+                .expect("Could not allocate glyph to atlas");
+
+            self.image_lookup
+                .insert(sprite.texture.clone(), allocation.id);
+
+            queue.write_texture(
+                ImageCopyTexture {
+                    texture: &self.atlas_texture,
+                    mip_level: 0,
+                    origin: Origin3d {
+                        x: allocation.rectangle.min.x as u32,
+                        y: allocation.rectangle.min.y as u32,
+                        z: 0,
+                    },
+                    aspect: TextureAspect::All,
+                },
+                &data,
+                ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * image_width as u32),
+                    rows_per_image: Some(image_height as u32),
+                },
+                Extent3d {
+                    width: image_width as u32,
+                    height: image_height as u32,
+                    depth_or_array_layers: 1,
+                },
+            );
+
+            allocation.rectangle
+        };
+
+        InstancedSprite {
+            top_left: sprite.top_left,
+            size: sprite.size,
+            atlas_top_left: vec2(
+                allocation_rectangle.min.x as f32,
+                allocation_rectangle.min.y as f32,
+            ),
+            atlas_size: vec2(
+                allocation_rectangle.width() as f32,
+                allocation_rectangle.height() as f32,
+            ),
+            color: sprite.color,
+        }
+    }
+}
+
+impl<A: RustEmbed> Drawable for SpriteState<A> {
+    fn new(
         Resources {
             device,
             shader,
@@ -63,7 +124,7 @@ impl<A: RustEmbed> SpriteState<A> {
                     binding: 0,
                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: false },
+                        ty: BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -154,67 +215,6 @@ impl<A: RustEmbed> SpriteState<A> {
         }
     }
 
-    pub fn upload_sprite(&mut self, queue: &Queue, sprite: &Sprite) -> InstancedSprite {
-        let allocation_rectangle = if let Some(alloc_id) = self.image_lookup.get(&sprite.texture) {
-            self.atlas_allocator.get(*alloc_id)
-        } else {
-            let image_file = A::get(&sprite.texture).unwrap();
-            let image = image::load_from_memory(image_file.as_ref()).unwrap();
-            let data = image.to_rgba8();
-            let (image_width, image_height) = image.dimensions();
-
-            let allocation = self
-                .atlas_allocator
-                .allocate(size2(image_width as i32, image_height as i32))
-                .expect("Could not allocate glyph to atlas");
-
-            self.image_lookup
-                .insert(sprite.texture.clone(), allocation.id);
-
-            queue.write_texture(
-                ImageCopyTexture {
-                    texture: &self.atlas_texture,
-                    mip_level: 0,
-                    origin: Origin3d {
-                        x: allocation.rectangle.min.x as u32,
-                        y: allocation.rectangle.min.y as u32,
-                        z: 0,
-                    },
-                    aspect: TextureAspect::All,
-                },
-                &data,
-                ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * image_width as u32),
-                    rows_per_image: Some(image_height as u32),
-                },
-                Extent3d {
-                    width: image_width as u32,
-                    height: image_height as u32,
-                    depth_or_array_layers: 1,
-                },
-            );
-
-            allocation.rectangle
-        };
-
-        InstancedSprite {
-            top_left: sprite.top_left,
-            size: sprite.size,
-            atlas_top_left: vec2(
-                allocation_rectangle.min.x as f32,
-                allocation_rectangle.min.y as f32,
-            ),
-            atlas_size: vec2(
-                allocation_rectangle.width() as f32,
-                allocation_rectangle.height() as f32,
-            ),
-            color: sprite.color,
-        }
-    }
-}
-
-impl<A: RustEmbed> Drawable for SpriteState<A> {
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

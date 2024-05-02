@@ -7,6 +7,6 @@ edition = "2018"
 crate-type = ["dylib", "lib"]
 
 [dependencies]
-bytemuck = { version = "1.13.1", features = ["derive"] }
-spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-std" }
-glam = { version = "0.22", default-features = false, features = ["libm", "bytemuck"] }
+bytemuck = { version = "1.14.3", features = ["derive"] }
+spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-std", rev = "8678d58d61a78f01201ec854cb5e3835c014fa3b" }
+glam = { version = "0.22.0", default-features = false, features = ["libm", "bytemuck"] }

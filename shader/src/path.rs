@@ -1,5 +1,4 @@
-use glam::*;
-use spirv_std::spirv;
+use spirv_std::{glam::*, spirv};
 
 use crate::ShaderConstants;
 

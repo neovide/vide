@@ -21,8 +21,8 @@ pub struct PathState {
     render_pipeline: RenderPipeline,
 }
 
-impl PathState {
-    pub(crate) fn new(
+impl Drawable for PathState {
+    fn new(
         Resources {
             device,
             shader,
@@ -95,9 +95,7 @@ impl PathState {
             render_pipeline,
         }
     }
-}
 
-impl Drawable for PathState {
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

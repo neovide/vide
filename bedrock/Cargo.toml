@@ -1,7 +1,7 @@
 [package]
 name = "bedrock"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["lib"]
@@ -12,48 +12,52 @@ crate-type = ["lib"]
 shader = { path = "../shader" }
 # In place transmutation crate for turning shader structs
 # into binary
-bytemuck = { version = "1.13.1", features = ["derive"] }
+bytemuck = { version = "1.14.3", features = ["derive"] }
 # Atlas packing crate for carefully fitting rectangles into
 # larger rectangles. Used for the glyph atlas when rendering
 # text
-etagere = "0.2.7"
+etagere = "0.2.10"
 # Wrapper crate for the various os specific font apis
-font-kit = "0.11.0"
+font-kit = "0.12.0"
 # Vector math library with support for spirv. Required for
 # rust-gpu
 glam = { version = "0.22.0", features = ["serde"] }
 # Image parsing crate. Used for loading png and jpeg images
-image = { version = "0.24.6", default-features = false, features = ["png", "jpeg"] }
+image = { version = "0.24.8", default-features = false, features = ["png", "jpeg"] }
+# Staticly initialize variables using a constructor
+lazy_static = "1.4.0"
 # Tesselation crate which lets us turn high level paths into
 # lists of triangles efficiently
 lyon = { version = "1.0.1", features = ["serialization"] }
 # File watcher crate. Currently used to watch the scene.json
 # file and reload it when it changes
-notify = "5.1.0"
+notify = "6.1.1"
 # Rust doesn't implement ord for floats which makes deriving
 # hashes hard. This wraps floats and provides a consistent
 # ord implementation
-ordered-float = "3.6.0"
+ordered-float = "4.2.0"
 rand = "0.8.5"
 # Embeds files into the compiled binary and provides a way
 # to access the data. Used for embedding the shader spirv
 # code
-rust-embed = "5.9.0"
+rust-embed = "8.2.0"
 # Standard serialization crates
-serde = "1.0.159"
-serde_derive = "1.0.159"
-serde_json = "1.0.95"
+serde = "1.0.196"
+serde_derive = "1.0.196"
+serde_json = "1.0.113"
 # Font shaper and scaler. Takes fonts retrieved with
 # font-kit, renders those glyphs to bitmaps, and picks where
 # to place them on the screen
-swash = "0.1.6"
+swash = "0.1.12"
+# Used to make the Shaper thread safe
+thread_local = "1.1.7"
 # Cross platform graphics api based on webgpu. This way we
 # can write our graphics code once and run it everywhere
-wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv"] }
+wgpu = { version = "0.19.1", features = ["spirv", "vulkan-portability"] }
 # Windowing and input library
-winit = "0.28.3"
+winit = "0.29.10"
 
 [build-dependencies]
 # Rust-gpu compiler which takes rust code and turns it into
 # spirv ready to run on the gpu
-spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder", rev = "35df987e14a34da93566c5fbf98e53f597f523ef"}
+spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder", rev = "8678d58d61a78f01201ec854cb5e3835c014fa3b"}

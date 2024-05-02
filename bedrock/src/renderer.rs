@@ -1,17 +1,20 @@
-mod resources;
-
 use rust_embed::RustEmbed;
 use wgpu::*;
 
 use shader::ShaderConstants;
 use winit::{event::Event, window::Window};
+use glam::*;
 
+pub use crate::resources::Resources;
 use crate::{
     glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Scene,
 };
-pub(crate) use resources::Resources;
 
 pub trait Drawable {
+    fn new(resources: &Resources) -> Self
+    where
+        Self: Sized;
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
@@ -22,45 +25,37 @@ pub trait Drawable {
     );
 }
 
-pub struct Renderer<A: RustEmbed> {
-    pub(crate) resources: Resources,
-
-    pub(crate) quad_state: QuadState,
-    pub(crate) glyph_state: GlyphState,
-    pub(crate) path_state: PathState,
-    pub(crate) sprite_state: SpriteState<A>,
+pub struct Renderer<'a> {
+    pub(crate) resources: Resources<'a>,
+    pub(crate) drawables: Vec<Box<dyn Drawable>>,
 }
 
-impl<A: RustEmbed> Renderer<A> {
+impl<'a> Renderer<'a> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &'a Window) -> Self {
         let resources = Resources::new(window).await;
-
-        let quad_state = QuadState::new(&resources);
-        let glyph_state = GlyphState::new(&resources);
-        let path_state = PathState::new(&resources);
-        let sprite_state = SpriteState::new(&resources);
 
         Self {
             resources,
-
-            quad_state,
-            glyph_state,
-            path_state,
-            sprite_state,
+            drawables: Vec::new(),
         }
     }
 
+    pub fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
+        let drawable = T::new(&self.resources);
+        self.drawables.push(Box::new(drawable));
+        self
+    }
+
+    pub fn with_default_drawables<A: RustEmbed + 'static>(self) -> Self {
+        self.with_drawable::<QuadState>()
+            .with_drawable::<GlyphState>()
+            .with_drawable::<PathState>()
+            .with_drawable::<SpriteState<A>>()
+    }
+
     pub fn draw_scene(&mut self, scene: &Scene) -> bool {
-        if let Err(render_error) = self.resources.render(
-            scene,
-            [
-                &mut self.quad_state as &mut dyn Drawable,
-                &mut self.glyph_state,
-                &mut self.path_state,
-                &mut self.sprite_state,
-            ],
-        ) {
+        if let Err(render_error) = self.resources.render(scene, self.drawables.as_mut_slice()) {
             eprintln!("Render error: {:?}", render_error);
             match render_error {
                 SurfaceError::Lost => {
@@ -80,7 +75,7 @@ impl<A: RustEmbed> Renderer<A> {
         }
     }
 
-    pub fn handle_event(&mut self, window: &Window, event: &Event<()>) {
+    pub fn handle_event(&mut self, window: &'a Window, event: &Event<()>) {
         self.resources.handle_event(window, event);
     }
 }

@@ -33,137 +33,6 @@ pub struct GlyphState {
 }
 
 impl GlyphState {
-    pub(crate) fn new(
-        Resources {
-            device,
-            shader,
-            swapchain_format,
-            universal_bind_group_layout,
-            ..
-        }: &Resources,
-    ) -> Self {
-        let buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Glyph buffer"),
-            size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let atlas_texture = device.create_texture(&TextureDescriptor {
-            label: Some("Glyph atlas texture descriptor"),
-            size: Extent3d {
-                width: ATLAS_SIZE.x as u32,
-                height: ATLAS_SIZE.y as u32,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Glyph bind group layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-            ],
-        });
-
-        let atlas_texture_view = atlas_texture.create_view(&TextureViewDescriptor::default());
-
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Glyph bind group"),
-            layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&atlas_texture_view),
-                },
-            ],
-        });
-
-        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Glyph Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::all(),
-                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-            }],
-        });
-
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Glyph Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: "glyph::glyph_vertex",
-                buffers: &[],
-            },
-            fragment: Some(FragmentState {
-                module: &shader,
-                entry_point: "glyph::glyph_fragment",
-                targets: &[Some(ColorTargetState {
-                    format: *swapchain_format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
-                })],
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 4,
-                ..Default::default()
-            },
-            multiview: None,
-        });
-
-        Self {
-            buffer,
-            atlas_texture,
-            bind_group,
-            render_pipeline,
-
-            scale_context: ScaleContext::new(),
-            shaping_context: ShapeContext::new(),
-            atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
-            glyph_lookup: HashMap::new(),
-            shaped_text_lookup: HashMap::new(),
-        }
-    }
-
     fn prepare_glyph<'a, 'b: 'a>(
         &'b mut self,
         queue: &Queue,
@@ -314,6 +183,137 @@ impl GlyphState {
 }
 
 impl Drawable for GlyphState {
+    fn new(
+        Resources {
+            device,
+            shader,
+            swapchain_format,
+            universal_bind_group_layout,
+            ..
+        }: &Resources,
+    ) -> Self {
+        let buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("Glyph buffer"),
+            size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let atlas_texture = device.create_texture(&TextureDescriptor {
+            label: Some("Glyph atlas texture descriptor"),
+            size: Extent3d {
+                width: ATLAS_SIZE.x as u32,
+                height: ATLAS_SIZE.y as u32,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("Glyph bind group layout"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let atlas_texture_view = atlas_texture.create_view(&TextureViewDescriptor::default());
+
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Glyph bind group"),
+            layout: &bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&atlas_texture_view),
+                },
+            ],
+        });
+
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Glyph Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::all(),
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+            }],
+        });
+
+        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Glyph Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: "glyph::glyph_vertex",
+                buffers: &[],
+            },
+            fragment: Some(FragmentState {
+                module: &shader,
+                entry_point: "glyph::glyph_fragment",
+                targets: &[Some(ColorTargetState {
+                    format: *swapchain_format,
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
+                })],
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 4,
+                ..Default::default()
+            },
+            multiview: None,
+        });
+
+        Self {
+            buffer,
+            atlas_texture,
+            bind_group,
+            render_pipeline,
+
+            scale_context: ScaleContext::new(),
+            shaping_context: ShapeContext::new(),
+            atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
+            glyph_lookup: HashMap::new(),
+            shaped_text_lookup: HashMap::new(),
+        }
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

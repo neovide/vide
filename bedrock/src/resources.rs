@@ -7,13 +7,12 @@ use winit::{
     window::Window,
 };
 
-use crate::{Asset, Scene, ATLAS_SIZE};
+use crate::{renderer::Drawable, Asset, Scene, ATLAS_SIZE};
 
-use super::Drawable;
-
-pub(crate) struct Resources {
+pub struct Resources<'a> {
+    pub window: &'a Window,
     pub instance: Instance,
-    pub surface: Option<Surface>,
+    pub surface: Option<Surface<'a>>,
     pub surface_config: SurfaceConfiguration,
     pub adapter: Adapter,
     pub device: Device,
@@ -28,13 +27,13 @@ pub(crate) struct Resources {
     pub universal_bind_group: BindGroup,
 }
 
-impl Resources {
-    pub async fn new(window: &Window) -> Self {
+impl<'a> Resources<'a> {
+    pub async fn new(window: &'a Window) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         let instance = Instance::default();
-        let surface = unsafe { instance.create_surface(window) }.unwrap();
+        let surface = instance.create_surface(window).unwrap();
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 power_preference: PowerPreference::default(),
@@ -47,11 +46,11 @@ impl Resources {
         let (device, queue) = adapter
             .request_device(
                 &DeviceDescriptor {
-                    features: Features::PUSH_CONSTANTS
+                    required_features: Features::PUSH_CONSTANTS
                         | Features::SPIRV_SHADER_PASSTHROUGH
                         | Features::VERTEX_WRITABLE_STORAGE
                         | Features::CLEAR_TEXTURE,
-                    limits: Limits {
+                    required_limits: Limits {
                         max_push_constant_size: 256,
                         ..Default::default()
                     },
@@ -73,13 +72,18 @@ impl Resources {
             present_mode: PresentMode::Fifo,
             alpha_mode: swapchain_capabilities.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
 
         surface.configure(&device, &surface_config);
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: util::make_spirv(&Asset::get("shader.spv").expect("Could not load shader")),
+            source: util::make_spirv(
+                &Asset::get("shader.spv")
+                    .expect("Could not load shader")
+                    .data,
+            ),
         });
 
         let offscreen_texture =
@@ -128,6 +132,7 @@ impl Resources {
         );
 
         Self {
+            window,
             instance,
             surface: Some(surface),
             surface_config,
@@ -145,10 +150,10 @@ impl Resources {
         }
     }
 
-    pub fn handle_event(&mut self, window: &Window, event: &Event<()>) {
+    pub fn handle_event(&mut self, window: &'a Window, event: &Event<()>) {
         match event {
             Event::Resumed => {
-                let surface = unsafe { self.instance.create_surface(window) }.unwrap();
+                let surface = self.instance.create_surface(window).unwrap();
 
                 let swapchain_capabilities = surface.get_capabilities(&self.adapter);
                 let swapchain_format = swapchain_capabilities.formats[0];
@@ -199,10 +204,10 @@ impl Resources {
         };
     }
 
-    pub fn render<const COUNT: usize>(
+    pub fn render(
         &mut self,
         scene: &Scene,
-        mut drawables: [&mut dyn Drawable; COUNT],
+        drawables: &mut [Box<dyn Drawable>],
     ) -> Result<(), SurfaceError> {
         if self.surface_config.width == 0 || self.surface_config.height == 0 {
             return Ok(());
@@ -264,22 +269,16 @@ impl Resources {
                         );
                     }
 
-                    // The first drawable should clear the output textures
+                    // The first drawable should clear the output texture
                     let attachment_op = if first {
-                        let clear_color = layer.background_color.unwrap_or(Vec4::ONE);
                         Operations::<Color> {
-                            load: LoadOp::<_>::Clear(Color {
-                                r: clear_color.x as f64,
-                                g: clear_color.y as f64,
-                                b: clear_color.z as f64,
-                                a: clear_color.w as f64,
-                            }),
-                            store: true,
+                            load: LoadOp::<_>::Clear(Color::WHITE),
+                            store: StoreOp::Store,
                         }
                     } else {
                         Operations::<Color> {
                             load: LoadOp::<_>::Load,
-                            store: true,
+                            store: StoreOp::Store,
                         }
                     };
 
@@ -291,14 +290,16 @@ impl Resources {
                             ops: attachment_op,
                         })],
                         depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
                     });
 
                     if let Some(clip) = layer.clip {
                         render_pass.set_scissor_rect(
-                            clip.x as u32,
-                            clip.y as u32,
-                            clip.z as u32,
-                            clip.w as u32,
+                            clip.x.max(0.0) as u32,
+                            clip.y.max(0.0) as u32,
+                            (clip.z as u32).min(self.surface_config.width),
+                            (clip.w as u32).min(self.surface_config.height),
                         );
                     }
 

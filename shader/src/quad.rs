@@ -15,7 +15,7 @@ const GUASSIAN_RADIUS: i32 = 3;
 #[derive(Copy, Clone)]
 #[cfg_attr(
     not(target_arch = "spirv"),
-    derive(bytemuck::Pod, bytemuck::Zeroable, Default)
+    derive(bytemuck::Pod, bytemuck::Zeroable, Default, Debug)
 )]
 #[repr(C)]
 pub struct InstancedQuad {
