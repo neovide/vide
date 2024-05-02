@@ -36,6 +36,10 @@ impl Scene {
     pub fn push_text(&mut self, text: Text) {
         self.layers.last_mut().unwrap().texts.push(text);
     }
+
+    pub fn push_path(&mut self, path: Path) {
+        self.layers.last_mut().unwrap().paths.push(path);
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -87,6 +91,16 @@ pub struct Text {
     pub bottom_left: Vec2,
     pub size: f32,
     pub color: Vec4,
+    #[serde(default)]
+    pub bold: bool,
+    #[serde(default)]
+    pub italic: bool,
+    #[serde(default = "default_subpixel")]
+    pub subpixel: bool,
+}
+
+fn default_subpixel() -> bool {
+    true
 }
 
 #[derive(Deserialize, Debug)]
