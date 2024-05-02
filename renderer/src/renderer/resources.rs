@@ -7,7 +7,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{scene::Layer, Asset, Scene, ATLAS_SIZE};
+use crate::{Asset, Scene, ATLAS_SIZE};
 
 use super::Drawable;
 
@@ -215,16 +215,86 @@ impl Resources {
             let mut first = true;
             for layer in scene.layers.iter() {
                 for drawable in drawables.iter_mut() {
-                    Self::draw_drawable(
-                        first,
-                        drawable,
-                        &frame,
-                        &frame_view,
-                        &mut encoder,
-                        &layer,
+                    // Either clear the offscreen texture or copy the previous layer to it
+                    if first {
+                        encoder.clear_texture(
+                            &self.offscreen_texture,
+                            &ImageSubresourceRange {
+                                aspect: TextureAspect::All,
+                                base_mip_level: 0,
+                                mip_level_count: None,
+                                base_array_layer: 0,
+                                array_layer_count: None,
+                            },
+                        );
+                    } else {
+                        encoder.copy_texture_to_texture(
+                            ImageCopyTexture {
+                                texture: &frame.texture,
+                                mip_level: 0,
+                                origin: Origin3d::ZERO,
+                                aspect: Default::default(),
+                            },
+                            ImageCopyTexture {
+                                texture: &self.offscreen_texture,
+                                mip_level: 0,
+                                origin: Origin3d::ZERO,
+                                aspect: Default::default(),
+                            },
+                            Extent3d {
+                                width: self.surface_config.width,
+                                height: self.surface_config.height,
+                                depth_or_array_layers: 1,
+                            },
+                        );
+                    }
+
+                    // The first drawable should clear the output textures
+                    let attachment_op = if first {
+                        let clear_color = layer.background_color.unwrap_or(Vec4::ONE);
+                        Operations::<Color> {
+                            load: LoadOp::<_>::Clear(Color {
+                                r: clear_color.x as f64,
+                                g: clear_color.y as f64,
+                                b: clear_color.z as f64,
+                                a: clear_color.w as f64,
+                            }),
+                            store: true,
+                        }
+                    } else {
+                        Operations::<Color> {
+                            load: LoadOp::<_>::Load,
+                            store: true,
+                        }
+                    };
+
+                    let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                        label: Some("Render Pass"),
+                        color_attachments: &[Some(RenderPassColorAttachment {
+                            view: &frame_view,
+                            resolve_target: None,
+                            ops: attachment_op,
+                        })],
+                        depth_stencil_attachment: None,
+                    });
+
+                    if let Some(clip) = layer.clip {
+                        render_pass.set_scissor_rect(
+                            clip.x as u32,
+                            clip.y as u32,
+                            clip.z as u32,
+                            clip.w as u32,
+                        );
+                    }
+
+                    drawable.draw(
+                        &self.queue,
+                        &mut render_pass,
                         constants,
-                        &self,
+                        &self.universal_bind_group,
+                        &layer,
                     );
+
                     first = false;
                 }
             }
@@ -234,102 +304,6 @@ impl Resources {
         }
 
         Ok(())
-    }
-
-    fn draw_drawable(
-        first: bool,
-        drawable: &mut &mut dyn Drawable,
-        frame: &SurfaceTexture,
-        frame_view: &TextureView,
-        encoder: &mut CommandEncoder,
-        layer: &Layer,
-        constants: ShaderConstants,
-        Resources {
-            queue,
-            offscreen_texture,
-            surface_config,
-            universal_bind_group,
-            ..
-        }: &Resources,
-    ) {
-        if first {
-            encoder.clear_texture(
-                &offscreen_texture,
-                &ImageSubresourceRange {
-                    aspect: TextureAspect::All,
-                    base_mip_level: 0,
-                    mip_level_count: None,
-                    base_array_layer: 0,
-                    array_layer_count: None,
-                },
-            );
-        } else {
-            encoder.copy_texture_to_texture(
-                ImageCopyTexture {
-                    texture: &frame.texture,
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: Default::default(),
-                },
-                ImageCopyTexture {
-                    texture: offscreen_texture,
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: Default::default(),
-                },
-                Extent3d {
-                    width: surface_config.width,
-                    height: surface_config.height,
-                    depth_or_array_layers: 1,
-                },
-            );
-        }
-
-        // The first drawable should clear the output textures
-        let attachment_op = if first {
-            let clear_color = layer.background_color.unwrap_or(Vec4::ONE);
-            Operations::<Color> {
-                load: LoadOp::<_>::Clear(Color {
-                    r: clear_color.x as f64,
-                    g: clear_color.y as f64,
-                    b: clear_color.z as f64,
-                    a: clear_color.w as f64,
-                }),
-                store: true,
-            }
-        } else {
-            Operations::<Color> {
-                load: LoadOp::<_>::Load,
-                store: true,
-            }
-        };
-
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: &frame_view,
-                resolve_target: None,
-                ops: attachment_op,
-            })],
-            depth_stencil_attachment: None,
-        });
-
-        if let Some(clip) = layer.clip {
-            render_pass.set_scissor_rect(
-                clip.x as u32,
-                clip.y as u32,
-                clip.z as u32,
-                clip.w as u32,
-            );
-        }
-
-        drawable.draw(
-            &queue,
-            &mut render_pass,
-            constants,
-            &universal_bind_group,
-            &layer,
-        );
     }
 }
 
