@@ -1,10 +1,11 @@
+#[cfg(not(target_arch = "spirv"))]
 use glam::*;
 #[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-use spirv_std::{image::Image2d, spirv, Sampler};
-
+use spirv_std::{glam::*, image::Image2d, spirv, Sampler, num_traits::Float};
+#[cfg(target_arch = "spirv")]
 use crate::ShaderConstants;
 
+#[cfg(target_arch = "spirv")]
 const UNIT_QUAD_VERTICES: [Vec2; 6] = [
     vec2(0.0, 0.0),
     vec2(1.0, 0.0),
@@ -35,6 +36,7 @@ pub struct InstancedQuad {
     pub blur: f32,
 }
 
+#[cfg(target_arch = "spirv")]
 impl InstancedQuad {
     fn distance(&self, point: Vec2) -> f32 {
         let half_size = self.size / 2.0 - self.corner_radius * Vec2::ONE;
@@ -44,6 +46,7 @@ impl InstancedQuad {
     }
 }
 
+#[cfg(target_arch = "spirv")]
 #[spirv(vertex)]
 pub fn vertex(
     #[spirv(instance_index)] instance_index: i32,
@@ -67,6 +70,7 @@ pub fn vertex(
     *out_position = final_position.extend(0.0).extend(1.0);
 }
 
+#[cfg(target_arch = "spirv")]
 #[spirv(fragment)]
 pub fn fragment(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] quads: &[InstancedQuad],
@@ -120,6 +124,7 @@ pub fn fragment(
     }
 }
 
+#[cfg(target_arch = "spirv")]
 pub fn compute_erf7(x: f32) -> f32 {
     let x = x * core::f32::consts::FRAC_2_SQRT_PI;
     let xx = x * x;

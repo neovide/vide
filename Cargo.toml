@@ -22,7 +22,7 @@ bytemuck = { version = "1.14.3", features = ["derive"] }
 rust-embed = "8.2.0"
 # Vector math library with support for spirv. Required for
 # rust-gpu
-glam = { version = "0.22.0", features = ["serde"] }
+glam = { version = "0.22.0", features = ["serde", "bytemuck"] }
 # File watcher crate. Currently used to watch the scene.json
 # file and reload it when it changes
 notify = "6.1.1"

@@ -1,5 +1,9 @@
+#[cfg(not(target_arch = "spirv"))]
+use glam::*;
+#[cfg(target_arch = "spirv")]
 use spirv_std::{glam::*, image::Image2d, spirv, Sampler};
 
+#[cfg(target_arch = "spirv")]
 use crate::ShaderConstants;
 
 #[derive(Copy, Clone, Default)]
@@ -16,6 +20,7 @@ pub struct InstancedGlyph {
     pub color: Vec4,
 }
 
+#[cfg(target_arch = "spirv")]
 #[spirv(vertex)]
 pub fn glyph_vertex(
     #[spirv(instance_index)] instance_index: i32,
@@ -50,6 +55,7 @@ pub fn glyph_vertex(
         + unit_vertex_pos * instance.atlas_size / constants.atlas_size;
 }
 
+#[cfg(target_arch = "spirv")]
 #[spirv(fragment)]
 pub fn glyph_fragment(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] glyphs: &[InstancedGlyph],

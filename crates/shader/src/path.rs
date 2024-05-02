@@ -1,5 +1,10 @@
+#[cfg(not(target_arch = "spirv"))]
+use glam::*;
+
+#[cfg(target_arch = "spirv")]
 use spirv_std::{glam::*, spirv};
 
+#[cfg(target_arch = "spirv")]
 use crate::ShaderConstants;
 
 #[derive(Copy, Clone)]
@@ -15,6 +20,7 @@ pub struct PathVertex {
     pub _padding: Vec2,
 }
 
+#[cfg(target_arch = "spirv")]
 #[spirv(vertex)]
 pub fn path_vertex(
     #[spirv(push_constant)] constants: &ShaderConstants,
@@ -29,6 +35,7 @@ pub fn path_vertex(
         .extend(1.);
 }
 
+#[cfg(target_arch = "spirv")]
 #[spirv(fragment)]
 pub fn path_fragment(color: Vec4, out_color: &mut Vec4) {
     *out_color = color * color;

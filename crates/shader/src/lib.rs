@@ -5,12 +5,17 @@ mod path;
 mod quad;
 mod sprite;
 
-use glam::Vec4;
 pub use glyph::*;
 pub use path::*;
 pub use quad::*;
-use spirv_std::glam::Vec2;
 pub use sprite::*;
+
+
+#[cfg(target_arch = "spirv")]
+use spirv_std::glam::*;
+
+#[cfg(not(target_arch = "spirv"))]
+use glam::*;
 
 #[derive(Copy, Clone)]
 #[cfg_attr(not(target_arch = "spirv"), derive(bytemuck::Pod, bytemuck::Zeroable))]
