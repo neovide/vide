@@ -32,7 +32,7 @@ impl Default for Layer {
             clip: None,
             background_blur_radius: 0.0,
             background_color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
-            font_name: "Courier New".to_string(),
+            font_name: "monospace".to_string(),
             quads: Vec::new(),
             texts: Vec::new(),
             paths: Vec::new(),
@@ -42,7 +42,7 @@ impl Default for Layer {
 }
 
 fn default_font() -> String {
-    "Courier New".to_string()
+    "monospace".to_string()
 }
 
 impl Layer {
