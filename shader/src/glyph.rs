@@ -70,5 +70,6 @@ pub fn glyph_fragment(
     let surface_color =
         surface.sample_by_lod(*sampler, surface_position.xy() / constants.surface_size, 0.);
     let mask_color = atlas.sample_by_lod(*sampler, atlas_position, 0.);
-    *out_color = glyph.color * mask_color + (1.0 - glyph.color.w * mask_color) * surface_color;
+    *out_color = glyph.color * glyph.color * mask_color
+        + (1.0 - glyph.color.w * glyph.color.w * mask_color) * surface_color;
 }

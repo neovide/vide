@@ -63,6 +63,7 @@ impl<'a> Resources<'a> {
 
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
+        dbg!(&swapchain_format);
 
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,

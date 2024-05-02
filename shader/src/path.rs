@@ -31,5 +31,5 @@ pub fn path_vertex(
 
 #[spirv(fragment)]
 pub fn path_fragment(color: Vec4, out_color: &mut Vec4) {
-    *out_color = color;
+    *out_color = color * color;
 }

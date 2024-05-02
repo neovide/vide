@@ -135,14 +135,13 @@
       ],
       "quads": [
         {
-          "top_left": [50, 50],
+          "top_left": [150, 100],
           "size": [100, 100],
           "color": [1, 0, 0, 1]
         }
       ]
     },
     {
-      "background_color": [0, 0, 0, 0],
       "sprites": [
         {
           "top_left": [300, 300],

@@ -1672,6 +1672,7 @@ dependencies = [
  "bedrock",
  "futures",
  "glam",
+ "lazy_static",
  "parking_lot",
  "rust-embed",
  "serde",

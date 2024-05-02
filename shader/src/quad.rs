@@ -15,15 +15,16 @@ const GUASSIAN_RADIUS: i32 = 3;
 #[derive(Copy, Clone)]
 #[cfg_attr(
     not(target_arch = "spirv"),
-    derive(bytemuck::Pod, bytemuck::Zeroable, Default, Debug)
+    derive(bytemuck::Pod, bytemuck::Zeroable, Default)
 )]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct InstancedQuad {
+    pub blur: u32, // 0 == no blur, non 0 = blur with 5x5 samples
+    pub _padding: u32,
     pub top_left: Vec2,
+    pub __padding: Vec2,
     pub size: Vec2,
     pub color: Vec4,
-    pub blur: u32, // 0 == no blur, non 0 = blur with 5x5 samples
-    pub _padding: Vec3,
 }
 
 #[spirv(vertex)]
@@ -85,8 +86,8 @@ pub fn fragment(
             }
         }
 
-        *out_color = *out_color * quad.color;
+        *out_color = *out_color * quad.color * quad.color;
     } else {
-        *out_color = quad.color;
+        *out_color = quad.color * quad.color;
     }
 }
