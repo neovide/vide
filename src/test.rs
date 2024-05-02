@@ -5,7 +5,7 @@ use image::io::Reader as ImageReader;
 use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
 
-use crate::{offscreen_renderer::OffscreenRenderer, scene::Scene, Path, Quad, Sprite, Text};
+use crate::{offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Sprite, Text};
 
 #[derive(RustEmbed)]
 #[folder = "test_data/assets"]
@@ -133,4 +133,53 @@ fn simple_sprite() {
     ));
 
     assert_no_regressions(120, 120, scene);
+}
+
+#[test]
+fn simple_blur() {
+    let mut scene = Scene::new();
+
+    for i in 0..20 {
+        scene.add_text(Text::new(
+            "TestTestTestTestTestTestTestTest".to_owned(),
+            vec2(0., 15. * i as f32),
+            15.,
+            vec4(0., 0., 0., 1.),
+        ));
+    }
+
+    for x in 0..3 {
+        for y in 0..3 {
+            scene.add_layer(
+                Layer::new()
+                    .with_blur(2.)
+                    .with_clip(
+                        vec4(15., 15., 50., 50.) + vec4(x as f32 * 60., y as f32 * 60., 0., 0.),
+                    )
+                    .with_background(vec4(0., 1., 0., 0.1)),
+            );
+        }
+    }
+
+    assert_no_regressions(200, 200, scene);
+}
+
+#[test]
+fn simple_blurred_quad() {
+    let mut scene = Scene::new();
+    for x in 0..5 {
+        for y in 0..5 {
+            scene.add_quad(
+                Quad::new(
+                    vec2(15., 15.) + vec2(x as f32 * 60., y as f32 * 60.),
+                    vec2(50., 50.),
+                    vec4(x as f32 / 5., y as f32 / 5., 1., 1.),
+                )
+                .with_corner_radius(x as f32 * 2.)
+                .with_blur(y as f32),
+            )
+        }
+    }
+
+    assert_no_regressions(325, 325, scene);
 }

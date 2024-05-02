@@ -46,6 +46,10 @@ fn default_font() -> String {
 }
 
 impl Layer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn with_clip(mut self, clip: Vec4) -> Self {
         self.clip = Some(clip);
         self
