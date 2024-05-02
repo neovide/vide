@@ -1,6 +1,7 @@
 mod graphics;
 mod repaint_signaler;
 mod marching_cubes;
+mod ui;
 
 use std::sync::{Arc, Mutex};
 use std::f32::consts;
@@ -20,6 +21,7 @@ use shader::model::model;
 use graphics::GraphicsState;
 pub use repaint_signaler::RepaintSignaler;
 use marching_cubes::marching_cubes;
+pub use ui::UI;
 
 const SPEED: f32 = 0.01;
 const SENSITIVITY: f32 = 0.001;
@@ -180,15 +182,18 @@ fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut graphics_state = block_on(GraphicsState::new(&window));
+    let repaint_signaler = Arc::new(RepaintSignaler(Mutex::new(event_loop.create_proxy())));
+
+    let mut graphics_state = block_on(GraphicsState::new(&window, repaint_signaler));
     let mut game_state = State::new(&window);
     let mut mouse_position = PhysicalPosition::new(0.0, 0.0);
     let mut drag_start = None;
 
-    let repaint_signaler = Arc::new(RepaintSignaler(Mutex::new(event_loop.create_proxy())));
-
     event_loop.run(move |event, _, control_flow| {
-        graphics_state.handle_event(&window, &event, control_flow, || game_state.construct_constants());
+        if graphics_state.handle_event(&window, &event, control_flow, || game_state.construct_constants()) {
+            return;
+        }
+
         match event {
             Event::WindowEvent {
                 ref event,
@@ -207,11 +212,9 @@ fn main() {
                 WindowEvent::MouseInput { state, .. } => {
                     if *state == ElementState::Pressed {
                         window.set_cursor_grab(true).expect("Could not grab cursor");
-                        window.set_cursor_visible(false);
                         drag_start = Some(mouse_position.clone());
                     } else {
                         window.set_cursor_grab(false).expect("Could not release cursor");
-                        window.set_cursor_visible(true);
                         window.set_cursor_position(drag_start.unwrap()).expect("Could not set cursor position");
                         drag_start = None;
                     }

@@ -1,6 +1,11 @@
+use std::time::Instant;
+use std::sync::Arc;
+
+use chrono::Timelike;
 use egui::FontDefinitions;
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
+use epi::*;
 use rust_embed::*;
 use shader::ShaderConstants;
 use winit::{
@@ -9,13 +14,15 @@ use winit::{
     event_loop::ControlFlow,
 };
 
-use super::RepaintSignaler;
+use super::{RepaintSignaler, UI};
 
 #[derive(RustEmbed)]
 #[folder = "spirv"]
 struct Asset;
 
 pub struct GraphicsState {
+    start_time: Instant,
+    previous_frame: Option<f32>,
     instance: wgpu::Instance,
     surface: Option<wgpu::Surface>,
     surface_config: wgpu::SurfaceConfiguration,
@@ -23,12 +30,18 @@ pub struct GraphicsState {
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
+    platform: Platform,
+    repaint_signaler: Arc<crate::RepaintSignaler>,
+    egui_render_pass: RenderPass,
+    egui_ui: UI,
 }
 
 impl GraphicsState {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &Window, repaint_signaler: Arc<crate::RepaintSignaler>) -> Self {
         let size = window.inner_size();
+
+        let start_time = Instant::now();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -123,7 +136,12 @@ impl GraphicsState {
             },
         });
 
+        let egui_render_pass = RenderPass::new(&device, preferred_format, 1);
+        let egui_ui = Default::default();
+
         Self {
+            start_time,
+            previous_frame: None,
             instance,
             surface: Some(surface),
             surface_config,
@@ -131,10 +149,14 @@ impl GraphicsState {
             device,
             queue,
             render_pipeline,
+            platform,
+            repaint_signaler,
+            egui_render_pass,
+            egui_ui
         }
     }
 
-    pub fn render(&mut self, constants: ShaderConstants) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, window: &Window, constants: ShaderConstants) -> Result<(), wgpu::SurfaceError> {
         if let Some(surface) = &mut self.surface {
             let frame = surface.get_current_texture()?;
             let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -165,6 +187,54 @@ impl GraphicsState {
                 render_pass.draw(0..3, 0..1); // 3.
             }
 
+            let egui_start = Instant::now();
+            self.platform.begin_frame();
+
+            let mut ui_output = epi::backend::AppOutput::default();
+
+            let mut egui_frame = epi::backend::FrameBuilder {
+                info: epi::IntegrationInfo {
+                    web_info: None,
+                    cpu_usage: self.previous_frame,
+                    seconds_since_midnight: Some(seconds_since_midnight()),
+                    native_pixels_per_point: Some(window.scale_factor() as _),
+                    prefer_dark_mode: None,
+                },
+                tex_allocator: &mut self.egui_render_pass,
+                output: &mut ui_output,
+                repaint_signal: self.repaint_signaler.clone(),
+            }
+            .build();
+
+            self.egui_ui.update(&self.platform.context(), &mut egui_frame);
+
+            let (_output, paint_commands) = self.platform.end_frame(Some(&window));
+            let paint_jobs = self.platform.context().tessellate(paint_commands);
+
+            let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
+            self.previous_frame = Some(frame_time);
+
+            // Upload all resources for the GPU.
+            let screen_descriptor = ScreenDescriptor {
+                physical_width: self.surface_config.width,
+                physical_height: self.surface_config.height,
+                scale_factor: window.scale_factor() as f32,
+            };
+            self.egui_render_pass.update_texture(&self.device, &self.queue, &self.platform.context().texture());
+            self.egui_render_pass.update_user_textures(&self.device, &self.queue);
+            self.egui_render_pass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
+
+            // Record all render passes.
+            self.egui_render_pass
+                .execute(
+                    &mut encoder,
+                    &frame_view,
+                    &paint_jobs,
+                    &screen_descriptor,
+                    None,
+                )
+                .unwrap();
+
             // submit will accept anything that implements IntoIter
             self.queue.submit(std::iter::once(encoder.finish()));
             frame.present();
@@ -173,8 +243,10 @@ impl GraphicsState {
         Ok(())
     }
 
-    pub fn handle_event<F>(&mut self, window: &Window, event: &Event<()>, control_flow: &mut ControlFlow, construct_constants: F)
+    pub fn handle_event<F>(&mut self, window: &Window, event: &Event<()>, control_flow: &mut ControlFlow, construct_constants: F) -> bool
     where F: FnOnce() -> ShaderConstants {
+        self.platform.handle_event::<()>(event);
+
         match event {
             Event::MainEventsCleared => {
                 window.request_redraw();
@@ -204,7 +276,8 @@ impl GraphicsState {
                 }
             },
             Event::RedrawRequested(_) => {
-                if let Err(render_error) = self.render(construct_constants()) {
+                self.platform.update_time(self.start_time.elapsed().as_secs_f64());
+                if let Err(render_error) = self.render(window, construct_constants()) {
                     eprintln!("Render error: {:?}", render_error);
                     match render_error {
                         wgpu::SurfaceError::Lost => {
@@ -221,6 +294,14 @@ impl GraphicsState {
                 }
             },
             _ => {} 
-        }
+        };
+
+        self.platform.captures_event(event)
     }
+}
+
+/// Time of day as seconds since midnight. Used for clock in demo app.
+pub fn seconds_since_midnight() -> f64 {
+    let time = chrono::Local::now().time();
+    time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
 }

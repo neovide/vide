@@ -22,7 +22,8 @@ rust-embed = "5.9.0"
 shader = { path = "./shader" } # The actual shader which is compiled to spirv and used to interact with the scene
 threemf = "0.1.0" # 3MF file format
 wgpu = { version = "0.11", features = ["spirv"] }
-winit = "0.24" # Window library for constructing a window and handling window events
+winit = "0.25" # Window library for constructing a window and handling window events
+chrono = "0.4.4" # Chrono library for time management
 
 [build-dependencies]
 # Build script which compiles the shader to spirv
