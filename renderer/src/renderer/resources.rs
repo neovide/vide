@@ -22,6 +22,7 @@ pub(crate) struct Resources {
     pub swapchain_format: TextureFormat,
 
     pub offscreen_texture: Texture,
+    pub multisampled_texture: Texture,
     pub sampler: Sampler,
     pub universal_bind_group_layout: BindGroupLayout,
     pub universal_bind_group: BindGroup,
@@ -81,6 +82,11 @@ impl Resources {
             source: util::make_spirv(&Asset::get("shader.spv").expect("Could not load shader")),
         });
 
+        let offscreen_texture =
+            create_texture(&device, &size, swapchain_format, 1, "Offscreen Texture");
+        let multisampled_texture =
+            create_texture(&device, &size, swapchain_format, 4, "Output Texture");
+
         let sampler = device.create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
@@ -90,8 +96,6 @@ impl Resources {
             mipmap_filter: FilterMode::Nearest,
             ..Default::default()
         });
-
-        let offscreen_texture = create_offscreen_texture(&device, &size, swapchain_format);
 
         let universal_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -134,9 +138,10 @@ impl Resources {
             swapchain_format,
 
             offscreen_texture,
+            multisampled_texture,
+            sampler,
             universal_bind_group_layout,
             universal_bind_group,
-            sampler,
         }
     }
 
@@ -167,10 +172,19 @@ impl Resources {
                         surface.configure(&self.device, &self.surface_config);
                     }
 
-                    self.offscreen_texture = create_offscreen_texture(
+                    self.offscreen_texture = create_texture(
                         &self.device,
                         &new_size,
                         self.surface_config.format,
+                        1,
+                        "Offscreen Texture",
+                    );
+                    self.multisampled_texture = create_texture(
+                        &self.device,
+                        &new_size,
+                        self.surface_config.format,
+                        4,
+                        "Multisampled Texture",
                     );
 
                     self.universal_bind_group = create_bind_group(
@@ -196,7 +210,8 @@ impl Resources {
 
         if let Some(surface) = &mut self.surface {
             let frame = surface.get_current_texture()?;
-            let frame_view = frame.texture.create_view(&TextureViewDescriptor::default());
+            let frame_view = frame.texture.create_view(&Default::default());
+            let multisampled_view = self.multisampled_texture.create_view(&Default::default());
 
             let mut encoder = self
                 .device
@@ -271,8 +286,8 @@ impl Resources {
                     let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                         label: Some("Render Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
-                            view: &frame_view,
-                            resolve_target: None,
+                            view: &multisampled_view,
+                            resolve_target: Some(&frame_view),
                             ops: attachment_op,
                         })],
                         depth_stencil_attachment: None,
@@ -307,10 +322,12 @@ impl Resources {
     }
 }
 
-fn create_offscreen_texture(
+fn create_texture(
     device: &Device,
     size: &PhysicalSize<u32>,
     format: TextureFormat,
+    samples: u32,
+    label: &'static str,
 ) -> Texture {
     device.create_texture(&TextureDescriptor {
         size: Extent3d {
@@ -319,11 +336,13 @@ fn create_offscreen_texture(
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
-        sample_count: 1,
+        sample_count: samples,
         dimension: TextureDimension::D2,
         format,
-        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-        label: Some(&format!("Offscreen Texture")),
+        usage: TextureUsages::TEXTURE_BINDING
+            | TextureUsages::COPY_DST
+            | TextureUsages::RENDER_ATTACHMENT,
+        label: Some(label),
         view_formats: &[],
     })
 }
