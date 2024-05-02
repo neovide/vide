@@ -1,7 +1,7 @@
 mod graphics;
 
 use winit::{
-    dpi::PhysicalSize,
+    dpi::{PhysicalSize, PhysicalPosition},
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
@@ -16,8 +16,7 @@ use graphics::GraphicsState;
 const FRICTION: f32 = 0.9;
 const SPEED: f32 = 0.01;
 const SENSITIVITY: f32 = 0.001;
-const GRAVITY: f32 = -0.005;
-const JUMP_SPEED: f32 = 0.2;
+const PLAYER_HEIGHT: f32 = 2.5;
 
 struct State {
     size: winit::dpi::PhysicalSize<u32>,
@@ -29,15 +28,11 @@ struct State {
     input_dir: Vec3,
     velocity: Vec3,
 
-    grabbed: bool,
+    dragging: bool,
 
     left: bool, right: bool,
     forward: bool, back: bool,
     up: bool, down: bool,
-
-    grounded: bool,
-
-    time: f32,
 }
 
 impl State {
@@ -48,20 +43,16 @@ impl State {
             size,
             horizontal_rotation: 0.0,
             vertical_rotation: 0.0,
-            position: vec3(0.0, 10.0, 0.0),
+            position: vec3(0.0, PLAYER_HEIGHT, -1.0),
 
             input_dir: Vec3::ZERO,
             velocity: Vec3::ZERO,
 
-            grabbed: false,
+            dragging: false,
 
             left: false, right: false,
             forward: false, back: false,
             up: false, down: false,
-
-            grounded: false,
-
-            time: 0.0,
         }
     }
 
@@ -71,18 +62,20 @@ impl State {
 
     fn focus_changed(&mut self, focused: bool) {
         if !focused {
-            self.grabbed = false;
+            self.dragging = false;
         }
     }
 
     fn mouse_input(&mut self, state: &ElementState) {
         if *state == ElementState::Pressed {
-            self.grabbed = true;
+            self.dragging = true;
+        } else {
+            self.dragging = false;
         }
     }
 
     fn mouse_moved(&mut self, (delta_x, delta_y): (f64, f64)) {
-        if self.grabbed {
+        if self.dragging {
             self.horizontal_rotation -= delta_x as f32 * SENSITIVITY;
 
             use std::f32::consts;
@@ -100,12 +93,8 @@ impl State {
                 Some(VirtualKeyCode::A) => self.left = true,
                 Some(VirtualKeyCode::W) => self.forward = true,
                 Some(VirtualKeyCode::S) => self.back = true,
-                Some(VirtualKeyCode::Space) | Some(VirtualKeyCode::Back) => {
-                    if self.grounded {
-                        self.velocity += Vec3::Y * JUMP_SPEED;
-                        self.grounded = false;
-                    }
-                },
+                Some(VirtualKeyCode::Space) | Some(VirtualKeyCode::Back) => self.up = true,
+                Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::Grave) => self.down = true,
                 _ => {}
             }
         } else if event.state == ElementState::Released {
@@ -114,6 +103,8 @@ impl State {
                 Some(VirtualKeyCode::A) => self.left = false,
                 Some(VirtualKeyCode::W) => self.forward = false,
                 Some(VirtualKeyCode::S) => self.back = false,
+                Some(VirtualKeyCode::Space) | Some(VirtualKeyCode::Back) => self.up = false,
+                Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::Grave) => self.down = false,
                 _ => {}
             }
         }
@@ -124,8 +115,9 @@ impl State {
             Quat::from_rotation_y(self.horizontal_rotation) * 
             Quat::from_rotation_x(self.vertical_rotation) * 
             Vec3::Z;
+
         let up_vec = Vec3::Y;
-        let right_vec = camera_forward_vec.cross(up_vec);
+        let right_vec = camera_forward_vec.cross(Vec3::Y);
         let forward_vec = up_vec.cross(right_vec);
 
         let horizontal = 
@@ -136,35 +128,30 @@ impl State {
             (if self.back { -1.0 } else { 0.0 } +
             if self.forward { 1.0 } else { 0.0 }) * forward_vec;
 
+        let vertical =
+            (if self.down { -1.0 } else { 0.0 } +
+            if self.up { 1.0 } else { 0.0 }) * up_vec;
 
-        self.input_dir = horizontal + aligned;
+        self.input_dir = horizontal + aligned + vertical;
         if self.input_dir.length() > 0.0 {
             self.input_dir = self.input_dir.normalize();
         }
 
-        self.time += 0.005;
-
         self.velocity += self.input_dir * SPEED;
-        self.velocity.x *= FRICTION;
-        self.velocity.z *= FRICTION;
-        self.velocity += Vec3::Y * GRAVITY;
+        self.velocity *= FRICTION;
 
-        let distance = scene(self.position, self.time);
+        let distance = scene(self.position);
         if distance < 0.5 {
-            let normal = normal(self.position, self.time);
+            let normal = normal(self.position);
             self.position += (0.5 - distance) * normal;
         }
 
-        let ground = march(self.position, -Vec3::Y, self.time);
+        let ground = march(self.position, -Vec3::Y);
         let distance = (self.position - ground).length();
-        if distance < 2.5 {
-            self.position += (2.5 - distance) * Vec3::Y;
+        if distance < PLAYER_HEIGHT {
+            self.position += (PLAYER_HEIGHT - distance) * Vec3::Y;
 
             self.velocity.y = self.velocity.y.max(0.0);
-
-            if self.velocity.y <= 0.0 {
-                self.grounded = true;
-            }
         }
 
         self.position += self.velocity;
@@ -185,7 +172,6 @@ impl State {
             position: self.position.into(),
             forward: forward_vec.into(),
             sun: Vec3::ONE.normalize().into(),
-            time: self.time,
         }
     }
 }
@@ -197,6 +183,8 @@ fn main() {
 
     let mut graphics_state = block_on(GraphicsState::new(&window));
     let mut game_state = State::new(&window);
+    let mut mouse_position = PhysicalPosition::new(0.0, 0.0);
+    let mut drag_start = None;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -205,16 +193,24 @@ fn main() {
         } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
             WindowEvent::Focused(focused) => {
-                if !focused {
-                    window.set_cursor_grab(false).expect("Could not grab cursor");
-                    window.set_cursor_visible(true);
-                }
                 game_state.focus_changed(*focused);
+            },
+            WindowEvent::CursorMoved { position, .. } => {
+                mouse_position = *position;
+                if let Some(drag_start) = drag_start {
+                    window.set_cursor_position(drag_start).expect("Could not set cursor position");
+                }
             },
             WindowEvent::MouseInput { state, .. } => {
                 if *state == ElementState::Pressed {
                     window.set_cursor_grab(true).expect("Could not grab cursor");
                     window.set_cursor_visible(false);
+                    drag_start = Some(mouse_position.clone());
+                } else {
+                    window.set_cursor_grab(false).expect("Could not release cursor");
+                    window.set_cursor_visible(true);
+                    window.set_cursor_position(drag_start.unwrap()).expect("Could not set cursor position");
+                    drag_start = None;
                 }
                 game_state.mouse_input(state)
             },
@@ -224,8 +220,6 @@ fn main() {
                     virtual_keycode: Some(VirtualKeyCode::Escape),
                     ..
                 } => {
-                    window.set_cursor_grab(false).expect("Could not grab cursor");
-                    window.set_cursor_visible(true);
                     game_state.focus_changed(false);
                 },
                 keyboard_input => game_state.keyboard_input(keyboard_input),

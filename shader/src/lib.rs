@@ -32,8 +32,6 @@ pub struct ShaderConstants {
     pub forward: [f32; 3],
 
     pub sun: [f32; 3],
-
-    pub time: f32,
 }
 
 #[spirv(fragment)]
