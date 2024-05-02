@@ -4,15 +4,17 @@ use rust_embed::*;
 use shader::{InstancedQuad, ShaderConstants};
 use swash::FontRef;
 use wgpu::{
-    util, Adapter, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Color, CommandEncoderDescriptor, Device,
-    DeviceDescriptor, Extent3d, Features, ImageCopyTexture, Instance, Limits, LoadOp, Operations,
-    Origin3d, PowerPreference, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor,
-    RequestAdapterOptions, SamplerBindingType, ShaderModuleDescriptor, ShaderStages, Surface,
-    SurfaceConfiguration, SurfaceError, Texture, TextureDescriptor, TextureDimension,
-    TextureSampleType, TextureUsages, TextureViewDescriptor, TextureViewDimension,
+    util, Adapter, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Color,
+    CommandEncoderDescriptor, Device, DeviceDescriptor, Extent3d, Features, ImageCopyTexture,
+    Instance, Limits, LoadOp, Operations, Origin3d, PowerPreference, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Sampler,
+    SamplerBindingType, ShaderModuleDescriptor, ShaderStages, Surface, SurfaceConfiguration,
+    SurfaceError, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+    TextureUsages, TextureViewDescriptor, TextureViewDimension,
 };
 use winit::{
+    dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::ControlFlow,
     window::Window,
@@ -43,6 +45,8 @@ pub struct GraphicsState {
     queue: Queue,
 
     offscreen_texture: Texture,
+    sampler: Sampler,
+    universal_bind_group_layout: BindGroupLayout,
     universal_bind_group: BindGroup,
     quad_state: QuadState,
     glyph_state: GlyphState,
@@ -113,20 +117,7 @@ impl GraphicsState {
             ..Default::default()
         });
 
-        let offscreen_texture = device.create_texture(&TextureDescriptor {
-            size: Extent3d {
-                width: size.width,
-                height: size.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: swapchain_format,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            label: Some(&format!("Offscreen Texture")),
-            view_formats: &[],
-        });
+        let offscreen_texture = create_offscreen_texture(&device, &size, swapchain_format);
 
         let universal_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -151,25 +142,12 @@ impl GraphicsState {
                 ],
             });
 
-        let universal_bind_group = {
-            let offscreen_texture_view =
-                offscreen_texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-            device.create_bind_group(&BindGroupDescriptor {
-                label: Some("Universal bind group"),
-                layout: &universal_bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: BindingResource::TextureView(&offscreen_texture_view),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-            })
-        };
+        let universal_bind_group = create_bind_group(
+            &device,
+            &universal_bind_group_layout,
+            &offscreen_texture,
+            &sampler,
+        );
 
         let quad_state = QuadState::new(&device, &shader, swapchain_format);
         let glyph_state = GlyphState::new(
@@ -189,7 +167,9 @@ impl GraphicsState {
             queue,
 
             offscreen_texture,
+            universal_bind_group_layout,
             universal_bind_group,
+            sampler,
             quad_state,
             glyph_state,
             text_shaping_state,
@@ -197,6 +177,10 @@ impl GraphicsState {
     }
 
     pub fn render(&mut self) -> Result<(), SurfaceError> {
+        if self.surface_config.width == 0 || self.surface_config.height == 0 {
+            return Ok(());
+        }
+
         if let Some(surface) = &mut self.surface {
             let frame = surface.get_current_texture()?;
             let frame_view = frame.texture.create_view(&TextureViewDescriptor::default());
@@ -348,13 +332,26 @@ impl GraphicsState {
                 event: WindowEvent::Resized(new_size),
                 ..
             } => {
-                if new_size.width != 0 && new_size.height != 0 {
-                    self.surface_config.width = new_size.width;
-                    self.surface_config.height = new_size.height;
+                self.surface_config.width = new_size.width;
+                self.surface_config.height = new_size.height;
 
+                if new_size.width != 0 && new_size.height != 0 {
                     if let Some(surface) = &self.surface {
                         surface.configure(&self.device, &self.surface_config);
                     }
+
+                    self.offscreen_texture = create_offscreen_texture(
+                        &self.device,
+                        &new_size,
+                        self.surface_config.format,
+                    );
+
+                    self.universal_bind_group = create_bind_group(
+                        &self.device,
+                        &self.universal_bind_group_layout,
+                        &self.offscreen_texture,
+                        &self.sampler,
+                    );
                 }
             }
             Event::RedrawRequested(_) => {
@@ -377,4 +374,50 @@ impl GraphicsState {
             _ => {}
         };
     }
+}
+
+fn create_offscreen_texture(
+    device: &Device,
+    size: &PhysicalSize<u32>,
+    format: TextureFormat,
+) -> Texture {
+    device.create_texture(&TextureDescriptor {
+        size: Extent3d {
+            width: size.width,
+            height: size.height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format,
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        label: Some(&format!("Offscreen Texture")),
+        view_formats: &[],
+    })
+}
+
+fn create_bind_group(
+    device: &Device,
+    bind_group_layout: &BindGroupLayout,
+    offscreen_texture: &Texture,
+    sampler: &Sampler,
+) -> BindGroup {
+    let offscreen_texture_view =
+        offscreen_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+    device.create_bind_group(&BindGroupDescriptor {
+        label: Some("Universal bind group"),
+        layout: bind_group_layout,
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::TextureView(&offscreen_texture_view),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(sampler),
+            },
+        ],
+    })
 }

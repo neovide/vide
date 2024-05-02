@@ -37,7 +37,7 @@ impl GlyphState {
     ) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Glyph buffer"),
-            size: std::mem::size_of::<InstancedGlyph>() as u64 * 10000,
+            size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -178,23 +178,23 @@ impl GlyphState {
         // TODO: Quantize this like the swash demo: https://github.com/dfrg/swash_demo/blob/master/src/comp/image_cache/glyph.rs#L325
         let offset = swash::zeno::Vector::new(bottom_left.x.fract(), bottom_left.y.fract());
 
-        let image = Render::new(&[
-            Source::ColorOutline(0),
-            Source::ColorBitmap(StrikeWith::BestFit),
-            Source::Outline,
-        ])
-        // Select a subpixel format
-        .format(Format::Subpixel)
-        // Apply the fractional offset
-        .offset(offset)
-        // Render the image
-        .render(&mut scaler, glyph)
-        .expect("Could not render glyph into an image");
-
         // Get or find atlas allocation
         let allocation_rectangle = if let Some(alloc_id) = self.glyph_lookup.get(&glyph) {
             self.atlas_allocator.get(*alloc_id)
         } else {
+            let image = Render::new(&[
+                Source::ColorOutline(0),
+                Source::ColorBitmap(StrikeWith::BestFit),
+                Source::Outline,
+            ])
+            // Select a subpixel format
+            .format(Format::Subpixel)
+            // Apply the fractional offset
+            .offset(offset)
+            // Render the image
+            .render(&mut scaler, glyph)
+            .expect("Could not render glyph into an image");
+
             if image.placement.width == 0 || image.placement.height == 0 {
                 return;
             }

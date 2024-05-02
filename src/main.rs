@@ -27,14 +27,18 @@ fn main() {
         match event {
             Event::RedrawRequested(_) => {
                 gfx.clear();
+
                 gfx.add_quad(vec2(0., 25.), vec2(300., 25.), vec4(1., 0., 0., 1.));
-                gfx.add_text(
-                    font.as_ref().unwrap(),
-                    "Hello, world!",
-                    vec2(0.0, 50.0),
-                    32.0,
-                    vec4(0.0, 0.0, 0.0, 1.0),
-                );
+
+                for i in 0..5000 {
+                    gfx.add_text(
+                        font.as_ref().unwrap(),
+                        "Hello, world!",
+                        vec2(rand::random::<f32>() * 800., rand::random::<f32>() * 600.),
+                        32.0,
+                        vec4(0.0, 0.0, 0.0, 1.0),
+                    );
+                }
             }
             Event::WindowEvent {
                 ref event,
