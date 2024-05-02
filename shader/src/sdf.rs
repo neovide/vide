@@ -5,29 +5,20 @@ use spirv_std::num_traits::Float;
 use crate::ShaderConstants;
 use crate::shape::*;
 use crate::primitives::*;
+use crate::model::model;
 
 use spirv_std::glam::swizzles::Vec2Swizzles;
 
 const MIN_DISTANCE: f32 = 0.001;
-const MAX_DISTANCE: f32 = 100.0;
+const MAX_DISTANCE: f32 = 50.0;
 
 pub fn scene(position: Vec3) -> f32 {
     let world_dist = plane(Vec3::Y).distance(position);
-    let model_dist = model((position - Vec3::Y * 2.0) * 10.0) / 10.0;
+    let model_dist = model().distance((position - Vec3::Y * 3.0) * 10.0) / 10.0;
 
     world_dist.min(model_dist)
 }
 
-pub fn model(position: Vec3) -> f32 {
-    let arch = 
-        cube(vec3(3.0, 6.0, 1.0)) - // Base
-        (cylinder(6.0, 2.0) * Quat::from_rotation_x(core::f32::consts::FRAC_PI_2) + (Vec3::Y * 3.0)) - // Arch
-        cube(vec3(2.0, 3.0, 2.0)); // Walkway
-
-    let arch = arch + (Vec3::Z * 7.0);
-
-    arch.distance(position)
-}
 
 const EPSILON: f32 = 0.001;
 pub fn normal(position: Vec3) -> Vec3 {

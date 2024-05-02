@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<model
+    xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"
+    unit="millimeter"
+    xml:lang="en-US">
+
+    <resources>
+        <object id="1">
+            <mesh>
+				<vertices>
+				</vertices>
+				<triangles>
+				</triangles>
+            </mesh>
+        </object>
+    </resources>
+    <build>
+        <item objectid="1" />
+    </build>
+</model>

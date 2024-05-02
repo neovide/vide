@@ -6,8 +6,9 @@
 )]
 
 mod primitives;
-mod shape;
+pub mod shape;
 mod utils;
+pub mod model;
 pub mod sdf;
 
 #[cfg(not(target_arch = "spirv"))]

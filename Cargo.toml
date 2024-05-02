@@ -3,17 +3,27 @@ name = "rusty_marcher"
 version = "0.1.0"
 edition = "2018"
 
+# Required for wgpu to pick the correct graphics backend (vulkan vs metal vs directx)
+resolver = "2"
+
 [dependencies]
-shader = { path = "./shader" }
-image = "0.23"
-winit = "0.24"
 cgmath = "0.18"
-env_logger = "0.8"
+egui = "0.14" # Immediate mode, rust first, gui library. Similar to imgui
+egui_wgpu_backend = "0.13" # wgpu backend for Egui
+egui_winit_platform = "0.10.0" # winit platform for Egui
+env_logger = "0.8" # Enables writing logs out to file
+epi = "0.14" # Platform agnostic interface for Egui
+futures = "0.3" # Futures required to initialize async wgpu types
+glam = "0.19.0" # Math library with nostd
+image = "0.23"
+lazy_static = "1.4.0" # Lazy static initialization
 log = "0.4"
-futures = "0.3"
-wgpu = "0.7.0"
-glam = "0.15.2"
 rust-embed = "5.9.0"
+shader = { path = "./shader" } # The actual shader which is compiled to spirv and used to interact with the scene
+threemf = "0.1.0" # 3MF file format
+wgpu = { version = "0.11", features = ["spirv"] }
+winit = "0.24" # Window library for constructing a window and handling window events
 
 [build-dependencies]
+# Build script which compiles the shader to spirv
 spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder" }

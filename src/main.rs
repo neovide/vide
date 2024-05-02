@@ -1,5 +1,11 @@
 mod graphics;
+mod repaint_signaler;
+mod marching_cubes;
 
+use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+
+use threemf::write::write;
 use winit::{
     dpi::{PhysicalSize, PhysicalPosition},
     event::*,
@@ -11,7 +17,10 @@ use glam::{vec3, Vec3, Quat};
 
 use shader::ShaderConstants;
 use shader::sdf::{scene, march, normal};
+use shader::model::model;
 use graphics::GraphicsState;
+pub use repaint_signaler::RepaintSignaler;
+use marching_cubes::marching_cubes;
 
 const FRICTION: f32 = 0.9;
 const SPEED: f32 = 0.01;
@@ -186,80 +195,76 @@ fn main() {
     let mut mouse_position = PhysicalPosition::new(0.0, 0.0);
     let mut drag_start = None;
 
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == window.id() => match event {
-            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-            WindowEvent::Focused(focused) => {
-                game_state.focus_changed(*focused);
-            },
-            WindowEvent::CursorMoved { position, .. } => {
-                mouse_position = *position;
-                if let Some(drag_start) = drag_start {
-                    window.set_cursor_position(drag_start).expect("Could not set cursor position");
-                }
-            },
-            WindowEvent::MouseInput { state, .. } => {
-                if *state == ElementState::Pressed {
-                    window.set_cursor_grab(true).expect("Could not grab cursor");
-                    window.set_cursor_visible(false);
-                    drag_start = Some(mouse_position.clone());
-                } else {
-                    window.set_cursor_grab(false).expect("Could not release cursor");
-                    window.set_cursor_visible(true);
-                    window.set_cursor_position(drag_start.unwrap()).expect("Could not set cursor position");
-                    drag_start = None;
-                }
-                game_state.mouse_input(state)
-            },
-            WindowEvent::KeyboardInput { input, .. } => match input {
-                KeyboardInput {
-                    state: ElementState::Pressed,
-                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                    ..
-                } => {
-                    game_state.focus_changed(false);
+    let repaint_signaler = Arc::new(RepaintSignaler(Mutex::new(event_loop.create_proxy())));
+
+    event_loop.run(move |event, _, control_flow| {
+        graphics_state.handle_event(&window, &event, control_flow, || game_state.construct_constants());
+        match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == window.id() => match event {
+                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::Focused(focused) => {
+                    game_state.focus_changed(*focused);
                 },
-                keyboard_input => game_state.keyboard_input(keyboard_input),
+                WindowEvent::CursorMoved { position, .. } => {
+                    mouse_position = *position;
+                    if let Some(drag_start) = drag_start {
+                        window.set_cursor_position(drag_start).expect("Could not set cursor position");
+                    }
+                },
+                WindowEvent::MouseInput { state, .. } => {
+                    if *state == ElementState::Pressed {
+                        window.set_cursor_grab(true).expect("Could not grab cursor");
+                        window.set_cursor_visible(false);
+                        drag_start = Some(mouse_position.clone());
+                    } else {
+                        window.set_cursor_grab(false).expect("Could not release cursor");
+                        window.set_cursor_visible(true);
+                        window.set_cursor_position(drag_start.unwrap()).expect("Could not set cursor position");
+                        drag_start = None;
+                    }
+                    game_state.mouse_input(state)
+                },
+                WindowEvent::KeyboardInput { input, .. } => match input {
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                        ..
+                    } => {
+                        game_state.focus_changed(false);
+                    },
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::M),
+                        ..
+                    } => {
+                        println!("Exporting mesh");
+                        let model_shape = model();
+                        let mesh = marching_cubes(model_shape, 100.0, 0.1);
+                        write([".", "test.3mf"].iter().collect(), &mesh).expect("Could not write model to file");
+                        println!("Mesh exported");
+                    },
+                    keyboard_input => game_state.keyboard_input(keyboard_input),
+                },
+                WindowEvent::Resized(physical_size) => {
+                    game_state.resize(*physical_size);
+                },
+                _ => {}
             },
-            WindowEvent::Resized(physical_size) => {
-                game_state.resize(*physical_size);
-                graphics_state.resize(*physical_size);
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion {
+                    delta
+                },
+                ..
+            } => {
+                game_state.mouse_moved(delta);
             },
-            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                game_state.resize(**new_inner_size);
-                graphics_state.resize(**new_inner_size);
+            Event::RedrawRequested(_) => {
+                game_state.update();
             },
             _ => {}
-        },
-        Event::DeviceEvent {
-            event: DeviceEvent::MouseMotion {
-                delta
-            },
-            ..
-        } => {
-            game_state.mouse_moved(delta);
-        },
-        Event::RedrawRequested(_) => {
-            game_state.update();
-            let constants = game_state.construct_constants();
-            match graphics_state.render(constants) {
-                Ok(_) => {}
-                // Recreate the swap_chain if lost
-                Err(wgpu::SwapChainError::Lost) => {
-                    graphics_state.resize(game_state.size);
-                },
-                // The system is out of memory, we should probably quit
-                Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                // All other errors (Outdated, Timeout) should be resolved by the next frame
-                Err(e) => eprintln!("{:?}", e),
-            }
-        },
-        Event::MainEventsCleared => {
-            window.request_redraw();
-        }
-        _ => {}
+        };
     });
 }
