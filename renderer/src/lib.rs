@@ -1,5 +1,6 @@
 mod font;
 mod glyph;
+mod path;
 mod quad;
 mod renderer;
 mod scene;

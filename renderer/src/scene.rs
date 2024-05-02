@@ -52,6 +52,8 @@ pub struct Layer {
     pub quads: Vec<Quad>,
     #[serde(default)]
     pub texts: Vec<Text>,
+    #[serde(default)]
+    pub paths: Vec<Path>,
 }
 
 impl Default for Layer {
@@ -63,6 +65,7 @@ impl Default for Layer {
             font_name: "Courier New".to_string(),
             quads: Vec::new(),
             texts: Vec::new(),
+            paths: Vec::new(),
         }
     }
 }
@@ -84,4 +87,31 @@ pub struct Text {
     pub bottom_left: Vec2,
     pub size: f32,
     pub color: Vec4,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum PathCommand {
+    CubicBezierTo {
+        control1: Vec2,
+        control2: Vec2,
+        to: Vec2,
+    },
+    QuadraticBezierTo {
+        control: Vec2,
+        to: Vec2,
+    },
+    LineTo {
+        to: Vec2,
+    },
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Path {
+    #[serde(default)]
+    pub fill: Option<Vec4>,
+    #[serde(default)]
+    pub stroke: Option<(f32, Vec4)>,
+    pub start: Vec2,
+    pub commands: Vec<PathCommand>,
 }

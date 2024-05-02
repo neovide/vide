@@ -1,10 +1,12 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 
 mod glyph;
+mod path;
 mod quad;
 
 use glam::Vec2;
 pub use glyph::*;
+pub use path::*;
 pub use quad::*;
 
 #[derive(Copy, Clone)]

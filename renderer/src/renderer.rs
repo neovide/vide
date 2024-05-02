@@ -5,7 +5,7 @@ use wgpu::*;
 use shader::ShaderConstants;
 use winit::{event::Event, window::Window};
 
-use crate::{glyph::GlyphState, quad::QuadState, scene::Layer, Scene};
+use crate::{glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, Scene};
 pub(crate) use resources::Resources;
 
 pub trait Drawable {
@@ -24,6 +24,7 @@ pub struct Renderer {
 
     pub(crate) quad_state: QuadState,
     pub(crate) glyph_state: GlyphState,
+    pub(crate) path_state: PathState,
 }
 
 impl Renderer {
@@ -33,12 +34,14 @@ impl Renderer {
 
         let quad_state = QuadState::new(&resources);
         let glyph_state = GlyphState::new(&resources);
+        let path_state = PathState::new(&resources);
 
         Self {
             resources,
 
             quad_state,
             glyph_state,
+            path_state,
         }
     }
 
@@ -48,6 +51,7 @@ impl Renderer {
             [
                 &mut self.quad_state as &mut dyn Drawable,
                 &mut self.glyph_state,
+                &mut self.path_state,
             ],
         ) {
             eprintln!("Render error: {:?}", render_error);

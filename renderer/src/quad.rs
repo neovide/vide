@@ -7,7 +7,6 @@ use crate::{
     scene::Layer,
 };
 
-#[cfg(not(target_arch = "spirv"))]
 pub struct QuadState {
     buffer: Buffer,
     bind_group: BindGroup,
@@ -15,7 +14,6 @@ pub struct QuadState {
 }
 
 impl QuadState {
-    #[cfg(not(target_arch = "spirv"))]
     pub(crate) fn new(
         Resources {
             device,

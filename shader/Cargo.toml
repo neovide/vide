@@ -10,4 +10,3 @@ crate-type = ["dylib", "lib"]
 bytemuck = { version = "1.13.1", features = ["derive"] }
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-std" }
 glam = { version = "0.22", default-features = false, features = ["libm", "bytemuck"] }
-
