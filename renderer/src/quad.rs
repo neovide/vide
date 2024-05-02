@@ -2,7 +2,10 @@ use glam::{Vec2, Vec4, Vec4Swizzles};
 use shader::{InstancedQuad, ShaderConstants};
 use wgpu::*;
 
-use crate::{renderer::Drawable, scene::Layer};
+use crate::{
+    renderer::{Drawable, Resources},
+    scene::Layer,
+};
 
 #[cfg(not(target_arch = "spirv"))]
 pub struct QuadState {
@@ -13,11 +16,14 @@ pub struct QuadState {
 
 impl QuadState {
     #[cfg(not(target_arch = "spirv"))]
-    pub fn new(
-        device: &Device,
-        shader: &ShaderModule,
-        swapchain_format: TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
+    pub(crate) fn new(
+        Resources {
+            device,
+            universal_bind_group_layout,
+            shader,
+            swapchain_format,
+            ..
+        }: &Resources,
     ) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Quad buffer"),
@@ -70,7 +76,7 @@ impl QuadState {
                 module: &shader,
                 entry_point: "quad::fragment",
                 targets: &[Some(ColorTargetState {
-                    format: swapchain_format,
+                    format: *swapchain_format,
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],

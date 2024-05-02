@@ -12,7 +12,12 @@ use swash::{
 };
 use wgpu::*;
 
-use crate::{font::Font, renderer::Drawable, scene::Layer, ATLAS_SIZE};
+use crate::{
+    font::Font,
+    renderer::{Drawable, Resources},
+    scene::Layer,
+    ATLAS_SIZE,
+};
 
 pub struct GlyphState {
     buffer: Buffer,
@@ -28,11 +33,14 @@ pub struct GlyphState {
 }
 
 impl GlyphState {
-    pub fn new(
-        device: &Device,
-        shader: &ShaderModule,
-        swapchain_format: TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
+    pub(crate) fn new(
+        Resources {
+            device,
+            shader,
+            swapchain_format,
+            universal_bind_group_layout,
+            ..
+        }: &Resources,
     ) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Glyph buffer"),
@@ -120,7 +128,7 @@ impl GlyphState {
                 module: &shader,
                 entry_point: "glyph::glyph_fragment",
                 targets: &[Some(ColorTargetState {
-                    format: swapchain_format,
+                    format: *swapchain_format,
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
