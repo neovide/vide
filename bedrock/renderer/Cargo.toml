@@ -1,0 +1,57 @@
+[package]
+name = "bedrock"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+# Shader crate containing each of the shaders for the
+# various primitives.
+shader = { path = "../shader" }
+# In place transmutation crate for turning shader structs
+# into binary
+bytemuck = { version = "1.13.1", features = ["derive"] }
+# Atlas packing crate for carefully fitting rectangles into
+# larger rectangles. Used for the glyph atlas when rendering
+# text
+etagere = "0.2.7"
+# Wrapper crate for the various os specific font apis
+font-kit = "0.11.0"
+# Vector math library with support for spirv. Required for
+# rust-gpu
+glam = { version = "0.22.0", features = ["serde"] }
+# Tesselation crate which lets us turn high level paths into
+# lists of triangles efficiently
+lyon = { version = "1.0.1", features = ["serialization"] }
+# File watcher crate. Currently used to watch the scene.json
+# file and reload it when it changes
+notify = "5.1.0"
+# Rust doesn't implement ord for floats which makes deriving
+# hashes hard. This wraps floats and provides a consistent
+# ord implementation
+ordered-float = "3.6.0"
+rand = "0.8.5"
+# Embeds files into the compiled binary and provides a way
+# to access the data. Used for embedding the shader spirv
+# code
+rust-embed = "5.9.0"
+# Standard serialization crates
+serde = "1.0.159"
+serde_derive = "1.0.159"
+serde_json = "1.0.95"
+# Font shaper and scaler. Takes fonts retrieved with
+# font-kit, renders those glyphs to bitmaps, and picks where
+# to place them on the screen
+swash = "0.1.6"
+# Cross platform graphics api based on webgpu. This way we
+# can write our graphics code once and run it everywhere
+wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv"] }
+# Windowing and input library
+winit = "0.28.3"
+
+[build-dependencies]
+# Rust-gpu compiler which takes rust code and turns it into
+# spirv ready to run on the gpu
+spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder", rev = "35df987e14a34da93566c5fbf98e53f597f523ef"}

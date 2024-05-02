@@ -10,7 +10,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-use renderer::{Renderer, Scene};
+use bedrock::{Renderer, Scene};
 
 fn main() {
     let event_loop = EventLoop::new();

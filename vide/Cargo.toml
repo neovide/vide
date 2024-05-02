@@ -1,15 +1,15 @@
 [package]
-name = "scene_viewer"
+name = "vide"
 version = "0.1.0"
 edition = "2018"
 
+[lib]
+crate-type = ["lib"]
+
 [dependencies]
 bedrock = { path = "../bedrock" }
-futures = "0.3" # Futures required to initialize async wgpu types
+anyhow = "1.0.70"
 glam = { version = "0.22.0", features = ["serde"] }
+ordered-float = "3.6.0"
+futures = "0.3" # Futures required to initialize async wgpu types
 winit = "0.28.3" # Window library for constructing a window and handling window events
-serde = "1.0.159"
-serde_derive = "1.0.159"
-serde_json = "1.0.95"
-notify = "5.1.0"
-parking_lot = "0.12.1"

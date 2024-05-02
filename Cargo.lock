@@ -87,6 +87,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.70"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7de8ce5e0f9f8d88245311066a578d72b7af3e7088f32783804676302df237e4"
+
+[[package]]
 name = "ar"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,6 +138,29 @@ dependencies = [
  "miniz_oxide",
  "object",
  "rustc-demangle",
+]
+
+[[package]]
+name = "bedrock"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "etagere",
+ "font-kit",
+ "glam",
+ "lyon",
+ "notify",
+ "ordered-float",
+ "rand",
+ "rust-embed",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "shader",
+ "spirv-builder",
+ "swash",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]
@@ -1566,29 +1595,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216080ab382b992234dda86873c18d4c48358f5cfcb70fd693d7f6f2131b628b"
 
 [[package]]
-name = "renderer"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "etagere",
- "font-kit",
- "glam",
- "lyon",
- "notify",
- "ordered-float",
- "rand",
- "rust-embed",
- "serde",
- "serde_derive",
- "serde_json",
- "shader",
- "spirv-builder",
- "swash",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "rspirv"
 version = "0.11.0+1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1717,11 +1723,11 @@ dependencies = [
 name = "scene_viewer"
 version = "0.1.0"
 dependencies = [
+ "bedrock",
  "futures",
  "glam",
  "notify",
  "parking_lot",
- "renderer",
  "serde",
  "serde_derive",
  "serde_json",
@@ -2112,6 +2118,18 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vide"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bedrock",
+ "futures",
+ "glam",
+ "ordered-float",
+ "winit",
+]
 
 [[package]]
 name = "walkdir"
