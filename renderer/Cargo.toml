@@ -1,0 +1,28 @@
+[package]
+name = "renderer"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+bytemuck = { version = "1.13.1", features = ["derive"] }
+glam = { version = "0.22.0", features = ["serde"] } # Math library with nostd
+rust-embed = "5.9.0"
+shader = { path = "../shader" } # The actual shader which is compiled to spirv and used to interact with the scene
+wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv"], rev = "f43b706e17fa36cf3af2a6be3cb7cc82303dd5fc" }
+winit = "0.28.3" # Window library for constructing a window and handling window events
+swash = "0.1.6"
+etagere = "0.2.7"
+font-kit = "0.11.0"
+rand = "0.8.5"
+ordered-float = "3.6.0"
+serde = "1.0.159"
+serde_derive = "1.0.159"
+serde_json = "1.0.95"
+notify = "5.1.0"
+
+[build-dependencies]
+# Build script which compiles the shader to spirv
+spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder", rev = "35df987e14a34da93566c5fbf98e53f597f523ef"}

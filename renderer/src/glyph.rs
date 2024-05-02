@@ -14,7 +14,7 @@ use wgpu::{
     RenderPipeline, ShaderModule, ShaderStages, Texture, TextureAspect, TextureFormat,
 };
 
-use crate::graphics::Drawable;
+use crate::Drawable;
 
 pub struct GlyphState {
     buffer: Buffer,

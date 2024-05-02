@@ -4,7 +4,7 @@ use wgpu::{
     RenderPipeline, ShaderStages,
 };
 
-use crate::graphics::Drawable;
+use crate::Drawable;
 
 #[cfg(not(target_arch = "spirv"))]
 pub struct QuadState {
