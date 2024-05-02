@@ -1,3 +1,4 @@
+use glam::{Vec2, Vec4, Vec4Swizzles};
 use shader::{InstancedQuad, ShaderConstants};
 use wgpu::*;
 
@@ -12,7 +13,12 @@ pub struct QuadState {
 
 impl QuadState {
     #[cfg(not(target_arch = "spirv"))]
-    pub fn new(device: &Device, shader: &ShaderModule, swapchain_format: TextureFormat) -> Self {
+    pub fn new(
+        device: &Device,
+        shader: &ShaderModule,
+        swapchain_format: TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
+    ) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Quad buffer"),
             size: std::mem::size_of::<InstancedQuad>() as u64 * 100000,
@@ -45,7 +51,7 @@ impl QuadState {
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Quad Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStages::all(),
                 range: 0..std::mem::size_of::<ShaderConstants>() as u32,
@@ -97,28 +103,37 @@ impl QuadState {
 
 impl Drawable for QuadState {
     fn draw<'b, 'a: 'b>(
-        &'a self,
+        &'a mut self,
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
-        _universal_bind_group: &'a BindGroup,
+        universal_bind_group: &'a BindGroup,
         layer: &Layer,
     ) {
-        let quads: Vec<InstancedQuad> = layer
-            .quads
-            .iter()
-            .map(|quad| InstancedQuad {
-                top_left: quad.top_left,
-                size: quad.size,
-                color: quad.color,
-            })
-            .collect();
+        let mut quads = vec![InstancedQuad {
+            top_left: layer.clip.map(|clip| clip.xy()).unwrap_or(Vec2::ZERO),
+            size: layer
+                .clip
+                .map(|clip| clip.zw())
+                .unwrap_or(constants.surface_size),
+            color: layer.background_color.unwrap_or(Vec4::ONE),
+            blur: layer.background_blur_radius,
+            ..Default::default()
+        }];
+
+        quads.extend(layer.quads.iter().map(|quad| InstancedQuad {
+            top_left: quad.top_left,
+            size: quad.size,
+            color: quad.color,
+            ..Default::default()
+        }));
 
         render_pass.set_pipeline(&self.render_pipeline); // 2.
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&quads[..]));
         render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.set_bind_group(1, &universal_bind_group, &[]);
         render_pass.draw(0..6, 0..quads.len() as u32);
     }
 }

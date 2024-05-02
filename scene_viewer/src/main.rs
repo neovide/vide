@@ -6,7 +6,7 @@ use notify::{recommended_watcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
 
@@ -15,7 +15,7 @@ use renderer::{Renderer, Scene};
 fn main() {
     let event_loop = EventLoop::new();
 
-    let scene: Arc<RwLock<Scene>> = Default::default();
+    let scene: Arc<RwLock<Scene>> = Arc::new(RwLock::new(Scene::new()));
     let scene_path = Arc::from(Path::new("./scene.json"));
     read_scene(&scene_path, &scene);
 
@@ -29,7 +29,7 @@ fn main() {
                 ..
             }) = event
             {
-                read_scene(dbg!(&scene_path), &scene);
+                read_scene(&scene_path, &scene);
                 event_loop.send_event(()).unwrap();
             }
         }
@@ -47,7 +47,7 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::RedrawRequested(_) => {
-                renderer.draw_scene(&scene.read(), &window);
+                renderer.draw_scene(&scene.read());
             }
             Event::WindowEvent {
                 ref event,
@@ -59,15 +59,17 @@ fn main() {
             Event::UserEvent(()) => {
                 window.request_redraw();
             }
+            Event::MainEventsCleared => {
+                window.request_redraw();
+            }
             _ => {}
         };
 
-        renderer.handle_event(&window, &event, control_flow);
+        renderer.handle_event(&window, &event);
     });
 }
 
 fn read_scene(path: &Path, scene: &RwLock<Scene>) {
-    // TODO use anyhow to send a possible error
     let mut file = File::open(&path).expect("Could not read file");
     let mut contents = String::new();
     file.read_to_string(&mut contents)

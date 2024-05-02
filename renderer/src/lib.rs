@@ -3,10 +3,8 @@ mod glyph;
 mod quad;
 mod renderer;
 mod scene;
-mod shape;
 
-use font::Font;
-use glam::{vec2, Vec2, Vec4};
+use glam::{vec2, Vec2};
 use rust_embed::*;
 
 pub use renderer::Renderer;
