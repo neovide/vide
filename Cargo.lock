@@ -877,23 +877,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpu-experiment"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "env_logger",
- "futures",
- "glam",
- "image",
- "log",
- "rust-embed",
- "shader",
- "spirv-builder",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1697,6 +1680,23 @@ checksum = "dc7c727aded0be18c5b80c1640eae0ac8e396abf6fa8477d96cb37d18ee5ec59"
 dependencies = [
  "ab_glyph_rasterizer",
  "owned_ttf_parser",
+]
+
+[[package]]
+name = "rusty_marcher"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "env_logger",
+ "futures",
+ "glam",
+ "image",
+ "log",
+ "rust-embed",
+ "shader",
+ "spirv-builder",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

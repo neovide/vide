@@ -47,7 +47,11 @@ pub fn sdf(position: Vec3, time: f32) -> f32 {
     let ball = sphere(Vec3::Z * 5.0 + vec3(ball_x, ball_y, 0.0), 1.0);
     let ground = plane(Vec3::ZERO, Vec3::Y);
 
-    let arch = cube(vec3(3.0, 6.0, 1.0)) - cylinder(vec3(0.0, 3.0, 3.0), vec3(0.0, 3.0, -3.0), 2.0) - cube(vec3(2.0, 3.0, 2.0));
+    let arch = 
+        cube(vec3(3.0, 6.0, 1.0)) - // Base
+        cylinder(vec3(0.0, 3.0, 3.0), vec3(0.0, 3.0, -3.0), 2.0) - // Arch
+        cube(vec3(2.0, 3.0, 2.0)); // Walkway
+
     let arch = arch + (Vec3::Z * 7.0);
 
     let field = ground.smooth_union(ball, 1.0).smooth_union(arch, 0.8);
