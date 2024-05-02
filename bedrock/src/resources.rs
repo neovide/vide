@@ -63,7 +63,6 @@ impl<'a> Resources<'a> {
 
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
-        dbg!(&swapchain_format);
 
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,
@@ -231,6 +230,7 @@ impl<'a> Resources<'a> {
                     self.surface_config.height as f32,
                 ),
                 atlas_size: ATLAS_SIZE,
+                clip: Vec4::ZERO,
             };
 
             let mut first = true;

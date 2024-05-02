@@ -1,5 +1,9 @@
+mod quad;
+
 use glam::{Vec2, Vec4};
 use serde::Deserialize;
+
+pub use quad::*;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Scene {
@@ -22,28 +26,49 @@ impl Scene {
         self
     }
 
+    pub fn layer(&self) -> &Layer {
+        self.layers.last().unwrap()
+    }
+
+    pub fn layer_mut(&mut self) -> &mut Layer {
+        self.layers.last_mut().unwrap()
+    }
+
     pub fn with_clip(mut self, clip: Vec4) -> Self {
-        self.layers.last_mut().unwrap().clip = Some(clip);
+        self.layer_mut().clip = Some(clip);
         self
     }
 
-    pub fn with_blur(mut self, radius: u32) -> Self {
-        self.layers.last_mut().unwrap().background_blur_radius = radius;
+    pub fn with_blur(mut self, radius: f32) -> Self {
+        self.layer_mut().background_blur_radius = radius;
         self
     }
 
     pub fn with_background(mut self, color: Vec4) -> Self {
-        self.layers.last_mut().unwrap().background_color = Some(color);
+        self.layer_mut().background_color = Some(color);
         self
     }
 
     pub fn with_font(mut self, font_name: String) -> Self {
-        self.layers.last_mut().unwrap().font_name = font_name;
+        self.layer_mut().font_name = font_name;
         self
     }
 
+    pub fn font(&self) -> &str {
+        self.layer().font_name.as_str()
+    }
+
+    pub fn with_font_size(mut self, size: f32) -> Self {
+        self.layer_mut().font_size = size;
+        self
+    }
+
+    pub fn font_size(&self) -> f32 {
+        self.layer().font_size
+    }
+
     pub fn add_quad(&mut self, quad: Quad) {
-        self.layers.last_mut().unwrap().add_quad(quad);
+        self.layer_mut().add_quad(quad);
     }
 
     pub fn with_quad(mut self, quad: Quad) -> Self {
@@ -52,7 +77,7 @@ impl Scene {
     }
 
     pub fn add_text(&mut self, text: Text) {
-        self.layers.last_mut().unwrap().add_text(text);
+        self.layer_mut().add_text(text);
     }
 
     pub fn with_text(mut self, text: Text) -> Self {
@@ -61,7 +86,7 @@ impl Scene {
     }
 
     pub fn add_path(&mut self, path: Path) {
-        self.layers.last_mut().unwrap().add_path(path);
+        self.layer_mut().add_path(path);
     }
 
     pub fn with_path(mut self, path: Path) -> Self {
@@ -70,7 +95,7 @@ impl Scene {
     }
 
     pub fn add_sprite(&mut self, sprite: Sprite) {
-        self.layers.last_mut().unwrap().add_sprite(sprite);
+        self.layer_mut().add_sprite(sprite);
     }
 
     pub fn with_sprite(mut self, sprite: Sprite) -> Self {
@@ -84,11 +109,13 @@ pub struct Layer {
     #[serde(default)]
     pub clip: Option<Vec4>,
     #[serde(default)]
-    pub background_blur_radius: u32,
+    pub background_blur_radius: f32,
     #[serde(default)]
     pub background_color: Option<Vec4>,
     #[serde(default = "default_font")]
     pub font_name: String,
+    #[serde(default = "default_size")]
+    pub font_size: f32,
     #[serde(default)]
     pub quads: Vec<Quad>,
     #[serde(default)]
@@ -103,9 +130,10 @@ impl Default for Layer {
     fn default() -> Self {
         Self {
             clip: None,
-            background_blur_radius: 0,
+            background_blur_radius: 0.0,
             background_color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
             font_name: "Courier New".to_string(),
+            font_size: 16.0,
             quads: Vec::new(),
             texts: Vec::new(),
             paths: Vec::new(),
@@ -118,6 +146,10 @@ fn default_font() -> String {
     "Courier New".to_string()
 }
 
+fn default_size() -> f32 {
+    16.0
+}
+
 impl Layer {
     pub fn with_clip(mut self, clip: Vec4) -> Self {
         self.clip = Some(clip);
@@ -128,12 +160,12 @@ impl Layer {
         self.clip = Some(clip);
     }
 
-    pub fn with_blur(mut self, radius: u32) -> Self {
+    pub fn with_blur(mut self, radius: f32) -> Self {
         self.background_blur_radius = radius;
         self
     }
 
-    pub fn set_blur(&mut self, radius: u32) {
+    pub fn set_blur(&mut self, radius: f32) {
         self.background_blur_radius = radius;
     }
 
@@ -190,13 +222,6 @@ impl Layer {
         self.add_sprite(sprite);
         self
     }
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Quad {
-    pub top_left: Vec2,
-    pub size: Vec2,
-    pub color: Vec4,
 }
 
 #[derive(Deserialize, Debug, Clone)]

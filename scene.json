@@ -120,7 +120,7 @@
     },
     {
       "clip": [0, 0, 200, 200],
-      "background_blur_radius": 2,
+      "background_blur_radius": 3,
       "background_color": [0.5, 0.5, 1, 1],
       "paths": [
         {

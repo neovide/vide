@@ -2,7 +2,7 @@ use std::{fs::File, io::Read, path::Path, sync::Arc};
 
 use futures::executor::block_on;
 
-use glam::{vec2, Vec4};
+use glam::{vec2, vec4, Vec4};
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use rust_embed::RustEmbed;
@@ -13,7 +13,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-use bedrock::{Renderer, Scene, Sprite};
+use bedrock::{Quad, Renderer, Scene, Sprite};
 
 #[derive(RustEmbed)]
 #[folder = "assets"]
@@ -59,12 +59,15 @@ fn main() {
             match event {
                 Event::NewEvents(_) => {
                     let mut scene = scene.read().clone();
-                    scene.add_sprite(Sprite {
-                        top_left: vec2(mouse_pos.x as f32, mouse_pos.y as f32),
-                        size: vec2(100., 100.),
-                        color: Vec4::ONE,
-                        texture: "Leaf.png".to_string(),
-                    });
+                    scene.add_quad(
+                        Quad::new(
+                            vec2(mouse_pos.x as f32, mouse_pos.y as f32),
+                            vec2(100., 100.),
+                            vec4(0., 0., 0., 0.5),
+                        )
+                        .with_corner_radius(30.0)
+                        .with_blur(10.0),
+                    );
 
                     renderer.draw_scene(&scene);
                 }

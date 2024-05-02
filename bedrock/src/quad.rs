@@ -5,6 +5,7 @@ use wgpu::*;
 use crate::{
     renderer::{Drawable, Resources},
     scene::Layer,
+    Quad,
 };
 
 pub struct QuadState {
@@ -112,25 +113,22 @@ impl Drawable for QuadState {
         layer: &Layer,
     ) {
         let mut quads = Vec::new();
-        if layer.background_color.is_some() || layer.background_blur_radius != 0 {
-            quads.push(InstancedQuad {
-                top_left: layer.clip.map(|clip| clip.xy()).unwrap_or(Vec2::ZERO),
-                size: layer
-                    .clip
-                    .map(|clip| clip.zw())
-                    .unwrap_or(constants.surface_size),
-                color: layer.background_color.unwrap_or(Vec4::ONE),
-                blur: layer.background_blur_radius,
-                ..Default::default()
-            });
+        if layer.background_color.is_some() || layer.background_blur_radius != 0.0 {
+            quads.push(
+                Quad::new(
+                    layer.clip.map(|clip| clip.xy()).unwrap_or(Vec2::ZERO),
+                    layer
+                        .clip
+                        .map(|clip| clip.zw())
+                        .unwrap_or(constants.surface_size),
+                    layer.background_color.unwrap_or(Vec4::ONE),
+                )
+                .with_blur(-layer.background_blur_radius)
+                .to_instanced(),
+            );
         }
 
-        quads.extend(layer.quads.iter().map(|quad| InstancedQuad {
-            top_left: quad.top_left,
-            size: quad.size,
-            color: quad.color,
-            ..Default::default()
-        }));
+        quads.extend(layer.quads.iter().map(|quad| quad.to_instanced()));
 
         render_pass.set_pipeline(&self.render_pipeline); // 2.
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
