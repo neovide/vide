@@ -1,0 +1,19 @@
+[package]
+name = "gpu-experiment"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+shader = { path = "./shader" }
+image = "0.23"
+winit = "0.24"
+cgmath = "0.18"
+env_logger = "0.8"
+log = "0.4"
+futures = "0.3"
+wgpu = "0.7.0"
+glam = "0.15.2"
+rust-embed = "5.9.0"
+
+[build-dependencies]
+spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder" }
