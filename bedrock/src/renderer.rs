@@ -1,11 +1,14 @@
 mod resources;
 
+use rust_embed::RustEmbed;
 use wgpu::*;
 
 use shader::ShaderConstants;
 use winit::{event::Event, window::Window};
 
-use crate::{glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, Scene};
+use crate::{
+    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Scene,
+};
 pub(crate) use resources::Resources;
 
 pub trait Drawable {
@@ -19,15 +22,16 @@ pub trait Drawable {
     );
 }
 
-pub struct Renderer {
+pub struct Renderer<A: RustEmbed> {
     pub(crate) resources: Resources,
 
     pub(crate) quad_state: QuadState,
     pub(crate) glyph_state: GlyphState,
     pub(crate) path_state: PathState,
+    pub(crate) sprite_state: SpriteState<A>,
 }
 
-impl Renderer {
+impl<A: RustEmbed> Renderer<A> {
     // Creating some of the wgpu types requires async code
     pub async fn new(window: &Window) -> Self {
         let resources = Resources::new(window).await;
@@ -35,6 +39,7 @@ impl Renderer {
         let quad_state = QuadState::new(&resources);
         let glyph_state = GlyphState::new(&resources);
         let path_state = PathState::new(&resources);
+        let sprite_state = SpriteState::new(&resources);
 
         Self {
             resources,
@@ -42,6 +47,7 @@ impl Renderer {
             quad_state,
             glyph_state,
             path_state,
+            sprite_state,
         }
     }
 
@@ -52,6 +58,7 @@ impl Renderer {
                 &mut self.quad_state as &mut dyn Drawable,
                 &mut self.glyph_state,
                 &mut self.path_state,
+                &mut self.sprite_state,
             ],
         ) {
             eprintln!("Render error: {:?}", render_error);

@@ -4,6 +4,7 @@ mod path;
 mod quad;
 mod renderer;
 mod scene;
+mod sprite;
 
 use glam::{vec2, Vec2};
 use rust_embed::*;

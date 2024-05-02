@@ -4,6 +4,7 @@ use futures::executor::block_on;
 
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
+use rust_embed::RustEmbed;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -11,6 +12,10 @@ use winit::{
 };
 
 use bedrock::{Renderer, Scene};
+
+#[derive(RustEmbed)]
+#[folder = "assets"]
+struct Assets;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -42,7 +47,7 @@ fn main() {
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut renderer = block_on(Renderer::new(&window));
+    let mut renderer = block_on(Renderer::<Assets>::new(&window));
 
     event_loop.run(move |event, _, control_flow| {
         match event {

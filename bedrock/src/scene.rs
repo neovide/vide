@@ -53,6 +53,10 @@ impl Scene {
     pub fn add_path(&mut self, path: Path) {
         self.layers.last_mut().unwrap().add_path(path);
     }
+
+    pub fn add_sprite(&mut self, sprite: Sprite) {
+        self.layers.last_mut().unwrap().add_sprite(sprite);
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -71,6 +75,8 @@ pub struct Layer {
     pub texts: Vec<Text>,
     #[serde(default)]
     pub paths: Vec<Path>,
+    #[serde(default)]
+    pub sprites: Vec<Sprite>,
 }
 
 impl Default for Layer {
@@ -83,6 +89,7 @@ impl Default for Layer {
             quads: Vec::new(),
             texts: Vec::new(),
             paths: Vec::new(),
+            sprites: Vec::new(),
         }
     }
 }
@@ -152,6 +159,15 @@ impl Layer {
 
     pub fn with_path(mut self, path: Path) -> Self {
         self.add_path(path);
+        self
+    }
+
+    pub fn add_sprite(&mut self, sprite: Sprite) {
+        self.sprites.push(sprite);
+    }
+
+    pub fn with_sprite(mut self, sprite: Sprite) -> Self {
+        self.add_sprite(sprite);
         self
     }
 }
@@ -294,4 +310,12 @@ impl Path {
         self.commands.push(PathCommand::LineTo { to });
         self
     }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Sprite {
+    pub top_left: Vec2,
+    pub size: Vec2,
+    pub color: Vec4,
+    pub texture: String,
 }

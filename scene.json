@@ -133,6 +133,17 @@
           ]
         }
       ]
+    },
+    {
+      "background_color": [0, 0, 0, 0],
+      "sprites": [
+        {
+          "top_left": [300, 300],
+          "size": [100, 100],
+          "color": [1, 1, 1, 1],
+          "texture": "Leaf.png"
+        }
+      ]
     }
   ]
 }

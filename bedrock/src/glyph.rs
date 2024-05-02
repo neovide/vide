@@ -15,7 +15,7 @@ use wgpu::*;
 use crate::{
     font::Font,
     renderer::{Drawable, Resources},
-    scene::Layer,
+    scene::{Layer, Text},
     ATLAS_SIZE,
 };
 
@@ -266,19 +266,20 @@ impl GlyphState {
         queue: &Queue,
         font_name: &str,
         font_ref: FontRef<'a>,
-        text: &str,
-        bottom_left: Vec2,
-        size: f32,
-        color: Vec4,
+        text: &Text,
     ) -> Vec<InstancedGlyph> {
-        let key = ShapeKey::new(Arc::from(text), font_ref, size.into());
+        let key = ShapeKey::new(Arc::from(text.text.as_str()), font_ref, text.size.into());
 
-        let mut shaper = self.shaping_context.builder(font_ref).size(size).build();
+        let mut shaper = self
+            .shaping_context
+            .builder(font_ref)
+            .size(text.size)
+            .build();
         let glyphs = self
             .shaped_text_lookup
             .entry(key)
             .or_insert_with(|| {
-                shaper.add_str(text);
+                shaper.add_str(&text.text);
 
                 let mut glyphs = Vec::new();
 
@@ -301,9 +302,9 @@ impl GlyphState {
                     font_name,
                     font_ref,
                     glyph.id,
-                    bottom_left + vec2(current_x + glyph.x, -glyph.y),
-                    size,
-                    color,
+                    text.bottom_left + vec2(current_x + glyph.x, -glyph.y),
+                    text.size,
+                    text.color,
                 );
                 current_x += glyph.advance;
                 instance
@@ -328,16 +329,8 @@ impl Drawable for GlyphState {
             .texts
             .iter()
             .map(|text| {
-                self.shape_and_rasterize_text(
-                    queue,
-                    &layer.font_name,
-                    font_ref,
-                    text.text.as_ref(),
-                    text.bottom_left,
-                    text.size,
-                    text.color,
-                )
-                .into_iter()
+                self.shape_and_rasterize_text(queue, &layer.font_name, font_ref, &text)
+                    .into_iter()
             })
             .flatten()
             .collect();

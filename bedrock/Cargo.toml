@@ -22,6 +22,8 @@ font-kit = "0.11.0"
 # Vector math library with support for spirv. Required for
 # rust-gpu
 glam = { version = "0.22.0", features = ["serde"] }
+# Image parsing crate. Used for loading png and jpeg images
+image = { version = "0.24.6", default-features = false, features = ["png", "jpeg"] }
 # Tesselation crate which lets us turn high level paths into
 # lists of triangles efficiently
 lyon = { version = "1.0.1", features = ["serialization"] }

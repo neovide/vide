@@ -5,11 +5,12 @@ edition = "2018"
 
 [dependencies]
 bedrock = { path = "../bedrock" }
-futures = "0.3" # Futures required to initialize async wgpu types
+futures = "0.3"
 glam = { version = "0.22.0", features = ["serde"] }
-winit = "0.28.3" # Window library for constructing a window and handling window events
+winit = "0.28.3"
 serde = "1.0.159"
 serde_derive = "1.0.159"
 serde_json = "1.0.95"
 notify = "5.1.0"
 parking_lot = "0.12.1"
+rust-embed = "5.9.0"
