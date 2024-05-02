@@ -9,7 +9,7 @@ resolver = "2"
 [dependencies]
 bytemuck = { version = "1.13.1", features = ["derive"] }
 futures = "0.3" # Futures required to initialize async wgpu types
-glam = "0.22.0" # Math library with nostd
+glam = { version = "0.22.0", features = ["serde"] } # Math library with nostd
 rust-embed = "5.9.0"
 shader = { path = "./shader" } # The actual shader which is compiled to spirv and used to interact with the scene
 wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv"] }
@@ -19,6 +19,10 @@ etagere = "0.2.7"
 font-kit = "0.11.0"
 rand = "0.8.5"
 ordered-float = "3.6.0"
+serde = "1.0.159"
+serde_derive = "1.0.159"
+serde_json = "1.0.95"
+tokio = "1.27.0"
 
 [target.'cfg(not(target_arch = "spirv"))'.dependencies]
 bevy_reflect = "0.5.0" # Library for dynamically accessing struct fields

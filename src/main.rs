@@ -2,6 +2,7 @@ mod font;
 mod glyph;
 mod graphics;
 mod quad;
+mod scene;
 mod shape;
 
 use futures::executor::block_on;
@@ -27,18 +28,16 @@ fn main() {
         match event {
             Event::RedrawRequested(_) => {
                 gfx.clear();
-
-                gfx.add_quad(vec2(0., 25.), vec2(300., 25.), vec4(1., 0., 0., 1.));
-
-                for i in 0..5000 {
-                    gfx.add_text(
-                        font.as_ref().unwrap(),
-                        "Hello, world!",
-                        vec2(rand::random::<f32>() * 800., rand::random::<f32>() * 600.),
-                        32.0,
-                        vec4(0.0, 0.0, 0.0, 1.0),
-                    );
-                }
+                let font_ref = font.as_ref().unwrap();
+                let glyph = font_ref.charmap().map('A');
+                gfx.add_quad(vec2(0., 50.), vec2(32., 32.), vec4(1.0, 0.0, 0.0, 1.0));
+                gfx.add_glyph(
+                    font.as_ref().unwrap(),
+                    glyph,
+                    vec2(0., 50.),
+                    32.0,
+                    vec4(0.0, 0.0, 0.0, 1.0),
+                );
             }
             Event::WindowEvent {
                 ref event,
@@ -47,6 +46,9 @@ fn main() {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => {}
             },
+            Event::MainEventsCleared => {
+                window.request_redraw();
+            }
             _ => {}
         };
 
