@@ -104,7 +104,7 @@ impl<'a> WinitRenderer<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, window: &'a Window, event: &Event<()>) {
+    pub fn handle_event<T>(&mut self, window: &'a Window, event: &Event<T>) {
         match event {
             Event::NewEvents(start_cause) => {
                 self.window_initializing = start_cause == &StartCause::Init;
