@@ -8,13 +8,9 @@ use swash::{
     zeno::Format,
     FontRef, GlyphId,
 };
-use wgpu::{
-    BindGroup, BindGroupLayout, BlendState, Buffer, BufferDescriptor, ColorTargetState,
-    ColorWrites, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass,
-    RenderPipeline, ShaderModule, ShaderStages, Texture, TextureAspect, TextureFormat,
-};
+use wgpu::*;
 
-use crate::Drawable;
+use crate::renderer::Drawable;
 
 pub struct GlyphState {
     buffer: Buffer,
@@ -38,44 +34,44 @@ impl GlyphState {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Glyph buffer"),
             size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let atlas_texture = device.create_texture(&wgpu::TextureDescriptor {
+        let atlas_texture = device.create_texture(&TextureDescriptor {
             label: Some("Glyph atlas texture descriptor"),
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: 1000,
                 height: 1000,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             view_formats: &[],
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Glyph bind group layout"),
             entries: &[
-                wgpu::BindGroupLayoutEntry {
+                BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: false },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
+                BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
                         multisampled: false,
                     },
                     count: None,
@@ -83,42 +79,41 @@ impl GlyphState {
             ],
         });
 
-        let atlas_texture_view = atlas_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let atlas_texture_view = atlas_texture.create_view(&TextureViewDescriptor::default());
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("Glyph bind group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry {
+                BindGroupEntry {
                     binding: 0,
                     resource: buffer.as_entire_binding(),
                 },
-                wgpu::BindGroupEntry {
+                BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&atlas_texture_view),
+                    resource: BindingResource::TextureView(&atlas_texture_view),
                 },
             ],
         });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Glyph Pipeline Layout"),
-                bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
-                push_constant_ranges: &[wgpu::PushConstantRange {
-                    stages: wgpu::ShaderStages::all(),
-                    range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-                }],
-            });
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Glyph Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::all(),
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+            }],
+        });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Glyph Pipeline"),
             layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
+            vertex: VertexState {
                 module: &shader,
                 entry_point: "glyph::glyph_vertex",
                 buffers: &[],
             },
-            fragment: Some(wgpu::FragmentState {
+            fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: "glyph::glyph_fragment",
                 targets: &[Some(ColorTargetState {
@@ -127,17 +122,17 @@ impl GlyphState {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
+                front_face: FrontFace::Ccw,
                 cull_mode: None,
                 unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
+                polygon_mode: PolygonMode::Fill,
                 conservative: false,
             },
             depth_stencil: None,
-            multisample: wgpu::MultisampleState {
+            multisample: MultisampleState {
                 count: 1,
                 mask: !0,
                 alpha_to_coverage_enabled: false,

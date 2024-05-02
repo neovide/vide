@@ -1,10 +1,7 @@
 use shader::{InstancedQuad, ShaderConstants};
-use wgpu::{
-    BindGroup, BlendState, Buffer, ColorTargetState, ColorWrites, Queue, RenderPass,
-    RenderPipeline, ShaderStages,
-};
+use wgpu::*;
 
-use crate::Drawable;
+use crate::renderer::Drawable;
 
 #[cfg(not(target_arch = "spirv"))]
 pub struct QuadState {
@@ -16,30 +13,21 @@ pub struct QuadState {
 
 impl QuadState {
     #[cfg(not(target_arch = "spirv"))]
-    pub fn new(
-        device: &wgpu::Device,
-        shader: &wgpu::ShaderModule,
-        swapchain_format: wgpu::TextureFormat,
-    ) -> Self {
-        use wgpu::{
-            FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
-            PrimitiveTopology, RenderPipelineDescriptor, VertexState,
-        };
-
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+    pub fn new(device: &Device, shader: &ShaderModule, swapchain_format: TextureFormat) -> Self {
+        let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Quad buffer"),
             size: std::mem::size_of::<InstancedQuad>() as u64 * 100000,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Quad bind group layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
+            entries: &[BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Storage { read_only: false },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -47,24 +35,23 @@ impl QuadState {
             }],
         });
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("Quad bind group"),
             layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
+            entries: &[BindGroupEntry {
                 binding: 0,
                 resource: buffer.as_entire_binding(),
             }],
         });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Quad Pipeline Layout"),
-                bind_group_layouts: &[&bind_group_layout],
-                push_constant_ranges: &[wgpu::PushConstantRange {
-                    stages: wgpu::ShaderStages::all(),
-                    range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-                }],
-            });
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Quad Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::all(),
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+            }],
+        });
 
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Quad Pipeline"),
