@@ -47,7 +47,9 @@ impl GraphicsState {
 
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
-                features: wgpu::Features::PUSH_CONSTANTS | wgpu::Features::SPIRV_SHADER_PASSTHROUGH,
+                features: wgpu::Features::PUSH_CONSTANTS 
+                    | wgpu::Features::SPIRV_SHADER_PASSTHROUGH
+                    | wgpu::Features::VERTEX_WRITABLE_STORAGE,
                 limits: wgpu::Limits {
                     max_push_constant_size: 256,
                     ..Default::default()
@@ -63,7 +65,7 @@ impl GraphicsState {
                 label: Some("Uniform Bind Group Layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: false },
                         has_dynamic_offset: false,
@@ -78,6 +80,11 @@ impl GraphicsState {
                 top_left: vec2(10.0, 10.0),
                 size: vec2(30.0, 30.0),
                 color: vec4(1.0, 1.0, 0.0, 1.0),
+            },
+            InstancedQuad {
+                top_left: vec2(100.0, 100.0),
+                size: vec2(300.0, 300.0),
+                color: vec4(0.0, 1.0, 1.0, 1.0),
             },
         ];
 
@@ -131,12 +138,12 @@ impl GraphicsState {
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vertex",
+                entry_point: "quad::vertex",
                 buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "fragment",
+                entry_point: "quad::fragment",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: swapchain_format,
                     blend: None,
@@ -203,7 +210,7 @@ impl GraphicsState {
                 render_pass.set_push_constants(wgpu::ShaderStages::all(), 0, unsafe {
                     ::std::slice::from_raw_parts((&constants as *const ShaderConstants) as *const u8, ::std::mem::size_of::<ShaderConstants>())
                 });
-                render_pass.draw(0..3, 0..1); // 3.
+                render_pass.draw(0..6, 0..2); // 3.
             }
 
             // submit will accept anything that implements IntoIter

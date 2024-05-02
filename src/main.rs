@@ -42,9 +42,6 @@ impl State {
         ShaderConstants {
             pixel_width: self.size.width,
             pixel_height: self.size.height,
-            screen_width: 0.1,
-            screen_height: 0.1,
-            screen_depth: 0.1,
         }
     }
 }
