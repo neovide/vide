@@ -2,30 +2,21 @@ use std::time::Instant;
 use std::sync::Arc;
 
 use chrono::Timelike;
-use egui::FontDefinitions;
-use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
-use egui_winit_platform::{Platform, PlatformDescriptor};
-use epi::*;
+use glam::{vec2, vec4};
 use rust_embed::*;
-use shader::{
-    ShaderConstants,
-    model::ModelConstants,
-};
+use shader::{ShaderConstants, InstancedQuad};
+use wgpu::util::DeviceExt;
 use winit::{
     window::Window,
     event::{Event, WindowEvent},
     event_loop::ControlFlow,
 };
 
-use super::{RepaintSignaler, UI};
-
 #[derive(RustEmbed)]
 #[folder = "spirv"]
 struct Asset;
 
 pub struct GraphicsState {
-    start_time: Instant,
-    previous_frame: Option<f32>,
     instance: wgpu::Instance,
     surface: Option<wgpu::Surface>,
     surface_config: wgpu::SurfaceConfiguration,
@@ -33,23 +24,19 @@ pub struct GraphicsState {
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
-    platform: Platform,
-    repaint_signaler: Arc<crate::RepaintSignaler>,
-    egui_render_pass: RenderPass,
-    egui_ui: UI,
+
+    quad_buffer: wgpu::Buffer,
+    uniform_bind_group: wgpu::BindGroup,
 }
 
 impl GraphicsState {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window, repaint_signaler: Arc<crate::RepaintSignaler>) -> Self {
+    pub async fn new(window: &Window) -> Self {
         let size = window.inner_size();
 
-        let start_time = Instant::now();
-
         // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::default();
+        let surface = unsafe { instance.create_surface(window) }.unwrap();
         let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -70,40 +57,74 @@ impl GraphicsState {
             None,
         ).await.unwrap();
 
+        // Create uniform buffer bind group layout
+        let uniform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Uniform Bind Group Layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let quads = vec! [
+            InstancedQuad {
+                top_left: vec2(10.0, 10.0),
+                size: vec2(30.0, 30.0),
+                color: vec4(1.0, 1.0, 0.0, 1.0),
+            },
+        ];
+
+        let quad_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Uniform Buffer"),
+            contents: bytemuck::cast_slice(&quads[..]),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Uniform Bind Group"),
+            layout: &uniform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: quad_buffer.as_entire_binding(),
+            }],
+        });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&uniform_bind_group_layout],
                 push_constant_ranges: &[wgpu::PushConstantRange {
                     stages: wgpu::ShaderStages::all(),
                     range: 0..std::mem::size_of::<ShaderConstants>() as u32,
                 }],
             });
 
-        let preferred_format = surface.get_preferred_format(&adapter).unwrap();
+        let swapchain_capabilities = surface.get_capabilities(&adapter);
+        let swapchain_format = swapchain_capabilities.formats[0];
 
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: preferred_format,
+            format: swapchain_format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: swapchain_capabilities.alpha_modes[0],
+            view_formats: vec![]
         };
 
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::util::make_spirv(&Asset::get("shader.spv").expect("Could not load shader")),
         });
 
         surface.configure(&device, &surface_config);
-
-        let platform = Platform::new(PlatformDescriptor {
-            physical_width: size.width as u32,
-            physical_height: size.height as u32,
-            scale_factor: window.scale_factor(),
-            font_definitions: FontDefinitions::default(),
-            style: Default::default(),
-        });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -116,18 +137,18 @@ impl GraphicsState {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fragment",
-                targets: &[wgpu::ColorTargetState {
-                    format: preferred_format,
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: swapchain_format,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
-                }],
+                })],
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
-                clamp_depth: false,
+                unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
@@ -137,14 +158,10 @@ impl GraphicsState {
                 mask: !0, // 3.
                 alpha_to_coverage_enabled: false, // 4.
             },
+            multiview: None,
         });
 
-        let egui_render_pass = RenderPass::new(&device, preferred_format, 1);
-        let egui_ui = Default::default();
-
         Self {
-            start_time,
-            previous_frame: None,
             instance,
             surface: Some(surface),
             surface_config,
@@ -152,10 +169,8 @@ impl GraphicsState {
             device,
             queue,
             render_pipeline,
-            platform,
-            repaint_signaler,
-            egui_render_pass,
-            egui_ui
+            quad_buffer,
+            uniform_bind_group,
         }
     }
 
@@ -171,72 +186,25 @@ impl GraphicsState {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[
-                        wgpu::RenderPassColorAttachment {
+                        Some(wgpu::RenderPassColorAttachment {
                             view: &frame_view,
                             resolve_target: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
                                 store: true,
                             }
-                        }
+                        })
                     ],
                     depth_stencil_attachment: None,
                 });
 
                 render_pass.set_pipeline(&self.render_pipeline); // 2.
+                render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                 render_pass.set_push_constants(wgpu::ShaderStages::all(), 0, unsafe {
                     ::std::slice::from_raw_parts((&constants as *const ShaderConstants) as *const u8, ::std::mem::size_of::<ShaderConstants>())
                 });
                 render_pass.draw(0..3, 0..1); // 3.
             }
-
-            let egui_start = Instant::now();
-            self.platform.begin_frame();
-
-            let mut ui_output = epi::backend::AppOutput::default();
-
-            let mut egui_frame = epi::backend::FrameBuilder {
-                info: epi::IntegrationInfo {
-                    web_info: None,
-                    cpu_usage: self.previous_frame,
-                    seconds_since_midnight: Some(seconds_since_midnight()),
-                    native_pixels_per_point: Some(window.scale_factor() as _),
-                    prefer_dark_mode: None,
-                },
-                tex_allocator: &mut self.egui_render_pass,
-                output: &mut ui_output,
-                repaint_signal: self.repaint_signaler.clone(),
-            }
-            .build();
-
-            self.egui_ui.update(&self.platform.context(), &mut egui_frame);
-
-            let (_output, paint_commands) = self.platform.end_frame(Some(&window));
-            let paint_jobs = self.platform.context().tessellate(paint_commands);
-
-            let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
-            self.previous_frame = Some(frame_time);
-
-            // Upload all resources for the GPU.
-            let screen_descriptor = ScreenDescriptor {
-                physical_width: self.surface_config.width,
-                physical_height: self.surface_config.height,
-                scale_factor: window.scale_factor() as f32,
-            };
-            self.egui_render_pass.update_texture(&self.device, &self.queue, &self.platform.context().texture());
-            self.egui_render_pass.update_user_textures(&self.device, &self.queue);
-            self.egui_render_pass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
-
-            // Record all render passes.
-            self.egui_render_pass
-                .execute(
-                    &mut encoder,
-                    &frame_view,
-                    &paint_jobs,
-                    &screen_descriptor,
-                    None,
-                )
-                .unwrap();
 
             // submit will accept anything that implements IntoIter
             self.queue.submit(std::iter::once(encoder.finish()));
@@ -246,17 +214,19 @@ impl GraphicsState {
         Ok(())
     }
 
-    pub fn handle_event<F>(&mut self, window: &Window, event: &Event<()>, control_flow: &mut ControlFlow, construct_constants: F) -> bool
-    where F: FnOnce(ModelConstants) -> ShaderConstants {
-        self.platform.handle_event::<()>(event);
-
+    pub fn handle_event<F>(&mut self, window: &Window, event: &Event<()>, control_flow: &mut ControlFlow, construct_constants: F)
+    where F: FnOnce() -> ShaderConstants {
         match event {
             Event::MainEventsCleared => {
                 window.request_redraw();
             },
             Event::Resumed => {
-                let surface = unsafe { self.instance.create_surface(window) };
-                self.surface_config.format = surface.get_preferred_format(&self.adapter).unwrap();
+                let surface = unsafe { self.instance.create_surface(window) }.unwrap();
+
+                let swapchain_capabilities = surface.get_capabilities(&self.adapter);
+                let swapchain_format = swapchain_capabilities.formats[0];
+                self.surface_config.format = swapchain_format;
+                self.surface_config.alpha_mode = swapchain_capabilities.alpha_modes[0];
                 surface.configure(&self.device, &self.surface_config);
                 self.surface = Some(surface);
             },
@@ -279,9 +249,7 @@ impl GraphicsState {
                 }
             },
             Event::RedrawRequested(_) => {
-                self.platform.update_time(self.start_time.elapsed().as_secs_f64());
-                let model_constants = self.egui_ui.model_constants;
-                if let Err(render_error) = self.render(window, construct_constants(model_constants)) {
+                if let Err(render_error) = self.render(window, construct_constants()) {
                     eprintln!("Render error: {:?}", render_error);
                     match render_error {
                         wgpu::SurfaceError::Lost => {
@@ -299,17 +267,5 @@ impl GraphicsState {
             },
             _ => {} 
         };
-
-        self.platform.captures_event(event)
     }
-
-    pub fn model_constants(&self) -> ModelConstants {
-        self.egui_ui.model_constants
-    }
-}
-
-/// Time of day as seconds since midnight. Used for clock in demo app.
-pub fn seconds_since_midnight() -> f64 {
-    let time = chrono::Local::now().time();
-    time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
 }

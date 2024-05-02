@@ -1,12 +1,12 @@
-use spirv_builder::SpirvBuilder;
-use std::fs::copy;
-use std::error::Error;
+use spirv_builder::{MetadataPrintout, SpirvBuilder};
 
-fn main() -> Result<(), Box<dyn Error>>  {
+use std::fs::copy;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = SpirvBuilder::new("./shader", "spirv-unknown-vulkan1.1")
-            .build()?;
+        .print_metadata(MetadataPrintout::Full)
+        .build()?;
 
     copy(result.module.unwrap_single(), "./spirv/shader.spv")?;
-
     Ok(())
 }
