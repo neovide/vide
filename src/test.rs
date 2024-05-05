@@ -1,4 +1,4 @@
-use std::{path::PathBuf, thread};
+use std::{env::temp_dir, fs::create_dir_all, path::PathBuf, thread};
 
 use glam::{vec2, vec4};
 use image::io::Reader as ImageReader;
@@ -12,7 +12,7 @@ use crate::{offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Qu
 struct Assets;
 
 lazy_static! {
-    static ref TEMP_DIR: PathBuf = std::env::temp_dir();
+    static ref TEMP_DIR: PathBuf = temp_dir();
 }
 
 fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
@@ -45,9 +45,13 @@ fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
         let result = image_compare::rgba_hybrid_compare(&expected, &actual)
             .expect("Images had different dimensions");
         if result.score != 1.0 {
-            let diff_path = TEMP_DIR.join(format!("{}.png", test_name));
+            let temp_dir = TEMP_DIR.join("vide");
+            create_dir_all(&temp_dir).unwrap();
+            let diff_path = temp_dir.join(format!("{}_diff.png", test_name));
+            let actual_path = temp_dir.join(format!("{}_actual.png", test_name));
             let diff_image = result.image.to_color_map();
             diff_image.save(&diff_path).unwrap();
+            actual.save(&actual_path).unwrap();
             panic!(
                 "Regression detected. Diff image saved to {}",
                 diff_path.display()
