@@ -94,10 +94,5 @@ thread_local = "1.1.7"
 wgpu = { workspace = true }
 winit = { workspace = true }
 
-[build-dependencies]
-# Rust-gpu compiler which takes rust code and turns it into
-# spirv ready to run on the gpu
-spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder", rev = "8678d58d61a78f01201ec854cb5e3835c014fa3b"}
-
 [dev-dependencies]
 image-compare = "0.4.1"

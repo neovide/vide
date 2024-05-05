@@ -2,11 +2,11 @@ use rust_embed::RustEmbed;
 use wgpu::*;
 
 use crate::{
-    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Asset,
-    Scene, ATLAS_SIZE,
+    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Scene,
+    ATLAS_SIZE,
 };
 use glam::*;
-use shader::ShaderConstants;
+use shader::{load_shader, ShaderConstants};
 
 pub trait Drawable {
     fn new(renderer: &Renderer) -> Self
@@ -62,14 +62,7 @@ impl Renderer {
             .await
             .unwrap();
 
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: util::make_spirv(
-                &Asset::get("shader.spv")
-                    .expect("Could not load shader")
-                    .data,
-            ),
-        });
+        let shader = load_shader(&device);
 
         let offscreen_texture =
             create_texture(&device, width, height, format, 1, "Offscreen Texture");

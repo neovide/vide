@@ -9,10 +9,6 @@ crate-type = ["dylib", "lib"]
 
 [dependencies]
 bytemuck = { workspace = true }
-spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-std", rev = "8678d58d61a78f01201ec854cb5e3835c014fa3b" }
-
-[target.'cfg(target_arch = "spirv")'.dependencies]
-glam = { version = "0.22.0", default-features = false, features = ["libm", "bytemuck"] }
-
-[target.'cfg(not(target_arch = "spirv"))'.dependencies]
 glam = { version = "0.27.0", default-features = false, features = ["libm", "bytemuck"] }
+rust-embed = { workspace = true }
+wgpu = { workspace = true, features = ["spirv", "vulkan-portability"] }

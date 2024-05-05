@@ -65,13 +65,13 @@ impl Drawable for QuadState {
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
                 module: shader,
-                entry_point: "quad::vertex",
+                entry_point: "quad_vertex",
                 buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
-                entry_point: "quad::fragment",
+                entry_point: "quad_fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,
                     blend: Some(BlendState::ALPHA_BLENDING),

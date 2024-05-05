@@ -175,13 +175,13 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
                 module: shader,
-                entry_point: "sprite::sprite_vertex",
+                entry_point: "sprite_vertex",
                 buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
-                entry_point: "sprite::sprite_fragment",
+                entry_point: "sprite_fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,
                     blend: Some(BlendState::ALPHA_BLENDING),

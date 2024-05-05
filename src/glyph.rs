@@ -276,13 +276,13 @@ impl Drawable for GlyphState {
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
                 module: shader,
-                entry_point: "glyph::glyph_vertex",
+                entry_point: "glyph_vertex",
                 buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
-                entry_point: "glyph::glyph_fragment",
+                entry_point: "glyph_fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,
                     blend: Some(BlendState::ALPHA_BLENDING),
