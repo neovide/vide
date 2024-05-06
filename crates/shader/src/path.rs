@@ -38,5 +38,5 @@ pub fn path_vertex(
 #[cfg(target_arch = "spirv")]
 #[spirv(fragment)]
 pub fn path_fragment(color: Vec4, out_color: &mut Vec4) {
-    *out_color = color * color;
+    *out_color = color;
 }

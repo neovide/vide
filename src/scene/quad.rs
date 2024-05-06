@@ -1,12 +1,14 @@
-use glam::{Vec2, Vec4};
+use glam::Vec4;
+use glamour::{AsRaw, Point2, Size2};
+use palette::Srgba;
 use serde::Deserialize;
 use shader::InstancedQuad;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Quad {
-    top_left: Vec2,
-    size: Vec2,
-    color: Vec4,
+    top_left: Point2,
+    size: Size2,
+    color: Srgba,
     #[serde(default)]
     corner_radius: f32,
     #[serde(default)]
@@ -14,7 +16,7 @@ pub struct Quad {
 }
 
 impl Quad {
-    pub fn new(top_left: Vec2, size: Vec2, color: Vec4) -> Self {
+    pub fn new(top_left: Point2, size: Size2, color: Srgba) -> Self {
         Self {
             top_left,
             size,
@@ -41,9 +43,9 @@ impl Quad {
 
     pub fn to_instanced(&self) -> InstancedQuad {
         InstancedQuad {
-            top_left: self.top_left,
-            size: self.size,
-            color: self.color,
+            top_left: *self.top_left.as_raw(),
+            size: *self.size.as_raw(),
+            color: Vec4::from_array(self.color.into_linear().into()),
             corner_radius: self.corner_radius,
             blur: self.blur,
             ..Default::default()

@@ -270,10 +270,10 @@ impl Renderer {
                 });
 
                 if let Some(clip) = layer.clip {
-                    let x = (clip.x.ceil().max(0.0) as u32).min(self.width);
-                    let y = (clip.y.ceil().max(0.0) as u32).min(self.height);
-                    let w = (clip.z as u32).min(self.width - x);
-                    let h = (clip.w as u32).min(self.height - y);
+                    let x = clip.origin.x.min(self.width);
+                    let y = clip.origin.y.min(self.height);
+                    let w = clip.width().min(self.width - x);
+                    let h = clip.height().min(self.height - y);
                     render_pass.set_scissor_rect(x, y, w, h);
                 }
 

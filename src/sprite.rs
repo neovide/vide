@@ -1,7 +1,8 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use etagere::{size2, AllocId, AtlasAllocator};
-use glam::vec2;
+use glam::{vec2, Vec4};
+use glamour::AsRaw;
 use image::GenericImageView;
 use rust_embed::RustEmbed;
 use shader::{InstancedSprite, ShaderConstants};
@@ -70,8 +71,8 @@ impl<A: RustEmbed> SpriteState<A> {
         };
 
         InstancedSprite {
-            top_left: sprite.top_left,
-            size: sprite.size,
+            top_left: *sprite.top_left.as_raw(),
+            size: *sprite.size.as_raw(),
             atlas_top_left: vec2(
                 allocation_rectangle.min.x as f32,
                 allocation_rectangle.min.y as f32,
@@ -80,7 +81,7 @@ impl<A: RustEmbed> SpriteState<A> {
                 allocation_rectangle.width() as f32,
                 allocation_rectangle.height() as f32,
             ),
-            color: sprite.color,
+            color: Vec4::from_array(sprite.color.into_linear().into()),
         }
     }
 }

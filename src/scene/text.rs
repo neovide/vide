@@ -1,12 +1,13 @@
-use glam::{Vec2, Vec4};
+use glamour::Point2;
+use palette::Srgba;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Text {
     pub text: String,
-    pub bottom_left: Vec2,
+    pub bottom_left: Point2,
     pub size: f32,
-    pub color: Vec4,
+    pub color: Srgba,
     #[serde(default)]
     pub bold: bool,
     #[serde(default)]
@@ -20,7 +21,7 @@ fn default_subpixel() -> bool {
 }
 
 impl Text {
-    pub fn new(text: String, bottom_left: Vec2, size: f32, color: Vec4) -> Self {
+    pub fn new(text: String, bottom_left: Point2, size: f32, color: Srgba) -> Self {
         Self {
             text,
             bottom_left,
