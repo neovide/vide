@@ -1,8 +1,9 @@
 use std::{path::PathBuf, thread};
 
-use glam::{vec2, vec4};
+use glamour::{point2, size2, vec2, Rect};
 use image::io::Reader as ImageReader;
 use lazy_static::lazy_static;
+use palette::Srgba;
 use rust_embed::RustEmbed;
 
 use crate::{offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Sprite, Text};
@@ -65,11 +66,11 @@ fn simple_quad() {
         70,
         70,
         Scene::new()
-            .with_background(vec4(1., 0., 0.5, 1.))
+            .with_background(Srgba::new(1., 0., 0.5, 1.))
             .with_quad(Quad::new(
-                vec2(10., 10.),
-                vec2(50., 50.),
-                vec4(0., 0., 1., 1.),
+                point2!(10., 10.),
+                size2!(50., 50.),
+                Srgba::new(0., 0., 1., 1.),
             )),
     );
 }
@@ -98,13 +99,13 @@ fn simple_text() {
         (440., 44.),
     ];
 
-    let mut scene = Scene::new().with_background(vec4(1., 1., 1., 1.));
+    let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
     for (y, size) in positions.into_iter() {
         scene.add_text(Text::new(
             "Sphinx of black quartz, judge my vow.".to_owned(),
-            vec2(0., y),
+            point2!(0., y),
             size,
-            vec4(0., 0., 0., 1.),
+            Srgba::new(0., 0., 0., 1.),
         ));
     }
 
@@ -114,11 +115,11 @@ fn simple_text() {
 #[test]
 fn simple_path() {
     let scene = Scene::new().with_path(
-        Path::new(vec2(20., 20.))
-            .with_fill(vec4(0., 1., 0., 1.))
-            .with_stroke(5., vec4(0., 0., 0., 1.))
-            .line_to(vec2(180., 20.))
-            .quadratic_bezier_to(vec2(180., 180.), vec2(20., 180.)),
+        Path::new(point2!(20., 20.))
+            .with_fill(Srgba::new(0., 1., 0., 1.))
+            .with_stroke(5., Srgba::new(0., 0., 0., 1.))
+            .line_to(point2!(180., 20.))
+            .quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
     );
 
     assert_no_regressions(200, 200, scene);
@@ -128,8 +129,8 @@ fn simple_path() {
 fn simple_sprite() {
     let scene = Scene::new().with_sprite(Sprite::new(
         "Leaf.png".to_owned(),
-        vec2(10., 10.),
-        vec2(100., 100.),
+        point2!(10., 10.),
+        size2!(100., 100.),
     ));
 
     assert_no_regressions(120, 120, scene);
@@ -142,9 +143,9 @@ fn simple_blur() {
     for i in 0..20 {
         scene.add_text(Text::new(
             "TestTestTestTestTestTestTestTest".to_owned(),
-            vec2(0., 15. * i as f32),
+            point2!(0., 15. * i as f32),
             15.,
-            vec4(0., 0., 0., 1.),
+            Srgba::new(0., 0., 0., 1.),
         ));
     }
 
@@ -154,9 +155,9 @@ fn simple_blur() {
                 Layer::new()
                     .with_blur(2.)
                     .with_clip(
-                        vec4(15., 15., 50., 50.) + vec4(x as f32 * 60., y as f32 * 60., 0., 0.),
+                        Rect::new(point2!(15, 15), size2!(50, 50)).translate(vec2!(x * 60, y * 60)),
                     )
-                    .with_background(vec4(0., 1., 0., 0.1)),
+                    .with_background(Srgba::new(0., 1., 0., 0.1)),
             );
         }
     }
@@ -171,9 +172,9 @@ fn simple_blurred_quad() {
         for y in 0..5 {
             scene.add_quad(
                 Quad::new(
-                    vec2(15., 15.) + vec2(x as f32 * 60., y as f32 * 60.),
-                    vec2(50., 50.),
-                    vec4(x as f32 / 5., y as f32 / 5., 1., 1.),
+                    point2!(15., 15.) + vec2!(x as f32 * 60., y as f32 * 60.),
+                    size2!(50., 50.),
+                    Srgba::new(x as f32 / 5., y as f32 / 5., 1., 1.),
                 )
                 .with_corner_radius(x as f32 * 2.)
                 .with_blur(y as f32),

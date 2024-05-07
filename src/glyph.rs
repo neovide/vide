@@ -1,8 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use etagere::{size2, AllocId, AtlasAllocator};
-use glam::{vec2, Vec2, Vec4};
+use glam::Vec4;
+use glamour::{vec2, Point2, ToRaw};
 use ordered_float::OrderedFloat;
+use palette::Srgba;
 use shader::{InstancedGlyph, ShaderConstants};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
@@ -39,9 +41,9 @@ impl GlyphState {
         font_name: &str,
         font_ref: FontRef<'a>,
         glyph: swash::GlyphId,
-        bottom_left: Vec2,
+        bottom_left: Point2,
         size: f32,
-        color: Vec4,
+        color: Srgba,
     ) -> Option<InstancedGlyph> {
         // Create a font scaler for the given font and size
         let mut scaler = self
@@ -113,20 +115,22 @@ impl GlyphState {
                 (image.placement, allocation.rectangle)
             };
 
+        let bottom_left = bottom_left.floor()
+            + vec2!(
+                placement.left as f32,
+                placement.height as f32 - placement.top as f32
+            );
+
         // Add the glyph to instances
         Some(InstancedGlyph {
-            bottom_left: bottom_left.floor()
-                + vec2(
-                    placement.left as f32,
-                    placement.height as f32 - placement.top as f32,
-                ),
-            atlas_top_left: vec2(
+            bottom_left: bottom_left.to_raw(),
+            atlas_top_left: glam::vec2(
                 allocation_rectangle.min.x as f32,
                 allocation_rectangle.min.y as f32,
             ),
-            atlas_size: vec2(placement.width as f32, placement.height as f32),
+            atlas_size: glam::vec2(placement.width as f32, placement.height as f32),
             _padding: Default::default(),
-            color,
+            color: Vec4::from_array(color.into_linear().into()),
         })
     }
 
@@ -171,7 +175,7 @@ impl GlyphState {
                     font_name,
                     font_ref,
                     glyph.id,
-                    text.bottom_left + vec2(current_x + glyph.x, -glyph.y),
+                    text.bottom_left + vec2!(current_x + glyph.x, -glyph.y),
                     text.size,
                     text.color,
                 );
@@ -389,7 +393,7 @@ struct GlyphKey {
 }
 
 impl GlyphKey {
-    fn new(font_name: &str, glyph: GlyphId, size: f32, offset: Vec2) -> Self {
+    fn new(font_name: &str, glyph: GlyphId, size: f32, offset: Point2) -> Self {
         let size = size.into();
         let x_offset = SubpixelOffset::quantize(offset.x);
         let y_offset = SubpixelOffset::quantize(offset.y);

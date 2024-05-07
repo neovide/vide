@@ -1,9 +1,9 @@
+#[cfg(target_arch = "spirv")]
+use crate::ShaderConstants;
 #[cfg(not(target_arch = "spirv"))]
 use glam::*;
 #[cfg(target_arch = "spirv")]
-use spirv_std::{glam::*, image::Image2d, spirv, Sampler, num_traits::Float};
-#[cfg(target_arch = "spirv")]
-use crate::ShaderConstants;
+use spirv_std::{glam::*, image::Image2d, num_traits::Float, spirv, Sampler};
 
 #[cfg(target_arch = "spirv")]
 const UNIT_QUAD_VERTICES: [Vec2; 6] = [
@@ -130,25 +130,4 @@ pub fn compute_erf7(x: f32) -> f32 {
     let xx = x * x;
     let x = x + (0.24295 + (0.03395 + 0.0104 * xx) * xx) * (x * xx);
     x / (1.0 + x * x).sqrt()
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_quad_distance() {
-        // Initialize an instanced quad
-        let quad = InstancedQuad {
-            corner_radius: 5.0,
-            top_left: Vec2::new(10.0, 10.0),
-            size: Vec2::new(40.0, 50.0),
-            ..Default::default()
-        };
-
-        assert_eq!(quad.distance(vec2(20.0, 10.0)), 0.0);
-        assert_eq!(quad.distance(vec2(20.0, 20.0)), -10.0);
-        assert_eq!(quad.distance(vec2(20.0, 5.0)), 5.0);
-        assert_eq!(quad.distance(vec2(5.0, 5.0)), 9.142136);
-    }
 }

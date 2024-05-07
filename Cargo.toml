@@ -22,10 +22,16 @@ bytemuck = { version = "1.14.3", features = ["derive"] }
 rust-embed = "8.2.0"
 # Vector math library with support for spirv. Required for
 # rust-gpu
-glam = { version = "0.22.0", features = ["serde", "bytemuck"] }
+glam = { version = "0.27.0", features = ["serde", "bytemuck"] }
+# Higher level vector math crate built on top of glam which
+# adds more type safety
+glamour = { version = "0.11.1", features = ["serde"] }
 # File watcher crate. Currently used to watch the scene.json
 # file and reload it when it changes
 notify = "6.1.1"
+# Color space crate which helps manage conversion between
+# linear and nonlinear rgb color spaces
+palette = { version = "0.7.6", features = ["serializing"] }
 # Standard serialization crates
 serde = "1.0.196"
 serde_derive = "1.0.196"
@@ -53,6 +59,7 @@ etagere = "0.2.10"
 # Wrapper crate for the various os specific font apis
 font-kit = "0.12.0"
 glam = { workspace = true }
+glamour = { workspace = true }
 # Adds a few useful collections for dealing with async code
 # like the OneShot
 futures-intrusive = "0.5.0"
@@ -67,6 +74,7 @@ lyon = { version = "1.0.1", features = ["serialization"] }
 # hashes hard. This wraps floats and provides a consistent
 # ord implementation
 ordered-float = "4.2.0"
+palette = { workspace = true }
 rand = "0.8.5"
 rust-embed = { workspace = true }
 serde = { workspace = true }

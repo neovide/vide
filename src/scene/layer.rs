@@ -1,4 +1,5 @@
-use glam::Vec4;
+use glamour::Rect;
+use palette::Srgba;
 use serde::Deserialize;
 
 use super::Path;
@@ -9,11 +10,11 @@ use super::Text;
 #[derive(Deserialize, Debug, Clone)]
 pub struct Layer {
     #[serde(default)]
-    pub clip: Option<Vec4>,
+    pub clip: Option<Rect<u32>>,
     #[serde(default)]
     pub background_blur_radius: f32,
     #[serde(default)]
-    pub background_color: Option<Vec4>,
+    pub background_color: Option<Srgba>,
     #[serde(default = "default_font")]
     pub font_name: String,
     #[serde(default)]
@@ -31,8 +32,8 @@ impl Default for Layer {
         Self {
             clip: None,
             background_blur_radius: 0.0,
-            background_color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
-            font_name: "monospace".to_string(),
+            background_color: Some(Srgba::new(1.0, 1.0, 1.0, 1.0)),
+            font_name: default_font(),
             quads: Vec::new(),
             texts: Vec::new(),
             paths: Vec::new(),
@@ -41,8 +42,14 @@ impl Default for Layer {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 fn default_font() -> String {
     "monospace".to_string()
+}
+
+#[cfg(target_os = "windows")]
+fn default_font() -> String {
+    "Courier New".to_string()
 }
 
 impl Layer {
@@ -50,12 +57,12 @@ impl Layer {
         Self::default()
     }
 
-    pub fn with_clip(mut self, clip: Vec4) -> Self {
+    pub fn with_clip(mut self, clip: Rect<u32>) -> Self {
         self.clip = Some(clip);
         self
     }
 
-    pub fn set_clip(&mut self, clip: Vec4) {
+    pub fn set_clip(&mut self, clip: Rect<u32>) {
         self.clip = Some(clip);
     }
 
@@ -68,12 +75,12 @@ impl Layer {
         self.background_blur_radius = radius;
     }
 
-    pub fn with_background(mut self, color: Vec4) -> Self {
+    pub fn with_background(mut self, color: Srgba) -> Self {
         self.background_color = Some(color);
         self
     }
 
-    pub fn set_background(&mut self, color: Vec4) {
+    pub fn set_background(&mut self, color: Srgba) {
         self.background_color = Some(color);
     }
 

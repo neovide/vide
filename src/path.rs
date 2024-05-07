@@ -1,4 +1,4 @@
-use glam::vec2;
+use glam::{vec2, Vec4};
 use lyon::{
     geom::point,
     lyon_tessellation::{
@@ -136,6 +136,7 @@ impl Drawable for PathState {
             let path = builder.build();
 
             if let Some(fill) = scene_path.fill {
+                let fill = Vec4::from_array(fill.into_linear().into());
                 fill_tesselator
                     .tessellate_path(
                         &path,
@@ -150,6 +151,7 @@ impl Drawable for PathState {
             }
 
             if let Some((width, stroke)) = scene_path.stroke {
+                let stroke = Vec4::from_array(stroke.into_linear().into());
                 stroke_tesselator
                     .tessellate_path(
                         &path,

@@ -4,7 +4,8 @@ mod quad;
 mod sprite;
 mod text;
 
-use glam::Vec4;
+use glamour::Rect;
+use palette::Srgba;
 use serde::Deserialize;
 
 pub use layer::*;
@@ -42,7 +43,7 @@ impl Scene {
         self.layers.last_mut().unwrap()
     }
 
-    pub fn with_clip(mut self, clip: Vec4) -> Self {
+    pub fn with_clip(mut self, clip: Rect<u32>) -> Self {
         self.layer_mut().clip = Some(clip);
         self
     }
@@ -52,7 +53,7 @@ impl Scene {
         self
     }
 
-    pub fn with_background(mut self, color: Vec4) -> Self {
+    pub fn with_background(mut self, color: Srgba) -> Self {
         self.layer_mut().background_color = Some(color);
         self
     }
