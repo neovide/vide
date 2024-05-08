@@ -57,12 +57,12 @@ impl<A: RustEmbed> SpriteState<A> {
                 &data,
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(4 * image_width as u32),
-                    rows_per_image: Some(image_height as u32),
+                    bytes_per_row: Some(4 * image_width),
+                    rows_per_image: Some(image_height),
                 },
                 Extent3d {
-                    width: image_width as u32,
-                    height: image_height as u32,
+                    width: image_width,
+                    height: image_height,
                     depth_or_array_layers: 1,
                 },
             );
@@ -174,12 +174,12 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
             label: Some("Sprite Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
-                module: &shader,
+                module: shader,
                 entry_point: "sprite::sprite_vertex",
                 buffers: &[],
             },
             fragment: Some(FragmentState {
-                module: &shader,
+                module: shader,
                 entry_point: "sprite::sprite_fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,
@@ -235,7 +235,7 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&sprites[..]));
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.set_bind_group(1, &universal_bind_group, &[]);
+        render_pass.set_bind_group(1, universal_bind_group, &[]);
         render_pass.draw(0..6, 0..sprites.len() as u32);
     }
 }

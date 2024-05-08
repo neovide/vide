@@ -55,7 +55,7 @@ impl Drawable for PathState {
                 }],
             })),
             vertex: VertexState {
-                module: &shader,
+                module: shader,
                 entry_point: "path::path_vertex",
                 buffers: &[VertexBufferLayout {
                     array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
@@ -64,7 +64,7 @@ impl Drawable for PathState {
                 }],
             },
             fragment: Some(FragmentState {
-                module: &shader,
+                module: shader,
                 entry_point: "path::path_fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,

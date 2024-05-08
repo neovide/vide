@@ -64,12 +64,12 @@ impl Drawable for QuadState {
             label: Some("Quad Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
-                module: &shader,
+                module: shader,
                 entry_point: "quad::vertex",
                 buffers: &[],
             },
             fragment: Some(FragmentState {
-                module: &shader,
+                module: shader,
                 entry_point: "quad::fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,
@@ -141,7 +141,7 @@ impl Drawable for QuadState {
         let quad_data: &[u8] = bytemuck::cast_slice(&quads[..]);
         queue.write_buffer(&self.buffer, 0, quad_data);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.set_bind_group(1, &universal_bind_group, &[]);
+        render_pass.set_bind_group(1, universal_bind_group, &[]);
         render_pass.draw(0..6, 0..quads.len() as u32);
     }
 }
