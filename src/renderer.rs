@@ -6,7 +6,7 @@ use crate::{
     ATLAS_SIZE,
 };
 use glam::*;
-use shader::{load_shader, ShaderConstants};
+use shader::{ShaderConstants, ShaderLoader};
 
 pub trait Drawable {
     fn new(renderer: &Renderer) -> Self
@@ -20,6 +20,14 @@ pub trait Drawable {
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
         layer: &Layer,
+    );
+
+    fn reload(
+        &mut self,
+        device: &Device,
+        shader: &ShaderModule,
+        format: &TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
     );
 }
 
@@ -39,6 +47,8 @@ pub struct Renderer {
     pub universal_bind_group_layout: BindGroupLayout,
     pub universal_bind_group: BindGroup,
     pub(crate) drawables: Vec<Box<dyn Drawable>>,
+
+    pub(crate) shader_loader: ShaderLoader,
 }
 
 impl Renderer {
@@ -62,7 +72,9 @@ impl Renderer {
             .await
             .unwrap();
 
-        let shader = load_shader(&device);
+        let shader_loader = ShaderLoader::new();
+
+        let shader = shader_loader.load(&device);
 
         let offscreen_texture =
             create_texture(&device, width, height, format, 1, "Offscreen Texture");
@@ -126,6 +138,8 @@ impl Renderer {
             universal_bind_group,
 
             drawables: Vec::new(),
+
+            shader_loader,
         }
     }
 
@@ -184,6 +198,18 @@ impl Renderer {
     pub fn render(&mut self, scene: &Scene, frame: &Texture) {
         if self.width == 0 || self.height == 0 {
             return;
+        }
+
+        if let Some(shader) = self.shader_loader.try_reload(&self.device) {
+            self.shader = shader;
+            for drawable in &mut self.drawables {
+                drawable.reload(
+                    &self.device,
+                    &self.shader,
+                    &self.format,
+                    &self.universal_bind_group_layout,
+                )
+            }
         }
 
         let frame_view = frame.create_view(&Default::default());
@@ -282,6 +308,10 @@ impl Renderer {
             }
             self.queue.submit(std::iter::once(encoder.finish()));
         }
+    }
+
+    pub fn watch_shaders<F: FnMut() + Send + 'static>(&mut self, shaders_changed: F) {
+        self.shader_loader.watch(shaders_changed)
     }
 }
 

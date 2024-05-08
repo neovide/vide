@@ -51,8 +51,9 @@ fn main() {
         .watch(&scene_path, RecursiveMode::NonRecursive)
         .unwrap();
 
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let mut renderer = block_on(WinitRenderer::new(&window)).with_default_drawables::<Assets>();
+    let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
+    let mut renderer =
+        block_on(WinitRenderer::new(Arc::clone(&window))).with_default_drawables::<Assets>();
     let mut mouse_pos: PhysicalPosition<f64> = Default::default();
 
     event_loop

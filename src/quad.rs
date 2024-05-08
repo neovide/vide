@@ -7,8 +7,60 @@ use crate::{renderer::Drawable, scene::Layer, Quad, Renderer};
 
 pub struct QuadState {
     buffer: Buffer,
+    bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
     render_pipeline: RenderPipeline,
+}
+
+fn create_render_pipeline(
+    device: &Device,
+    universal_bind_group_layout: &BindGroupLayout,
+    shader: &ShaderModule,
+    format: &TextureFormat,
+    bind_group_layout: &BindGroupLayout,
+) -> RenderPipeline {
+    let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        label: Some("Quad Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
+        push_constant_ranges: &[PushConstantRange {
+            stages: ShaderStages::all(),
+            range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+        }],
+    });
+
+    device.create_render_pipeline(&RenderPipelineDescriptor {
+        label: Some("Quad Pipeline"),
+        layout: Some(&render_pipeline_layout),
+        vertex: VertexState {
+            module: shader,
+            entry_point: "quad_vertex",
+            buffers: &[],
+        },
+        fragment: Some(FragmentState {
+            module: shader,
+            entry_point: "quad_fragment",
+            targets: &[Some(ColorTargetState {
+                format: *format,
+                blend: Some(BlendState::ALPHA_BLENDING),
+                write_mask: ColorWrites::ALL,
+            })],
+        }),
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: None,
+            unclipped_depth: false,
+            polygon_mode: PolygonMode::Fill,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: MultisampleState {
+            count: 4,
+            ..Default::default()
+        },
+        multiview: None,
+    })
 }
 
 impl Drawable for QuadState {
@@ -51,56 +103,36 @@ impl Drawable for QuadState {
             }],
         });
 
-        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Quad Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::all(),
-                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-            }],
-        });
-
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Quad Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: VertexState {
-                module: shader,
-                entry_point: "quad_vertex",
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: shader,
-                entry_point: "quad_fragment",
-                targets: &[Some(ColorTargetState {
-                    format: *format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 4,
-                ..Default::default()
-            },
-            multiview: None,
-        });
+        let render_pipeline = create_render_pipeline(
+            device,
+            universal_bind_group_layout,
+            shader,
+            format,
+            &bind_group_layout,
+        );
 
         Self {
             buffer,
+            bind_group_layout,
             bind_group,
             render_pipeline,
         }
+    }
+
+    fn reload(
+        &mut self,
+        device: &Device,
+        shader: &ShaderModule,
+        format: &TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
+    ) {
+        self.render_pipeline = create_render_pipeline(
+            device,
+            universal_bind_group_layout,
+            shader,
+            format,
+            &self.bind_group_layout,
+        )
     }
 
     fn draw<'b, 'a: 'b>(

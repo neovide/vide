@@ -21,6 +21,57 @@ pub struct PathState {
     render_pipeline: RenderPipeline,
 }
 
+fn create_render_pipeline(
+    device: &Device,
+    shader: &ShaderModule,
+    format: &TextureFormat,
+) -> RenderPipeline {
+    device.create_render_pipeline(&RenderPipelineDescriptor {
+        label: Some("Path render pipeline"),
+        layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Path Pipeline layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::all(),
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+            }],
+        })),
+        vertex: VertexState {
+            module: shader,
+            entry_point: "path_vertex",
+            buffers: &[VertexBufferLayout {
+                array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
+                step_mode: VertexStepMode::Vertex,
+                attributes: &vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2],
+            }],
+        },
+        fragment: Some(FragmentState {
+            module: shader,
+            entry_point: "path_fragment",
+            targets: &[Some(ColorTargetState {
+                format: *format,
+                blend: Some(BlendState::ALPHA_BLENDING),
+                write_mask: ColorWrites::ALL,
+            })],
+        }),
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: None,
+            unclipped_depth: false,
+            polygon_mode: PolygonMode::Fill,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: MultisampleState {
+            count: 4,
+            ..Default::default()
+        },
+        multiview: None,
+    })
+}
+
 impl Drawable for PathState {
     fn new(
         Renderer {
@@ -44,58 +95,23 @@ impl Drawable for PathState {
             mapped_at_creation: false,
         });
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Path render pipeline"),
-            layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
-                label: Some("Path Pipeline layout"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[PushConstantRange {
-                    stages: ShaderStages::all(),
-                    range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-                }],
-            })),
-            vertex: VertexState {
-                module: shader,
-                entry_point: "path_vertex",
-                buffers: &[VertexBufferLayout {
-                    array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
-                    step_mode: VertexStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2],
-                }],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: shader,
-                entry_point: "path_fragment",
-                targets: &[Some(ColorTargetState {
-                    format: *format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 4,
-                ..Default::default()
-            },
-            multiview: None,
-        });
+        let render_pipeline = create_render_pipeline(device, shader, format);
 
         Self {
             vertex_buffer,
             index_buffer,
             render_pipeline,
         }
+    }
+
+    fn reload(
+        &mut self,
+        device: &Device,
+        shader: &ShaderModule,
+        format: &TextureFormat,
+        _universal_bind_group_layout: &BindGroupLayout,
+    ) {
+        self.render_pipeline = create_render_pipeline(device, shader, format);
     }
 
     fn draw<'b, 'a: 'b>(
