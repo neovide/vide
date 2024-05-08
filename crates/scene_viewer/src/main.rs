@@ -2,8 +2,9 @@ use std::{fs::File, io::Read, path::Path, sync::Arc};
 
 use futures::executor::block_on;
 
-use glam::{vec2, vec4};
+use glamour::{Point2, Size2};
 use notify::{recommended_watcher, RecursiveMode, Watcher};
+use palette::Srgba;
 use parking_lot::RwLock;
 use rust_embed::RustEmbed;
 use winit::{
@@ -72,9 +73,9 @@ fn main() {
                         let mut scene = scene.read().clone();
                         scene.add_quad(
                             Quad::new(
-                                vec2(mouse_pos.x as f32, mouse_pos.y as f32),
-                                vec2(100., 100.),
-                                vec4(0.5, 0.5, 1., 0.5),
+                                Point2::new(mouse_pos.x as f32, mouse_pos.y as f32),
+                                Size2::new(100., 100.),
+                                Srgba::new(0.5, 0.5, 1., 0.5),
                             )
                             .with_blur(5.0),
                         );
@@ -93,7 +94,7 @@ fn main() {
 }
 
 fn read_scene(path: &Path, scene: &RwLock<Scene>) {
-    let mut file = File::open(&path).expect("Could not read file");
+    let mut file = File::open(path).expect("Could not read file");
     let mut contents = String::new();
     file.read_to_string(&mut contents)
         .expect("Could not read file");

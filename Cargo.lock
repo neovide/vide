@@ -2592,8 +2592,9 @@ version = "0.1.0"
 dependencies = [
  "env_logger",
  "futures",
- "glam 0.27.0",
+ "glamour",
  "notify",
+ "palette",
  "parking_lot",
  "rust-embed",
  "serde",
