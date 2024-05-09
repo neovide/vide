@@ -5,7 +5,7 @@ use glam::{vec2, Vec4};
 use glamour::AsRaw;
 use image::GenericImageView;
 use rust_embed::RustEmbed;
-use shader::{InstancedSprite, ShaderConstants};
+use shader::{InstancedSprite, ShaderConstants, ShaderModules};
 use wgpu::{BindGroupLayout, RenderPipeline, *};
 
 use crate::{
@@ -90,7 +90,7 @@ impl<A: RustEmbed> SpriteState<A> {
 fn create_render_pipeline(
     device: &Device,
     universal_bind_group_layout: &BindGroupLayout,
-    shader: &ShaderModule,
+    shaders: &ShaderModules,
     format: &TextureFormat,
     bind_group_layout: &BindGroupLayout,
 ) -> RenderPipeline {
@@ -107,14 +107,14 @@ fn create_render_pipeline(
         label: Some("Sprite Pipeline"),
         layout: Some(&render_pipeline_layout),
         vertex: VertexState {
-            module: shader,
+            module: shaders.get_vertex("sprite"),
 
             entry_point: "sprite_vertex",
             buffers: &[],
         },
         fragment: Some(FragmentState {
-            module: shader,
-            entry_point: "sprite_fragment",
+            module: shaders.get_fragment("sprite"),
+            entry_point: "main",
             targets: &[Some(ColorTargetState {
                 format: *format,
                 blend: Some(BlendState::ALPHA_BLENDING),
@@ -143,7 +143,7 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
     fn new(
         Renderer {
             device,
-            shader,
+            shaders,
             format,
             universal_bind_group_layout,
             ..
@@ -217,7 +217,7 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
         let render_pipeline = create_render_pipeline(
             device,
             universal_bind_group_layout,
-            shader,
+            shaders,
             format,
             &bind_group_layout,
         );
@@ -238,14 +238,14 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
     fn reload(
         &mut self,
         device: &Device,
-        shader: &ShaderModule,
+        shaders: &ShaderModules,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     ) {
         self.render_pipeline = create_render_pipeline(
             device,
             universal_bind_group_layout,
-            shader,
+            shaders,
             format,
             &self.bind_group_layout,
         )

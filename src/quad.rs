@@ -1,6 +1,6 @@
 use glamour::{Point2, Size2};
 use palette::Srgba;
-use shader::{InstancedQuad, ShaderConstants};
+use shader::{InstancedQuad, ShaderConstants, ShaderModules};
 use wgpu::*;
 
 use crate::{renderer::Drawable, scene::Layer, Quad, Renderer};
@@ -15,7 +15,7 @@ pub struct QuadState {
 fn create_render_pipeline(
     device: &Device,
     universal_bind_group_layout: &BindGroupLayout,
-    shader: &ShaderModule,
+    shaders: &ShaderModules,
     format: &TextureFormat,
     bind_group_layout: &BindGroupLayout,
 ) -> RenderPipeline {
@@ -32,13 +32,13 @@ fn create_render_pipeline(
         label: Some("Quad Pipeline"),
         layout: Some(&render_pipeline_layout),
         vertex: VertexState {
-            module: shader,
-            entry_point: "quad_vertex",
+            module: shaders.get_vertex("quad"),
+            entry_point: "main",
             buffers: &[],
         },
         fragment: Some(FragmentState {
-            module: shader,
-            entry_point: "quad_fragment",
+            module: shaders.get_fragment("quad"),
+            entry_point: "main",
             targets: &[Some(ColorTargetState {
                 format: *format,
                 blend: Some(BlendState::ALPHA_BLENDING),
@@ -68,7 +68,7 @@ impl Drawable for QuadState {
         Renderer {
             device,
             universal_bind_group_layout,
-            shader,
+            shaders,
             format,
             ..
         }: &Renderer,
@@ -106,7 +106,7 @@ impl Drawable for QuadState {
         let render_pipeline = create_render_pipeline(
             device,
             universal_bind_group_layout,
-            shader,
+            shaders,
             format,
             &bind_group_layout,
         );
@@ -122,14 +122,14 @@ impl Drawable for QuadState {
     fn reload(
         &mut self,
         device: &Device,
-        shader: &ShaderModule,
+        shaders: &ShaderModules,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     ) {
         self.render_pipeline = create_render_pipeline(
             device,
             universal_bind_group_layout,
-            shader,
+            shaders,
             format,
             &self.bind_group_layout,
         )

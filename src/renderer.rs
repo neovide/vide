@@ -6,7 +6,7 @@ use crate::{
     ATLAS_SIZE,
 };
 use glam::*;
-use shader::{ShaderConstants, ShaderLoader};
+use shader::{ShaderConstants, ShaderLoader, ShaderModules};
 
 pub trait Drawable {
     fn new(renderer: &Renderer) -> Self
@@ -25,7 +25,7 @@ pub trait Drawable {
     fn reload(
         &mut self,
         device: &Device,
-        shader: &ShaderModule,
+        shaders: &ShaderModules,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     );
@@ -35,7 +35,7 @@ pub struct Renderer {
     pub adapter: Adapter,
     pub device: Device,
     pub queue: Queue,
-    pub shader: ShaderModule,
+    pub shaders: ShaderModules,
 
     pub format: TextureFormat,
     pub width: u32,
@@ -74,7 +74,7 @@ impl Renderer {
 
         let shader_loader = ShaderLoader::new();
 
-        let shader = shader_loader.load(&device);
+        let shaders = shader_loader.load(&device);
 
         let offscreen_texture =
             create_texture(&device, width, height, format, 1, "Offscreen Texture");
@@ -125,7 +125,7 @@ impl Renderer {
             adapter,
             device,
             queue,
-            shader,
+            shaders,
 
             format,
             width,
@@ -200,12 +200,12 @@ impl Renderer {
             return;
         }
 
-        if let Some(shader) = self.shader_loader.try_reload(&self.device) {
-            self.shader = shader;
+        if let Some(shaders) = self.shader_loader.try_reload(&self.device) {
+            self.shaders = shaders;
             for drawable in &mut self.drawables {
                 drawable.reload(
                     &self.device,
-                    &self.shader,
+                    &self.shaders,
                     &self.format,
                     &self.universal_bind_group_layout,
                 )

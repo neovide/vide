@@ -38,7 +38,7 @@ serde_derive = "1.0.196"
 serde_json = "1.0.113"
 # Cross platform graphics api based on webgpu. This way we
 # can write our graphics code once and run it everywhere
-wgpu = { path = "../wgpu/wgpu", features = ["spirv", "vulkan-portability"] }
+wgpu = { path = "../wgpu/wgpu", features = ["spirv", "glsl", "vulkan-portability"] }
 # Windowing and input library
 winit = "0.29.10"
 

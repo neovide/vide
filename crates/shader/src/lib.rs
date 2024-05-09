@@ -9,6 +9,8 @@ pub use quad::*;
 pub use sprite::*;
 
 use std::{
+    collections::HashMap,
+    ffi::OsStr,
     path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -24,7 +26,10 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
 use rust_embed::*;
-use wgpu::{Device, ShaderModule, ShaderModuleDescriptor, ShaderSource};
+use wgpu::{
+    naga::{FastHashMap, ShaderStage},
+    Device, ShaderModule, ShaderModuleDescriptor, ShaderSource,
+};
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
@@ -34,8 +39,35 @@ pub struct ShaderConstants {
     pub clip: Vec4,
 }
 
+#[derive(Default)]
+pub struct ShaderModules {
+    vertex: HashMap<String, ShaderModule>,
+    fragment: HashMap<String, ShaderModule>,
+    compute: HashMap<String, ShaderModule>,
+}
+
+impl ShaderModules {
+    pub fn get_vertex(&self, name: &str) -> &ShaderModule {
+        self.vertex
+            .get(name)
+            .unwrap_or_else(|| panic!("Vertex shader '{}' not found!", name))
+    }
+
+    pub fn get_fragment(&self, name: &str) -> &ShaderModule {
+        self.fragment
+            .get(name)
+            .unwrap_or_else(|| panic!("Fragment shader '{}' not found!", name))
+    }
+
+    pub fn get_compute(&self, name: &str) -> &ShaderModule {
+        self.compute
+            .get(name)
+            .unwrap_or_else(|| panic!("Compute shader '{}' not found!", name))
+    }
+}
+
 #[derive(RustEmbed)]
-#[folder = "wgsl/"]
+#[folder = "glsl/"]
 struct Shader;
 
 pub struct ShaderLoader {
@@ -58,7 +90,7 @@ impl ShaderLoader {
     }
 
     pub fn watch<F: FnMut() + Send + 'static>(&mut self, shaders_changed: F) {
-        let wgsl_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("wgsl");
+        let wgsl_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("glsl");
         let watcher = {
             let changed: Arc<AtomicBool> = Arc::clone(&self.changed);
             let mut shaders_changed = shaders_changed;
@@ -86,20 +118,51 @@ impl ShaderLoader {
         self.watcher = watcher;
     }
 
-    pub fn load(&self, device: &Device) -> ShaderModule {
-        let mut source = String::new();
+    pub fn load(&self, device: &Device) -> ShaderModules {
+        let mut modules = ShaderModules::default();
         for path in Shader::iter() {
             if let Some(file) = Shader::get(&path) {
-                source += std::str::from_utf8(file.data.as_ref()).unwrap();
+                let os_str: &OsStr = OsStr::new(path.as_ref());
+                let path = Path::new(os_str);
+                let ext = path
+                    .extension()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default();
+                let name = path
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default();
+                let stage = match ext {
+                    "vert" => Some(ShaderStage::Vertex),
+                    "frag" => Some(ShaderStage::Fragment),
+                    "comp" => Some(ShaderStage::Compute),
+                    _ => None,
+                };
+                if let Some(stage) = stage {
+                    let label = format!("{}_{}", &name, &ext).to_string();
+                    let descriptor = ShaderModuleDescriptor {
+                        label: Some(&label),
+                        source: ShaderSource::Glsl {
+                            shader: std::str::from_utf8(file.data.as_ref()).unwrap().into(),
+                            stage,
+                            defines: FastHashMap::default(),
+                        },
+                    };
+                    let module = device.create_shader_module(descriptor);
+                    match stage {
+                        ShaderStage::Vertex => modules.vertex.insert(name.to_string(), module),
+                        ShaderStage::Fragment => modules.fragment.insert(name.to_string(), module),
+                        ShaderStage::Compute => modules.compute.insert(name.to_string(), module),
+                    };
+                };
             }
         }
-        device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: ShaderSource::Wgsl(source.into()),
-        })
+        modules
     }
 
-    pub fn try_reload(&mut self, device: &Device) -> Option<ShaderModule> {
+    pub fn try_reload(&mut self, device: &Device) -> Option<ShaderModules> {
         if !self.changed.load(Ordering::SeqCst) {
             return None;
         }

@@ -5,7 +5,7 @@ use glam::Vec4;
 use glamour::{vec2, Point2, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
-use shader::{InstancedGlyph, ShaderConstants};
+use shader::{InstancedGlyph, ShaderConstants, ShaderModules};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
     shape::{cluster::Glyph, ShapeContext},
@@ -190,7 +190,7 @@ impl GlyphState {
 
 fn create_render_pipeline(
     device: &Device,
-    shader: &ShaderModule,
+    shaders: &ShaderModules,
     format: &TextureFormat,
     universal_bind_group_layout: &BindGroupLayout,
     bind_group_layout: &BindGroupLayout,
@@ -208,12 +208,12 @@ fn create_render_pipeline(
         label: Some("Glyph Pipeline"),
         layout: Some(&render_pipeline_layout),
         vertex: VertexState {
-            module: shader,
-            entry_point: "glyph_vertex",
+            module: shaders.get_vertex("glyph"),
+            entry_point: "main",
             buffers: &[],
         },
         fragment: Some(FragmentState {
-            module: shader,
+            module: shaders.get_fragment("glyph"),
             entry_point: "glyph_fragment",
             targets: &[Some(ColorTargetState {
                 format: *format,
@@ -243,7 +243,7 @@ impl Drawable for GlyphState {
     fn new(
         Renderer {
             device,
-            shader,
+            shaders,
             format,
             universal_bind_group_layout,
             ..
@@ -316,7 +316,7 @@ impl Drawable for GlyphState {
 
         let render_pipeline = create_render_pipeline(
             device,
-            shader,
+            shaders,
             format,
             universal_bind_group_layout,
             &bind_group_layout,
@@ -340,13 +340,13 @@ impl Drawable for GlyphState {
     fn reload(
         &mut self,
         device: &Device,
-        shader: &ShaderModule,
+        shaders: &ShaderModules,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     ) {
         self.render_pipeline = create_render_pipeline(
             device,
-            shader,
+            shaders,
             format,
             universal_bind_group_layout,
             &self.bind_group_layout,

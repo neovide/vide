@@ -7,7 +7,7 @@ use lyon::{
     },
     path::Path,
 };
-use shader::{PathVertex, ShaderConstants};
+use shader::{PathVertex, ShaderConstants, ShaderModules};
 use wgpu::*;
 
 use crate::{
@@ -23,7 +23,7 @@ pub struct PathState {
 
 fn create_render_pipeline(
     device: &Device,
-    shader: &ShaderModule,
+    shaders: &ShaderModules,
     format: &TextureFormat,
 ) -> RenderPipeline {
     device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -37,8 +37,8 @@ fn create_render_pipeline(
             }],
         })),
         vertex: VertexState {
-            module: shader,
-            entry_point: "path_vertex",
+            module: shaders.get_vertex("path"),
+            entry_point: "main",
             buffers: &[VertexBufferLayout {
                 array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
                 step_mode: VertexStepMode::Vertex,
@@ -46,8 +46,8 @@ fn create_render_pipeline(
             }],
         },
         fragment: Some(FragmentState {
-            module: shader,
-            entry_point: "path_fragment",
+            module: shaders.get_fragment("path"),
+            entry_point: "main",
             targets: &[Some(ColorTargetState {
                 format: *format,
                 blend: Some(BlendState::ALPHA_BLENDING),
@@ -76,7 +76,7 @@ impl Drawable for PathState {
     fn new(
         Renderer {
             device,
-            shader,
+            shaders,
             format,
             ..
         }: &Renderer,
@@ -95,7 +95,7 @@ impl Drawable for PathState {
             mapped_at_creation: false,
         });
 
-        let render_pipeline = create_render_pipeline(device, shader, format);
+        let render_pipeline = create_render_pipeline(device, shaders, format);
 
         Self {
             vertex_buffer,
@@ -107,11 +107,11 @@ impl Drawable for PathState {
     fn reload(
         &mut self,
         device: &Device,
-        shader: &ShaderModule,
+        shaders: &ShaderModules,
         format: &TextureFormat,
         _universal_bind_group_layout: &BindGroupLayout,
     ) {
-        self.render_pipeline = create_render_pipeline(device, shader, format);
+        self.render_pipeline = create_render_pipeline(device, shaders, format);
     }
 
     fn draw<'b, 'a: 'b>(
