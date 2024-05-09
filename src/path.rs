@@ -62,6 +62,7 @@ impl Drawable for PathState {
                     step_mode: VertexStepMode::Vertex,
                     attributes: &vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2],
                 }],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
@@ -71,6 +72,7 @@ impl Drawable for PathState {
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,

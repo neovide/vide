@@ -278,6 +278,7 @@ impl Drawable for GlyphState {
                 module: shader,
                 entry_point: "glyph::glyph_vertex",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
@@ -287,6 +288,7 @@ impl Drawable for GlyphState {
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,

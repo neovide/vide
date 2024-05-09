@@ -67,6 +67,7 @@ impl Drawable for QuadState {
                 module: shader,
                 entry_point: "quad::vertex",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
@@ -76,6 +77,7 @@ impl Drawable for QuadState {
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,

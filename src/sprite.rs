@@ -177,6 +177,7 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
                 module: shader,
                 entry_point: "sprite::sprite_vertex",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: shader,
@@ -186,6 +187,7 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,
