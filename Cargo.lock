@@ -2548,9 +2548,13 @@ name = "shader"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "codespan-reporting",
+ "futures",
  "glam",
+ "log",
  "notify-debouncer-full",
  "rust-embed",
+ "termcolor",
  "wgpu",
 ]
 

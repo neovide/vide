@@ -1,3 +1,4 @@
+mod error;
 mod glyph;
 mod path;
 mod quad;
@@ -7,6 +8,8 @@ pub use glyph::*;
 pub use path::*;
 pub use quad::*;
 pub use sprite::*;
+
+use error::ErrorLogger;
 
 use std::{
     collections::HashMap,
@@ -19,6 +22,7 @@ use std::{
     time::Duration,
 };
 
+use futures::executor::block_on;
 use glam::*;
 use notify_debouncer_full::{
     new_debouncer,
@@ -28,7 +32,7 @@ use notify_debouncer_full::{
 use rust_embed::*;
 use wgpu::{
     naga::{FastHashMap, ShaderStage},
-    Device, ShaderModule, ShaderModuleDescriptor, ShaderSource,
+    Device, ErrorFilter, ShaderModule, ShaderModuleDescriptor, ShaderSource,
 };
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -118,10 +122,12 @@ impl ShaderLoader {
         self.watcher = watcher;
     }
 
-    pub fn load(&self, device: &Device) -> ShaderModules {
+    pub async fn load(&self, device: &Device) -> ShaderModules {
+        //device.push_error_scope(ErrorFilter::Internal);
         let mut modules = ShaderModules::default();
         for path in Shader::iter() {
             if let Some(file) = Shader::get(&path) {
+                device.push_error_scope(ErrorFilter::Validation);
                 let os_str: &OsStr = OsStr::new(path.as_ref());
                 let path = Path::new(os_str);
                 let ext = path
@@ -151,11 +157,19 @@ impl ShaderLoader {
                         },
                     };
                     let module = device.create_shader_module(descriptor);
-                    match stage {
-                        ShaderStage::Vertex => modules.vertex.insert(name.to_string(), module),
-                        ShaderStage::Fragment => modules.fragment.insert(name.to_string(), module),
-                        ShaderStage::Compute => modules.compute.insert(name.to_string(), module),
-                    };
+                    if let Some(error) = device.pop_error_scope().await {
+                        error.log_errors(path);
+                    } else {
+                        match stage {
+                            ShaderStage::Vertex => modules.vertex.insert(name.to_string(), module),
+                            ShaderStage::Fragment => {
+                                modules.fragment.insert(name.to_string(), module)
+                            }
+                            ShaderStage::Compute => {
+                                modules.compute.insert(name.to_string(), module)
+                            }
+                        };
+                    }
                 };
             }
         }
@@ -167,6 +181,8 @@ impl ShaderLoader {
             return None;
         }
         self.changed.store(false, Ordering::SeqCst);
-        Some(self.load(device))
+        // Internally block instead of making try_reload async to avoid taking a performance hit
+        // during normal rendering
+        Some(block_on(self.load(device)))
     }
 }

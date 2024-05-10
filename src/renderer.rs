@@ -120,6 +120,7 @@ impl Renderer {
             &offscreen_texture,
             &sampler,
         );
+        let shaders = shaders.await;
 
         Self {
             adapter,

@@ -16,22 +16,24 @@ license = "MIT"
 # In place transmutation crate for turning shader structs
 # into binary
 bytemuck = { version = "1.14.3", features = ["derive"] }
-# Embeds files into the compiled binary and provides a way
-# to access the data. Used for embedding the shader spirv
-# code and embedding sprites
-rust-embed = "8.2.0"
+futures = "0.3"
 # Vector math library with support for spirv. Required for
 # rust-gpu
 glam = { version = "0.27.0", features = ["serde", "bytemuck"] }
 # Higher level vector math crate built on top of glam which
 # adds more type safety
 glamour = { version = "0.11.1", features = ["serde"] }
+log = "0.4.21"
 # File watcher crate. Currently used to watch the scene.json
 # file and reload it when it changes
 notify = "6.1.1"
 # Color space crate which helps manage conversion between
 # linear and nonlinear rgb color spaces
 palette = { version = "0.7.6", features = ["serializing"] }
+# Embeds files into the compiled binary and provides a way
+# to access the data. Used for embedding the shader spirv
+# code and embedding sprites
+rust-embed = "8.2.0"
 # Standard serialization crates
 serde = "1.0.196"
 serde_derive = "1.0.196"
