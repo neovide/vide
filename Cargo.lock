@@ -699,7 +699,6 @@ checksum = "96a6ac251f4a2aca6b3f91340350eab87ae57c3f127ffeb585e92bd336717991"
 [[package]]
 name = "d3d12"
 version = "0.20.0"
-source = "git+https://github.com/gfx-rs/wgpu#d0a5e48aa7e84683114c3870051cc414ae92ac03"
 dependencies = [
  "bitflags 2.5.0",
  "libloading 0.8.3",
@@ -1357,9 +1356,9 @@ dependencies = [
 
 [[package]]
 name = "gpu-allocator"
-version = "0.26.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdd4240fc91d3433d5e5b0fc5b67672d771850dc19bbee03c1381e19322803d7"
+checksum = "6f56f6318968d03c18e1bcf4857ff88c61157e9da8e47c5f29055d60e1228884"
 dependencies = [
  "log",
  "presser",
@@ -1879,7 +1878,6 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.20.0"
-source = "git+https://github.com/gfx-rs/wgpu#d0a5e48aa7e84683114c3870051cc414ae92ac03"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -3365,7 +3363,6 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.20.0"
-source = "git+https://github.com/gfx-rs/wgpu#d0a5e48aa7e84683114c3870051cc414ae92ac03"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -3390,7 +3387,6 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.20.0"
-source = "git+https://github.com/gfx-rs/wgpu#d0a5e48aa7e84683114c3870051cc414ae92ac03"
 dependencies = [
  "arrayvec",
  "bit-vec",
@@ -3416,7 +3412,6 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.20.0"
-source = "git+https://github.com/gfx-rs/wgpu#d0a5e48aa7e84683114c3870051cc414ae92ac03"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -3460,7 +3455,6 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.20.0"
-source = "git+https://github.com/gfx-rs/wgpu#d0a5e48aa7e84683114c3870051cc414ae92ac03"
 dependencies = [
  "bitflags 2.5.0",
  "js-sys",
