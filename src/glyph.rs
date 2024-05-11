@@ -295,7 +295,7 @@ impl Drawable for GlyphState {
             },
             fragment: Some(FragmentState {
                 module: shaders.get_fragment("glyph")?,
-                entry_point: "glyph_fragment",
+                entry_point: "main",
                 targets: &[Some(ColorTargetState {
                     format: *format,
                     blend: Some(BlendState::ALPHA_BLENDING),
