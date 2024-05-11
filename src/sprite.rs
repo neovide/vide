@@ -19,7 +19,6 @@ pub struct SpriteState<A: RustEmbed> {
     atlas_texture: Texture,
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
-    render_pipeline: RenderPipeline,
 
     image_lookup: HashMap<String, AllocId>,
     atlas_allocator: AtlasAllocator,
@@ -87,68 +86,8 @@ impl<A: RustEmbed> SpriteState<A> {
     }
 }
 
-fn create_render_pipeline(
-    device: &Device,
-    universal_bind_group_layout: &BindGroupLayout,
-    shaders: &ShaderModules,
-    format: &TextureFormat,
-    bind_group_layout: &BindGroupLayout,
-) -> RenderPipeline {
-    let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-        label: Some("Sprite Pipeline Layout"),
-        bind_group_layouts: &[bind_group_layout, &universal_bind_group_layout],
-        push_constant_ranges: &[PushConstantRange {
-            stages: ShaderStages::all(),
-            range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-        }],
-    });
-
-    device.create_render_pipeline(&RenderPipelineDescriptor {
-        label: Some("Sprite Pipeline"),
-        layout: Some(&render_pipeline_layout),
-        vertex: VertexState {
-            module: shaders.get_vertex("sprite"),
-
-            entry_point: "sprite_vertex",
-            buffers: &[],
-        },
-        fragment: Some(FragmentState {
-            module: shaders.get_fragment("sprite"),
-            entry_point: "main",
-            targets: &[Some(ColorTargetState {
-                format: *format,
-                blend: Some(BlendState::ALPHA_BLENDING),
-                write_mask: ColorWrites::ALL,
-            })],
-        }),
-        primitive: PrimitiveState {
-            topology: PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: FrontFace::Ccw,
-            cull_mode: None,
-            unclipped_depth: false,
-            polygon_mode: PolygonMode::Fill,
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: MultisampleState {
-            count: 4,
-            ..Default::default()
-        },
-        multiview: None,
-    })
-}
-
 impl<A: RustEmbed> Drawable for SpriteState<A> {
-    fn new(
-        Renderer {
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            ..
-        }: &Renderer,
-    ) -> Self {
+    fn new(Renderer { device, .. }: &Renderer) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Sprite buffer"),
             size: std::mem::size_of::<InstancedSprite>() as u64 * 100000,
@@ -214,20 +153,11 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
             ],
         });
 
-        let render_pipeline = create_render_pipeline(
-            device,
-            universal_bind_group_layout,
-            shaders,
-            format,
-            &bind_group_layout,
-        );
-
         Self {
             buffer,
             atlas_texture,
             bind_group_layout,
             bind_group,
-            render_pipeline,
 
             image_lookup: HashMap::new(),
             atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
@@ -235,20 +165,57 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
         }
     }
 
-    fn reload(
-        &mut self,
+    fn create_pipeline(
+        &self,
         device: &Device,
         shaders: &ShaderModules,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
-    ) {
-        self.render_pipeline = create_render_pipeline(
-            device,
-            universal_bind_group_layout,
-            shaders,
-            format,
-            &self.bind_group_layout,
-        )
+    ) -> Result<RenderPipeline, String> {
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Sprite Pipeline Layout"),
+            bind_group_layouts: &[&self.bind_group_layout, &universal_bind_group_layout],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::all(),
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+            }],
+        });
+
+        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Sprite Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: VertexState {
+                module: shaders.get_vertex("sprite")?,
+                entry_point: "main",
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(FragmentState {
+                module: shaders.get_fragment("sprite")?,
+                entry_point: "main",
+                targets: &[Some(ColorTargetState {
+                    format: *format,
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 4,
+                ..Default::default()
+            },
+            multiview: None,
+        }))
     }
 
     fn draw<'b, 'a: 'b>(
@@ -265,7 +232,6 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
             .map(|sprite| self.upload_sprite(queue, sprite))
             .collect();
 
-        render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&sprites[..]));

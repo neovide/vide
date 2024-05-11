@@ -18,69 +18,10 @@ use crate::{
 pub struct PathState {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    render_pipeline: RenderPipeline,
-}
-
-fn create_render_pipeline(
-    device: &Device,
-    shaders: &ShaderModules,
-    format: &TextureFormat,
-) -> RenderPipeline {
-    device.create_render_pipeline(&RenderPipelineDescriptor {
-        label: Some("Path render pipeline"),
-        layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Path Pipeline layout"),
-            bind_group_layouts: &[],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::all(),
-                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-            }],
-        })),
-        vertex: VertexState {
-            module: shaders.get_vertex("path"),
-            entry_point: "main",
-            buffers: &[VertexBufferLayout {
-                array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
-                step_mode: VertexStepMode::Vertex,
-                attributes: &vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2],
-            }],
-        },
-        fragment: Some(FragmentState {
-            module: shaders.get_fragment("path"),
-            entry_point: "main",
-            targets: &[Some(ColorTargetState {
-                format: *format,
-                blend: Some(BlendState::ALPHA_BLENDING),
-                write_mask: ColorWrites::ALL,
-            })],
-        }),
-        primitive: PrimitiveState {
-            topology: PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: FrontFace::Ccw,
-            cull_mode: None,
-            unclipped_depth: false,
-            polygon_mode: PolygonMode::Fill,
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: MultisampleState {
-            count: 4,
-            ..Default::default()
-        },
-        multiview: None,
-    })
 }
 
 impl Drawable for PathState {
-    fn new(
-        Renderer {
-            device,
-            shaders,
-            format,
-            ..
-        }: &Renderer,
-    ) -> Self {
+    fn new(Renderer { device, .. }: &Renderer) -> Self {
         let vertex_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Path Vertex Buffer"),
             size: std::mem::size_of::<PathVertex>() as u64 * 100000,
@@ -95,23 +36,65 @@ impl Drawable for PathState {
             mapped_at_creation: false,
         });
 
-        let render_pipeline = create_render_pipeline(device, shaders, format);
-
         Self {
             vertex_buffer,
             index_buffer,
-            render_pipeline,
         }
     }
 
-    fn reload(
-        &mut self,
+    fn create_pipeline(
+        &self,
         device: &Device,
         shaders: &ShaderModules,
         format: &TextureFormat,
         _universal_bind_group_layout: &BindGroupLayout,
-    ) {
-        self.render_pipeline = create_render_pipeline(device, shaders, format);
+    ) -> Result<RenderPipeline, String> {
+        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Path render pipeline"),
+            layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
+                label: Some("Path Pipeline layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[PushConstantRange {
+                    stages: ShaderStages::all(),
+                    range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+                }],
+            })),
+            vertex: VertexState {
+                module: shaders.get_vertex("path")?,
+                entry_point: "main",
+                buffers: &[VertexBufferLayout {
+                    array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2],
+                }],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(FragmentState {
+                module: shaders.get_fragment("path")?,
+                entry_point: "main",
+                targets: &[Some(ColorTargetState {
+                    format: *format,
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 4,
+                ..Default::default()
+            },
+            multiview: None,
+        }))
     }
 
     fn draw<'b, 'a: 'b>(
@@ -185,7 +168,6 @@ impl Drawable for PathState {
                     .expect("Could not tesselate path");
             }
 
-            render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_push_constants(
                 ShaderStages::all(),
                 0,

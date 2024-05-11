@@ -51,22 +51,22 @@ pub struct ShaderModules {
 }
 
 impl ShaderModules {
-    pub fn get_vertex(&self, name: &str) -> &ShaderModule {
+    pub fn get_vertex(&self, name: &str) -> Result<&ShaderModule, String> {
         self.vertex
             .get(name)
-            .unwrap_or_else(|| panic!("Vertex shader '{}' not found!", name))
+            .ok_or_else(|| format!("Vertex shader '{}' not found!", name))
     }
 
-    pub fn get_fragment(&self, name: &str) -> &ShaderModule {
+    pub fn get_fragment(&self, name: &str) -> Result<&ShaderModule, String> {
         self.fragment
             .get(name)
-            .unwrap_or_else(|| panic!("Fragment shader '{}' not found!", name))
+            .ok_or_else(|| format!("Fragment shader '{}' not found!", name))
     }
 
-    pub fn get_compute(&self, name: &str) -> &ShaderModule {
+    pub fn get_compute(&self, name: &str) -> Result<&ShaderModule, String> {
         self.compute
             .get(name)
-            .unwrap_or_else(|| panic!("Compute shader '{}' not found!", name))
+            .ok_or_else(|| format!("Compute shader '{}' not found!", name))
     }
 }
 

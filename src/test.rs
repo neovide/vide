@@ -36,7 +36,8 @@ fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
     let actual = smol::block_on(async {
         let mut renderer = OffscreenRenderer::new(width, height)
             .await
-            .with_default_drawables::<Assets>();
+            .with_default_drawables::<Assets>()
+            .await;
         renderer.draw(&scene).await
     });
 

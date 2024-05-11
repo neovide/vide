@@ -26,7 +26,6 @@ pub struct GlyphState {
     atlas_texture: Texture,
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
-    render_pipeline: RenderPipeline,
 
     scale_context: ScaleContext,
     shaping_context: ShapeContext,
@@ -188,67 +187,8 @@ impl GlyphState {
     }
 }
 
-fn create_render_pipeline(
-    device: &Device,
-    shaders: &ShaderModules,
-    format: &TextureFormat,
-    universal_bind_group_layout: &BindGroupLayout,
-    bind_group_layout: &BindGroupLayout,
-) -> RenderPipeline {
-    let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-        label: Some("Glyph Pipeline Layout"),
-        bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
-        push_constant_ranges: &[PushConstantRange {
-            stages: ShaderStages::all(),
-            range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-        }],
-    });
-
-    device.create_render_pipeline(&RenderPipelineDescriptor {
-        label: Some("Glyph Pipeline"),
-        layout: Some(&render_pipeline_layout),
-        vertex: VertexState {
-            module: shaders.get_vertex("glyph"),
-            entry_point: "main",
-            buffers: &[],
-        },
-        fragment: Some(FragmentState {
-            module: shaders.get_fragment("glyph"),
-            entry_point: "glyph_fragment",
-            targets: &[Some(ColorTargetState {
-                format: *format,
-                blend: Some(BlendState::ALPHA_BLENDING),
-                write_mask: ColorWrites::ALL,
-            })],
-        }),
-        primitive: PrimitiveState {
-            topology: PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: FrontFace::Ccw,
-            cull_mode: None,
-            unclipped_depth: false,
-            polygon_mode: PolygonMode::Fill,
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: MultisampleState {
-            count: 4,
-            ..Default::default()
-        },
-        multiview: None,
-    })
-}
-
 impl Drawable for GlyphState {
-    fn new(
-        Renderer {
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            ..
-        }: &Renderer,
-    ) -> Self {
+    fn new(Renderer { device, .. }: &Renderer) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Glyph buffer"),
             size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
@@ -314,20 +254,11 @@ impl Drawable for GlyphState {
             ],
         });
 
-        let render_pipeline = create_render_pipeline(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &bind_group_layout,
-        );
-
         Self {
             buffer,
             atlas_texture,
             bind_group_layout,
             bind_group,
-            render_pipeline,
 
             scale_context: ScaleContext::new(),
             shaping_context: ShapeContext::new(),
@@ -337,20 +268,57 @@ impl Drawable for GlyphState {
         }
     }
 
-    fn reload(
-        &mut self,
+    fn create_pipeline(
+        &self,
         device: &Device,
         shaders: &ShaderModules,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
-    ) {
-        self.render_pipeline = create_render_pipeline(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &self.bind_group_layout,
-        );
+    ) -> Result<RenderPipeline, String> {
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("Glyph Pipeline Layout"),
+            bind_group_layouts: &[&self.bind_group_layout, &universal_bind_group_layout],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::all(),
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
+            }],
+        });
+
+        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Glyph Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: VertexState {
+                module: shaders.get_vertex("glyph")?,
+                entry_point: "main",
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(FragmentState {
+                module: shaders.get_fragment("glyph")?,
+                entry_point: "glyph_fragment",
+                targets: &[Some(ColorTargetState {
+                    format: *format,
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 4,
+                ..Default::default()
+            },
+            multiview: None,
+        }))
     }
 
     fn draw<'b, 'a: 'b>(
@@ -373,7 +341,6 @@ impl Drawable for GlyphState {
             })
             .collect();
 
-        render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&glyphs[..]));

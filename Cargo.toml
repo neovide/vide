@@ -63,6 +63,7 @@ bytemuck = { workspace = true }
 etagere = "0.2.10"
 # Wrapper crate for the various os specific font apis
 font-kit = "0.12.0"
+futures = {workspace = true }
 glam = { workspace = true }
 glamour = { workspace = true }
 # Adds a few useful collections for dealing with async code
@@ -72,6 +73,7 @@ futures-intrusive = "0.5.0"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 # Staticly initialize variables using a constructor
 lazy_static = "1.4.0"
+log = { workspace = true }
 # Tesselation crate which lets us turn high level paths into
 # lists of triangles efficiently
 lyon = { version = "1.0.1", features = ["serialization"] }

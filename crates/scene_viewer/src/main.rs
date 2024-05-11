@@ -11,7 +11,7 @@ use winit::{
     dpi::PhysicalPosition,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Window, WindowBuilder},
 };
 
 use vide::{Quad, Scene, WinitRenderer};
@@ -19,6 +19,13 @@ use vide::{Quad, Scene, WinitRenderer};
 #[derive(RustEmbed)]
 #[folder = "assets"]
 struct Assets;
+
+async fn create_renderer(window: Arc<Window>) -> WinitRenderer<'static> {
+    WinitRenderer::new(Arc::clone(&window))
+        .await
+        .with_default_drawables::<Assets>()
+        .await
+}
 
 fn main() {
     env_logger::init();
@@ -52,8 +59,7 @@ fn main() {
         .unwrap();
 
     let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
-    let mut renderer =
-        block_on(WinitRenderer::new(Arc::clone(&window))).with_default_drawables::<Assets>();
+    let mut renderer = block_on(create_renderer(Arc::clone(&window)));
     let mut mouse_pos: PhysicalPosition<f64> = Default::default();
 
     event_loop
