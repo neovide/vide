@@ -67,6 +67,24 @@ impl Scene {
         self.layer().font_name.as_str()
     }
 
+    pub fn with_font_features(mut self, font_features: Vec<FontFeature>) -> Self {
+        self.layer_mut().font_features = font_features;
+        self
+    }
+
+    pub fn with_parsed_font_features(self, font_features: Vec<&str>) -> Self {
+        self.with_font_features(
+            font_features
+                .iter()
+                .map(|feature| FontFeature::parse(feature).unwrap())
+                .collect(),
+        )
+    }
+
+    pub fn font_features(&self) -> &[FontFeature] {
+        &self.layer().font_features
+    }
+
     pub fn add_quad(&mut self, quad: Quad) {
         self.layer_mut().add_quad(quad);
     }

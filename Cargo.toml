@@ -104,3 +104,4 @@ winit = { workspace = true }
 
 [dev-dependencies]
 image-compare = "0.4.1"
+git2 = "0.18.3"

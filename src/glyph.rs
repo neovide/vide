@@ -19,7 +19,7 @@ use crate::{
     font::Font,
     renderer::{Drawable, Renderer},
     scene::{Layer, Text},
-    ATLAS_SIZE,
+    FontFeature, ATLAS_SIZE,
 };
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -154,6 +154,7 @@ impl GlyphState {
         queue: &Queue,
         font_name: &str,
         font_ref: FontRef<'a>,
+        font_features: &Vec<FontFeature>,
         text: &Text,
     ) -> Vec<InstancedGlyph> {
         let key = ShapeKey::new(Arc::from(text.text.as_str()), font_ref, text.size);
@@ -162,6 +163,7 @@ impl GlyphState {
             .shaping_context
             .builder(font_ref)
             .size(text.size)
+            .features(font_features)
             .build();
         let glyphs = self
             .shaped_text_lookup
@@ -350,8 +352,14 @@ impl Drawable for GlyphState {
             .texts
             .iter()
             .flat_map(|text| {
-                self.shape_and_rasterize_text(queue, &layer.font_name, font_ref, text)
-                    .into_iter()
+                self.shape_and_rasterize_text(
+                    queue,
+                    &layer.font_name,
+                    font_ref,
+                    &layer.font_features,
+                    text,
+                )
+                .into_iter()
             })
             .collect();
 
