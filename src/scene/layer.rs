@@ -19,8 +19,6 @@ pub struct Layer {
     pub background_blur_radius: f32,
     #[serde(default)]
     pub background_color: Option<Srgba>,
-    #[serde(default = "default_font")]
-    pub font_name: String,
     #[serde(default)]
     pub font_features: Vec<FontFeature>,
     #[serde(default)]
@@ -39,24 +37,17 @@ impl Default for Layer {
             clip: None,
             background_blur_radius: 0.0,
             background_color: Some(Srgba::new(1.0, 1.0, 1.0, 1.0)),
+<<<<<<< HEAD
             font_name: default_font(),
             font_features: Vec::new(),
+=======
+>>>>>>> b238613 (wip glyph run work)
             quads: Vec::new(),
             texts: Vec::new(),
             paths: Vec::new(),
             sprites: Vec::new(),
         }
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn default_font() -> String {
-    "monospace".to_string()
-}
-
-#[cfg(target_os = "windows")]
-fn default_font() -> String {
-    "Courier New".to_string()
 }
 
 impl Layer {

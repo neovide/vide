@@ -5,7 +5,7 @@ mod path;
 mod quad;
 mod renderer;
 mod scene;
-// mod shaper;
+mod shaper;
 mod sprite;
 mod winit_renderer;
 

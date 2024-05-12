@@ -345,21 +345,14 @@ impl Drawable for GlyphState {
         universal_bind_group: &'a BindGroup,
         layer: &Layer,
     ) {
-        let font = Font::from_name(&layer.font_name).unwrap();
-        let font_ref = font.as_ref().unwrap();
-
         let glyphs: Vec<_> = layer
             .texts
             .iter()
             .flat_map(|text| {
-                self.shape_and_rasterize_text(
-                    queue,
-                    &layer.font_name,
-                    font_ref,
-                    &layer.font_features,
-                    text,
-                )
-                .into_iter()
+                let font = Font::from_name(&text.font_name).unwrap();
+                let font_ref = font.as_font_ref().unwrap();
+                self.shape_and_rasterize_text(queue, &text.font_name, font_ref, &text)
+                    .into_iter()
             })
             .collect();
 
