@@ -14,7 +14,7 @@ pub use quad::*;
 pub use sprite::*;
 pub use text::*;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct Scene {
     pub layers: Vec<Layer>,
 }

@@ -32,7 +32,7 @@ impl Font {
         }
     }
 
-    pub fn as_ref<'a>(&'a self) -> Option<FontRef<'a>> {
+    pub fn as_ref(&self) -> Option<FontRef<'_>> {
         FontRef::from_index(self.data.as_ref(), self.index)
     }
 }

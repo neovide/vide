@@ -137,7 +137,7 @@ impl Renderer {
     }
 
     pub fn add_drawable<T: Drawable + 'static>(&mut self) {
-        let drawable = T::new(&self);
+        let drawable = T::new(self);
         self.drawables.push(Box::new(drawable));
     }
 
@@ -225,7 +225,7 @@ impl Renderer {
                 } else {
                     encoder.copy_texture_to_texture(
                         ImageCopyTexture {
-                            texture: &frame,
+                            texture: frame,
                             mip_level: 0,
                             origin: Origin3d::ZERO,
                             aspect: Default::default(),
@@ -282,7 +282,7 @@ impl Renderer {
                     &mut render_pass,
                     constants,
                     &self.universal_bind_group,
-                    &layer,
+                    layer,
                 );
 
                 first = false;

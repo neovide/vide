@@ -10,7 +10,6 @@ pub use path::*;
 pub use quad::*;
 pub use sprite::*;
 
-
 #[cfg(target_arch = "spirv")]
 use spirv_std::glam::*;
 

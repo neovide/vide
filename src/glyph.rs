@@ -35,6 +35,7 @@ pub struct GlyphState {
 }
 
 impl GlyphState {
+    #[allow(clippy::too_many_arguments)]
     fn prepare_glyph<'a, 'b: 'a>(
         &'b mut self,
         queue: &Queue,
@@ -102,12 +103,12 @@ impl GlyphState {
                     &image.data,
                     ImageDataLayout {
                         offset: 0,
-                        bytes_per_row: Some(4 * image.placement.width as u32),
-                        rows_per_image: Some(image.placement.height as u32),
+                        bytes_per_row: Some(4 * image.placement.width),
+                        rows_per_image: Some(image.placement.height),
                     },
                     Extent3d {
-                        width: image.placement.width as u32,
-                        height: image.placement.height as u32,
+                        width: image.placement.width,
+                        height: image.placement.height,
                         depth_or_array_layers: 1,
                     },
                 );
@@ -141,7 +142,7 @@ impl GlyphState {
         font_ref: FontRef<'a>,
         text: &Text,
     ) -> Vec<InstancedGlyph> {
-        let key = ShapeKey::new(Arc::from(text.text.as_str()), font_ref, text.size.into());
+        let key = ShapeKey::new(Arc::from(text.text.as_str()), font_ref, text.size);
 
         let mut shaper = self
             .shaping_context
@@ -274,12 +275,12 @@ impl Drawable for GlyphState {
             label: Some("Glyph Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
-                module: &shader,
+                module: shader,
                 entry_point: "glyph::glyph_vertex",
                 buffers: &[],
             },
             fragment: Some(FragmentState {
-                module: &shader,
+                module: shader,
                 entry_point: "glyph::glyph_fragment",
                 targets: &[Some(ColorTargetState {
                     format: *format,
@@ -332,11 +333,10 @@ impl Drawable for GlyphState {
         let glyphs: Vec<_> = layer
             .texts
             .iter()
-            .map(|text| {
-                self.shape_and_rasterize_text(queue, &layer.font_name, font_ref, &text)
+            .flat_map(|text| {
+                self.shape_and_rasterize_text(queue, &layer.font_name, font_ref, text)
                     .into_iter()
             })
-            .flatten()
             .collect();
 
         render_pass.set_pipeline(&self.render_pipeline);
@@ -344,7 +344,7 @@ impl Drawable for GlyphState {
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&glyphs[..]));
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.set_bind_group(1, &universal_bind_group, &[]);
+        render_pass.set_bind_group(1, universal_bind_group, &[]);
         render_pass.draw(0..6, 0..glyphs.len() as u32);
     }
 }
@@ -373,7 +373,7 @@ impl SubpixelOffset {
         }
     }
 
-    fn to_f32(&self) -> f32 {
+    fn as_f32(&self) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Quarter => 0.25,
@@ -407,7 +407,7 @@ impl GlyphKey {
     }
 
     fn quantized_offset(&self) -> Vector {
-        Vector::new(self.x_offset.to_f32(), self.y_offset.to_f32())
+        Vector::new(self.x_offset.as_f32(), self.y_offset.as_f32())
     }
 }
 
