@@ -1,10 +1,11 @@
 #include "common.glsl"
 #include "quad.glsl"
 
+layout (push_constant) uniform ShaderConstants constants;
+
 layout (set=0, binding=0) buffer readonly InstancedQuad quads[];
 layout (set=1, binding=0) uniform texture2D surface;
 layout (set=1, binding=1) uniform sampler texture_sampler;
-layout (push_constant) uniform ShaderConstants constants;
 
 layout (location=0) in uint in_instance_index;
 

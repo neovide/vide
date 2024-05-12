@@ -8,4 +8,3 @@ struct InstancedGlyph {
     vec2 _padding;
     vec4 color;
 };
-

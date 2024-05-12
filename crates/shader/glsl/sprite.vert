@@ -1,8 +1,10 @@
 #include "common.glsl"
 #include "sprite.glsl"
 
-layout (set=0, binding=0) buffer readonly InstancedSprite sprites[];
 layout (push_constant) uniform ShaderConstants constants;
+
+layout (set=0, binding=0) buffer readonly InstancedSprite sprites[];
+
 layout (location=0) out uint out_instance_index;
 layout (location=1) out vec2 out_atlas_position;
 

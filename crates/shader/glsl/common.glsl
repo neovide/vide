@@ -15,4 +15,3 @@ const vec2 UNIT_QUAD_VERTICES[6] = vec2[6](
     vec2(1.0, 1.0),
     vec2(0.0, 1.0)
 );
-
