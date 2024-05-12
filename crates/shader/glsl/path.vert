@@ -1,11 +1,4 @@
-#version 460
-
-struct ShaderConstants {
-    vec2 surface_size;
-    vec2 atlas_size;
-    vec4 clip;
-};
-
+#include "common.glsl"
 
 layout (push_constant) uniform ShaderConstants constants;
 

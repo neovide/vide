@@ -1,26 +1,5 @@
-#version 460
-
-struct InstancedQuad {
-    vec4 color;
-    vec4 _padding;
-    vec2 top_left;
-    vec2 size;
-    vec2 __padding;
-    float corner_radius;
-    // 0: no blur
-    // <0: internal blur of the background with kernel radius `blur`
-    // >0: external blur of quad edge with radius `blur`
-    float blur;
-};
-
-struct ShaderConstants {
-    vec2 surface_size;
-    vec2 atlas_size;
-    vec4 clip;
-};
-
-#define PI 3.1415926535897932384626433832795;
-#define FRAC_2_SQRT_PI 1.12837916709551257389615890312154517;
+#include "common.glsl"
+#include "quad.glsl"
 
 layout (set=0, binding=0) buffer readonly InstancedQuad quads[];
 layout (set=1, binding=0) uniform texture2D surface;

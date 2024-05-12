@@ -1,6 +1,8 @@
 mod error;
+mod preprocessor;
 
 use error::ErrorLogger;
+use preprocessor::Preprocessor;
 
 use std::{
     collections::HashMap,
@@ -114,7 +116,6 @@ impl ShaderLoader {
     }
 
     pub async fn load(&self, device: &Device) -> ShaderModules {
-        //device.push_error_scope(ErrorFilter::Internal);
         let mut modules = ShaderModules::default();
         for path in Shader::iter() {
             if let Some(file) = Shader::get(&path) {
@@ -138,11 +139,13 @@ impl ShaderLoader {
                     _ => None,
                 };
                 if let Some(stage) = stage {
+                    let preprocessor = Preprocessor::new(&file.data, path.to_str().unwrap());
+
                     let label = format!("{}_{}", &name, &ext).to_string();
                     let descriptor = ShaderModuleDescriptor {
                         label: Some(&label),
                         source: ShaderSource::Glsl {
-                            shader: std::str::from_utf8(file.data.as_ref()).unwrap().into(),
+                            shader: preprocessor.content.into(),
                             stage,
                             defines: FastHashMap::default(),
                         },

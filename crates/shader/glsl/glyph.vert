@@ -1,30 +1,5 @@
-#version 460
-
-struct InstancedGlyph {
-    vec2 bottom_left;
-    vec2 atlas_top_left;
-    vec2 atlas_size;
-    // Need a Vec2 of padding here so that the first 4 fields
-    // Are some multiple of 16 bytes in size.
-    // Vec2s are 8 bytes, Vec4s are 16 bytes.
-    vec2 _padding;
-    vec4 color;
-};
-
-struct ShaderConstants {
-    vec2 surface_size;
-    vec2 atlas_size;
-    vec4 clip;
-};
-
-const vec2 UNIT_QUAD_VERTICES[6] = vec2[6](
-    vec2(0.0, 0.0),
-    vec2(1.0, 0.0),
-    vec2(1.0, 1.0),
-    vec2(0.0, 0.0),
-    vec2(1.0, 1.0),
-    vec2(0.0, 1.0)
-);
+#include "common.glsl"
+#include "glyph.glsl"
 
 layout (set=0, binding=0) buffer readonly InstancedGlyph glyphs[];
 layout (push_constant) uniform ShaderConstants constants;

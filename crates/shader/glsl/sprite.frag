@@ -1,12 +1,4 @@
-#version 460
-
-struct InstancedSprite {
-    vec2 top_left;
-    vec2 size;
-    vec2 atlas_top_left;
-    vec2 atlas_size;
-    vec4 color;
-};
+#include "sprite.glsl"
 
 layout (location=0) in uint in_instance_index;
 layout (location=1) in vec2 in_atlas_position;

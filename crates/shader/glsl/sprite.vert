@@ -1,27 +1,5 @@
-#version 460
-
-struct InstancedSprite {
-    vec2 top_left;
-    vec2 size;
-    vec2 atlas_top_left;
-    vec2 atlas_size;
-    vec4 color;
-};
-
-struct ShaderConstants {
-    vec2 surface_size;
-    vec2 atlas_size;
-    vec4 clip;
-};
-
-const vec2 UNIT_QUAD_VERTICES[6] = vec2[6](
-    vec2(0.0, 0.0),
-    vec2(1.0, 0.0),
-    vec2(1.0, 1.0),
-    vec2(0.0, 0.0),
-    vec2(1.0, 1.0),
-    vec2(0.0, 1.0)
-);
+#include "common.glsl"
+#include "sprite.glsl"
 
 layout (set=0, binding=0) buffer readonly InstancedSprite sprites[];
 layout (push_constant) uniform ShaderConstants constants;
