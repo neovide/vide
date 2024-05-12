@@ -14,6 +14,6 @@ glam = { version = "0.27.0", default-features = false, features = ["libm", "byte
 log = { workspace = true }
 notify-debouncer-full = "0.3.1"
 rust-embed = { workspace = true }
-wgpu = { workspace = true, features = ["spirv", "vulkan-portability"] }
+wgpu = { workspace = true, features = ["glsl"] }
 termcolor = "1.4.1"
 codespan-reporting = "0.11.1"
