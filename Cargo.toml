@@ -38,11 +38,15 @@ rust-embed = "8.2.0"
 serde = "1.0.196"
 serde_derive = "1.0.196"
 serde_json = "1.0.113"
-# Cross platform graphics api based on webgpu. This way we
-# can write our graphics code once and run it everywhere
-wgpu = { path = "../wgpu/wgpu", features = ["vulkan-portability"] }
 # Windowing and input library
 winit = "0.29.10"
+
+# Cross platform graphics api based on webgpu. This way we
+# can write our graphics code once and run it everywhere
+[workspace.dependencies.wgpu]
+git = "https://github.com/cwfitzgerald/wgpu"
+rev = "329513b8550834129a7c0c10c6d7548451a3f613"
+features = ["vulkan-portability"]
 
 [package]
 name = "vide"
