@@ -1,26 +1,36 @@
+use glam::*;
 use glamour::{Point2, Size2};
 use palette::Srgba;
-use shader::{InstancedQuad, ShaderConstants};
+use shader::{ShaderConstants, ShaderModules};
 use wgpu::*;
 
 use crate::{renderer::Drawable, scene::Layer, Quad, Renderer};
 
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
+#[repr(C, align(64))]
+// An axis aligned quad supporting positioning, scaling, corner radius, and optionally an internal blur with
+// the previous layer or an external blur for use with shadows.
+pub struct InstancedQuad {
+    pub color: Vec4,
+    pub _padding: Vec4,
+    pub top_left: Vec2,
+    pub size: Vec2,
+    pub __padding: Vec2,
+    pub corner_radius: f32,
+    // 0: no blur
+    // <0: internal blur of the background with kernel radius `blur`
+    // >0: external blur of quad edge with radius `blur`
+    pub blur: f32,
+}
+
 pub struct QuadState {
     buffer: Buffer,
+    bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
-    render_pipeline: RenderPipeline,
 }
 
 impl Drawable for QuadState {
-    fn new(
-        Renderer {
-            device,
-            universal_bind_group_layout,
-            shader,
-            format,
-            ..
-        }: &Renderer,
-    ) -> Self {
+    fn new(Renderer { device, .. }: &Renderer) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Quad buffer"),
             size: std::mem::size_of::<InstancedQuad>() as u64 * 100000,
@@ -51,31 +61,47 @@ impl Drawable for QuadState {
             }],
         });
 
+        Self {
+            buffer,
+            bind_group_layout,
+            bind_group,
+        }
+    }
+
+    fn create_pipeline(
+        &self,
+        device: &Device,
+        shaders: &ShaderModules,
+        format: &TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
+    ) -> Result<RenderPipeline, String> {
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Quad Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
+            bind_group_layouts: &[&self.bind_group_layout, &universal_bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStages::all(),
                 range: 0..std::mem::size_of::<ShaderConstants>() as u32,
             }],
         });
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Quad Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
-                module: shader,
-                entry_point: "quad::vertex",
+                module: shaders.get_vertex("quad")?,
+                entry_point: "main",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
-                module: shader,
-                entry_point: "quad::fragment",
+                module: shaders.get_fragment("quad")?,
+                entry_point: "main",
                 targets: &[Some(ColorTargetState {
                     format: *format,
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,
@@ -92,13 +118,7 @@ impl Drawable for QuadState {
                 ..Default::default()
             },
             multiview: None,
-        });
-
-        Self {
-            buffer,
-            bind_group,
-            render_pipeline,
-        }
+        }))
     }
 
     fn draw<'b, 'a: 'b>(
@@ -135,7 +155,6 @@ impl Drawable for QuadState {
 
         quads.extend(layer.quads.iter().map(|quad| quad.to_instanced()));
 
-        render_pass.set_pipeline(&self.render_pipeline); // 2.
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
         let quad_data: &[u8] = bytemuck::cast_slice(&quads[..]);

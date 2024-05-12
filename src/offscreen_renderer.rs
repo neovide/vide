@@ -37,21 +37,21 @@ impl OffscreenRenderer {
         self.renderer.resize(new_width, new_height);
     }
 
-    pub fn add_drawable<T: Drawable + 'static>(&mut self) {
-        self.renderer.add_drawable::<T>();
+    pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
+        self.renderer.add_drawable::<T>().await;
     }
 
-    pub fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
-        self.add_drawable::<T>();
+    pub async fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
+        self.add_drawable::<T>().await;
         self
     }
 
-    pub fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
-        self.renderer.add_default_drawables::<A>();
+    pub async fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
+        self.renderer.add_default_drawables::<A>().await;
     }
 
-    pub fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
-        self.add_default_drawables::<A>();
+    pub async fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
+        self.add_default_drawables::<A>().await;
         self
     }
 

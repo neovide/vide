@@ -2,17 +2,18 @@ use std::{collections::HashMap, sync::Arc};
 
 use etagere::{size2, AllocId, AtlasAllocator};
 use glam::Vec4;
+use glam::*;
 use glamour::{vec2, Point2, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
-use shader::{InstancedGlyph, ShaderConstants};
+use shader::{ShaderConstants, ShaderModules};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
     shape::{cluster::Glyph, ShapeContext},
     zeno::{Format, Placement, Vector},
     CacheKey, FontRef, GlyphId,
 };
-use wgpu::*;
+use wgpu::{RenderPipeline, *};
 
 use crate::{
     font::Font,
@@ -21,11 +22,24 @@ use crate::{
     ATLAS_SIZE,
 };
 
+#[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+pub struct InstancedGlyph {
+    pub bottom_left: Vec2,
+    pub atlas_top_left: Vec2,
+    pub atlas_size: Vec2,
+    // Need a Vec2 of padding here so that the first 4 fields
+    // Are some multiple of 16 bytes in size.
+    // Vec2s are 8 bytes, Vec4s are 16 bytes.
+    pub _padding: Vec2,
+    pub color: Vec4,
+}
+
 pub struct GlyphState {
     buffer: Buffer,
     atlas_texture: Texture,
+    bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
-    render_pipeline: RenderPipeline,
 
     scale_context: ScaleContext,
     shaping_context: ShapeContext,
@@ -188,15 +202,7 @@ impl GlyphState {
 }
 
 impl Drawable for GlyphState {
-    fn new(
-        Renderer {
-            device,
-            shader,
-            format,
-            universal_bind_group_layout,
-            ..
-        }: &Renderer,
-    ) -> Self {
+    fn new(Renderer { device, .. }: &Renderer) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Glyph buffer"),
             size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
@@ -262,31 +268,54 @@ impl Drawable for GlyphState {
             ],
         });
 
+        Self {
+            buffer,
+            atlas_texture,
+            bind_group_layout,
+            bind_group,
+
+            scale_context: ScaleContext::new(),
+            shaping_context: ShapeContext::new(),
+            atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
+            glyph_lookup: HashMap::new(),
+            shaped_text_lookup: HashMap::new(),
+        }
+    }
+
+    fn create_pipeline(
+        &self,
+        device: &Device,
+        shaders: &ShaderModules,
+        format: &TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
+    ) -> Result<RenderPipeline, String> {
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Glyph Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout, &universal_bind_group_layout],
+            bind_group_layouts: &[&self.bind_group_layout, &universal_bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStages::all(),
                 range: 0..std::mem::size_of::<ShaderConstants>() as u32,
             }],
         });
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Glyph Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
-                module: shader,
-                entry_point: "glyph::glyph_vertex",
+                module: shaders.get_vertex("glyph")?,
+                entry_point: "main",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
-                module: shader,
-                entry_point: "glyph::glyph_fragment",
+                module: shaders.get_fragment("glyph")?,
+                entry_point: "main",
                 targets: &[Some(ColorTargetState {
                     format: *format,
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,
@@ -303,20 +332,7 @@ impl Drawable for GlyphState {
                 ..Default::default()
             },
             multiview: None,
-        });
-
-        Self {
-            buffer,
-            atlas_texture,
-            bind_group,
-            render_pipeline,
-
-            scale_context: ScaleContext::new(),
-            shaping_context: ShapeContext::new(),
-            atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
-            glyph_lookup: HashMap::new(),
-            shaped_text_lookup: HashMap::new(),
-        }
+        }))
     }
 
     fn draw<'b, 'a: 'b>(
@@ -339,7 +355,6 @@ impl Drawable for GlyphState {
             })
             .collect();
 
-        render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&glyphs[..]));

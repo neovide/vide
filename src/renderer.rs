@@ -2,16 +2,26 @@ use rust_embed::RustEmbed;
 use wgpu::*;
 
 use crate::{
-    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Asset,
-    Scene, ATLAS_SIZE,
+    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Scene,
+    ATLAS_SIZE,
 };
 use glam::*;
-use shader::ShaderConstants;
+use shader::{ShaderConstants, ShaderLoader, ShaderModules};
+
+use futures::executor::block_on;
 
 pub trait Drawable {
     fn new(renderer: &Renderer) -> Self
     where
         Self: Sized;
+
+    fn create_pipeline(
+        &self,
+        device: &Device,
+        shaders: &ShaderModules,
+        format: &TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
+    ) -> Result<RenderPipeline, String>;
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
@@ -23,11 +33,46 @@ pub trait Drawable {
     );
 }
 
+struct DrawablePipeline {
+    drawable: Box<dyn Drawable>,
+    render_pipeline: Option<RenderPipeline>,
+}
+
+impl DrawablePipeline {
+    fn new<T: Drawable + 'static>(drawable: T) -> Self {
+        let drawable = Box::new(drawable);
+        Self {
+            drawable,
+            render_pipeline: None,
+        }
+    }
+
+    async fn create_pipeline(
+        &mut self,
+        device: &Device,
+        shaders: &ShaderModules,
+        format: &TextureFormat,
+        universal_bind_group_layout: &BindGroupLayout,
+    ) {
+        device.push_error_scope(ErrorFilter::Validation);
+        let pipeline =
+            self.drawable
+                .create_pipeline(device, shaders, format, universal_bind_group_layout);
+        let validation_error = device.pop_error_scope().await;
+
+        if validation_error.is_none() {
+            if let Ok(pipeline) = pipeline {
+                self.render_pipeline = Some(pipeline);
+            }
+        }
+    }
+}
+
 pub struct Renderer {
     pub adapter: Adapter,
     pub device: Device,
     pub queue: Queue,
-    pub shader: ShaderModule,
+    pub shaders: ShaderModules,
 
     pub format: TextureFormat,
     pub width: u32,
@@ -38,7 +83,9 @@ pub struct Renderer {
     pub sampler: Sampler,
     pub universal_bind_group_layout: BindGroupLayout,
     pub universal_bind_group: BindGroup,
-    pub(crate) drawables: Vec<Box<dyn Drawable>>,
+    drawables: Vec<DrawablePipeline>,
+
+    pub(crate) shader_loader: ShaderLoader,
 }
 
 impl Renderer {
@@ -62,14 +109,9 @@ impl Renderer {
             .await
             .unwrap();
 
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: util::make_spirv(
-                &Asset::get("shader.spv")
-                    .expect("Could not load shader")
-                    .data,
-            ),
-        });
+        let shader_loader = ShaderLoader::new();
+
+        let shaders = shader_loader.load(&device);
 
         let offscreen_texture =
             create_texture(&device, width, height, format, 1, "Offscreen Texture");
@@ -115,12 +157,13 @@ impl Renderer {
             &offscreen_texture,
             &sampler,
         );
+        let shaders = shaders.await;
 
         Self {
             adapter,
             device,
             queue,
-            shader,
+            shaders,
 
             format,
             width,
@@ -133,28 +176,39 @@ impl Renderer {
             universal_bind_group,
 
             drawables: Vec::new(),
+
+            shader_loader,
         }
     }
 
-    pub fn add_drawable<T: Drawable + 'static>(&mut self) {
+    pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
         let drawable = T::new(self);
-        self.drawables.push(Box::new(drawable));
+        let mut drawable_pipeline = DrawablePipeline::new(drawable);
+        drawable_pipeline
+            .create_pipeline(
+                &self.device,
+                &self.shaders,
+                &self.format,
+                &self.universal_bind_group_layout,
+            )
+            .await;
+        self.drawables.push(drawable_pipeline);
     }
 
-    pub fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
-        self.add_drawable::<T>();
+    pub async fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
+        self.add_drawable::<T>().await;
         self
     }
 
-    pub fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
-        self.add_drawable::<QuadState>();
-        self.add_drawable::<GlyphState>();
-        self.add_drawable::<PathState>();
-        self.add_drawable::<SpriteState<A>>();
+    pub async fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
+        self.add_drawable::<QuadState>().await;
+        self.add_drawable::<GlyphState>().await;
+        self.add_drawable::<PathState>().await;
+        self.add_drawable::<SpriteState<A>>().await;
     }
 
-    pub fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
-        self.add_default_drawables::<A>();
+    pub async fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
+        self.add_default_drawables::<A>().await;
         self
     }
 
@@ -191,6 +245,19 @@ impl Renderer {
     pub fn render(&mut self, scene: &Scene, frame: &Texture) {
         if self.width == 0 || self.height == 0 {
             return;
+        }
+
+        if let Some(shaders) = self.shader_loader.try_reload(&self.device) {
+            self.shaders = shaders;
+            for drawable in &mut self.drawables {
+                // TODO: A more sane block on behaviour, combined with try_reload, but not async unless needed
+                block_on(drawable.create_pipeline(
+                    &self.device,
+                    &self.shaders,
+                    &self.format,
+                    &self.universal_bind_group_layout,
+                ));
+            }
         }
 
         let frame_view = frame.create_view(&Default::default());
@@ -244,6 +311,11 @@ impl Renderer {
                     );
                 }
 
+                let render_pipeline = match &drawable.render_pipeline {
+                    Some(render_pipeline) => render_pipeline,
+                    None => continue,
+                };
+
                 // The first drawable should clear the output texture
                 let attachment_op = if first {
                     Operations::<Color> {
@@ -268,6 +340,7 @@ impl Renderer {
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
+                render_pass.set_pipeline(render_pipeline);
 
                 if let Some(clip) = layer.clip {
                     let x = clip.origin.x.min(self.width);
@@ -277,7 +350,7 @@ impl Renderer {
                     render_pass.set_scissor_rect(x, y, w, h);
                 }
 
-                drawable.draw(
+                drawable.drawable.draw(
                     &self.queue,
                     &mut render_pass,
                     constants,
@@ -289,6 +362,10 @@ impl Renderer {
             }
             self.queue.submit(std::iter::once(encoder.finish()));
         }
+    }
+
+    pub fn watch_shaders<F: FnMut() + Send + 'static>(&mut self, shaders_changed: F) {
+        self.shader_loader.watch(shaders_changed)
     }
 }
 

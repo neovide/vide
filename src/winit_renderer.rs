@@ -1,4 +1,5 @@
 use rust_embed::RustEmbed;
+use std::sync::Arc;
 use wgpu::*;
 use winit::{
     event::{Event, StartCause, WindowEvent},
@@ -13,17 +14,18 @@ pub struct WinitRenderer<'a> {
     pub surface_config: SurfaceConfiguration,
     window_initializing: bool,
     renderer: Renderer,
+    _window: Arc<Window>,
 }
 
 impl<'a> WinitRenderer<'a> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &'a Window) -> Self {
+    pub async fn new(window: Arc<Window>) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
             ..Default::default()
         });
 
-        let surface = instance.create_surface(window).unwrap();
+        let surface = instance.create_surface(Arc::clone(&window)).unwrap();
 
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -49,7 +51,15 @@ impl<'a> WinitRenderer<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let renderer = Renderer::new(size.width, size.height, adapter, swapchain_format).await;
+        let shaders_reloaded = {
+            let window = Arc::clone(&window);
+            Box::new(move || {
+                window.request_redraw();
+            })
+        };
+
+        let mut renderer = Renderer::new(size.width, size.height, adapter, swapchain_format).await;
+        renderer.watch_shaders(shaders_reloaded);
         surface.configure(&renderer.device, &surface_config);
 
         Self {
@@ -58,24 +68,25 @@ impl<'a> WinitRenderer<'a> {
             surface: Some(surface),
             surface_config,
             renderer,
+            _window: window,
         }
     }
 
-    pub fn add_drawable<T: Drawable + 'static>(&mut self) {
-        self.renderer.add_drawable::<T>();
+    pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
+        self.renderer.add_drawable::<T>().await;
     }
 
-    pub fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
-        self.add_drawable::<T>();
+    pub async fn with_drawable<T: Drawable + 'static>(mut self) -> Self {
+        self.add_drawable::<T>().await;
         self
     }
 
-    pub fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
-        self.renderer.add_default_drawables::<A>();
+    pub async fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
+        self.renderer.add_default_drawables::<A>().await;
     }
 
-    pub fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
-        self.add_default_drawables::<A>();
+    pub async fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
+        self.add_default_drawables::<A>().await;
         self
     }
 

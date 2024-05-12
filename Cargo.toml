@@ -16,28 +16,37 @@ license = "MIT"
 # In place transmutation crate for turning shader structs
 # into binary
 bytemuck = { version = "1.14.3", features = ["derive"] }
-# Embeds files into the compiled binary and provides a way
-# to access the data. Used for embedding the shader spirv
-# code and embedding sprites
-rust-embed = "8.2.0"
+futures = "0.3"
 # Vector math library with support for spirv. Required for
 # rust-gpu
 glam = { version = "0.27.0", features = ["serde", "bytemuck"] }
 # Higher level vector math crate built on top of glam which
 # adds more type safety
 glamour = { version = "0.11.1", features = ["serde"] }
+log = "0.4.21"
 # File watcher crate. Currently used to watch the scene.json
 # file and reload it when it changes
 notify = "6.1.1"
 # Color space crate which helps manage conversion between
 # linear and nonlinear rgb color spaces
 palette = { version = "0.7.6", features = ["serializing"] }
+# Embeds files into the compiled binary and provides a way
+# to access the data. Used for embedding the shader spirv
+# code and embedding sprites
+rust-embed = "8.2.0"
 # Standard serialization crates
 serde = "1.0.196"
 serde_derive = "1.0.196"
 serde_json = "1.0.113"
 # Windowing and input library
 winit = "0.29.10"
+
+# Cross platform graphics api based on webgpu. This way we
+# can write our graphics code once and run it everywhere
+[workspace.dependencies.wgpu]
+git = "https://github.com/cwfitzgerald/wgpu"
+rev = "329513b8550834129a7c0c10c6d7548451a3f613"
+features = ["vulkan-portability"]
 
 [package]
 name = "vide"
@@ -58,6 +67,7 @@ bytemuck = { workspace = true }
 etagere = "0.2.10"
 # Wrapper crate for the various os specific font apis
 font-kit = "0.12.0"
+futures = {workspace = true }
 glam = { workspace = true }
 glamour = { workspace = true }
 # Adds a few useful collections for dealing with async code
@@ -67,6 +77,7 @@ futures-intrusive = "0.5.0"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 # Staticly initialize variables using a constructor
 lazy_static = "1.4.0"
+log = { workspace = true }
 # Tesselation crate which lets us turn high level paths into
 # lists of triangles efficiently
 lyon = { version = "1.0.1", features = ["serialization"] }
@@ -88,15 +99,8 @@ smol = "1.2"
 swash = "0.1.12"
 # Used to make the Shaper thread safe
 thread_local = "1.1.7"
-# Cross platform graphics api based on webgpu. This way we
-# can write our graphics code once and run it everywhere
-wgpu = { version = "0.19.1", features = ["spirv", "vulkan-portability"] }
+wgpu = { workspace = true }
 winit = { workspace = true }
-
-[build-dependencies]
-# Rust-gpu compiler which takes rust code and turns it into
-# spirv ready to run on the gpu
-spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", package = "spirv-builder", rev = "8678d58d61a78f01201ec854cb5e3835c014fa3b"}
 
 [dev-dependencies]
 image-compare = "0.4.1"

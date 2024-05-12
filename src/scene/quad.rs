@@ -1,8 +1,8 @@
+use crate::quad::InstancedQuad;
 use glam::Vec4;
 use glamour::{AsRaw, Point2, Size2};
 use palette::Srgba;
 use serde::Deserialize;
-use shader::InstancedQuad;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Quad {
