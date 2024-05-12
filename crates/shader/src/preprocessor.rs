@@ -1,10 +1,10 @@
 use crate::Shader;
 
 pub(crate) struct PreprocessedFile {
-    filename: String,
-    content: String,
-    line_nr: usize,
-    num_lines: usize,
+    pub filename: String,
+    pub content: String,
+    pub line_nr: usize,
+    pub num_lines: usize,
 }
 
 fn preprocess_line(line: &str, preprocessed_files: &mut Vec<PreprocessedFile>) -> String {
@@ -52,7 +52,7 @@ fn preprocess(data: &[u8], filename: &str, preprocessed_files: &mut Vec<Preproce
 
 pub(crate) struct Preprocessor {
     pub content: String,
-    files: Vec<PreprocessedFile>,
+    pub files: Vec<PreprocessedFile>,
 }
 
 impl Preprocessor {
@@ -67,5 +67,17 @@ impl Preprocessor {
             .join("");
 
         Self { content, files }
+    }
+
+    pub fn get_file_and_start(&self, start: usize) -> (usize, usize) {
+        let mut start = start;
+        for (index, file) in self.files.iter().enumerate() {
+            if start < file.content.len() {
+                log::error!("{index}");
+                return (index, start);
+            }
+            start -= file.content.len();
+        }
+        (self.files.len(), 0)
     }
 }

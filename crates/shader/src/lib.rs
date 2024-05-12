@@ -5,6 +5,7 @@ use error::ErrorLogger;
 use preprocessor::Preprocessor;
 
 use std::{
+    borrow::Cow,
     collections::HashMap,
     ffi::OsStr,
     path::Path,
@@ -145,14 +146,14 @@ impl ShaderLoader {
                     let descriptor = ShaderModuleDescriptor {
                         label: Some(&label),
                         source: ShaderSource::Glsl {
-                            shader: preprocessor.content.into(),
+                            shader: Cow::from(&preprocessor.content),
                             stage,
                             defines: FastHashMap::default(),
                         },
                     };
                     let module = device.create_shader_module(descriptor);
                     if let Some(error) = device.pop_error_scope().await {
-                        error.log_errors(path);
+                        error.log_errors(&preprocessor);
                     } else {
                         match stage {
                             ShaderStage::Vertex => modules.vertex.insert(name.to_string(), module),
