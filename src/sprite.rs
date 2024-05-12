@@ -1,11 +1,12 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use etagere::{size2, AllocId, AtlasAllocator};
+use glam::*;
 use glam::{vec2, Vec4};
 use glamour::AsRaw;
 use image::GenericImageView;
 use rust_embed::RustEmbed;
-use shader::{InstancedSprite, ShaderConstants, ShaderModules};
+use shader::{ShaderConstants, ShaderModules};
 use wgpu::{BindGroupLayout, RenderPipeline, *};
 
 use crate::{
@@ -13,6 +14,16 @@ use crate::{
     scene::{Layer, Sprite},
     Renderer, ATLAS_SIZE,
 };
+
+#[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+pub struct InstancedSprite {
+    pub top_left: Vec2,
+    pub size: Vec2,
+    pub atlas_top_left: Vec2,
+    pub atlas_size: Vec2,
+    pub color: Vec4,
+}
 
 pub struct SpriteState<A: RustEmbed> {
     buffer: Buffer,

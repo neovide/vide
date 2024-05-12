@@ -2,10 +2,11 @@ use std::{collections::HashMap, sync::Arc};
 
 use etagere::{size2, AllocId, AtlasAllocator};
 use glam::Vec4;
+use glam::*;
 use glamour::{vec2, Point2, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
-use shader::{InstancedGlyph, ShaderConstants, ShaderModules};
+use shader::{ShaderConstants, ShaderModules};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
     shape::{cluster::Glyph, ShapeContext},
@@ -20,6 +21,19 @@ use crate::{
     scene::{Layer, Text},
     ATLAS_SIZE,
 };
+
+#[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+pub struct InstancedGlyph {
+    pub bottom_left: Vec2,
+    pub atlas_top_left: Vec2,
+    pub atlas_size: Vec2,
+    // Need a Vec2 of padding here so that the first 4 fields
+    // Are some multiple of 16 bytes in size.
+    // Vec2s are 8 bytes, Vec4s are 16 bytes.
+    pub _padding: Vec2,
+    pub color: Vec4,
+}
 
 pub struct GlyphState {
     buffer: Buffer,

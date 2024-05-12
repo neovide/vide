@@ -1,3 +1,4 @@
+use glam::*;
 use glam::{vec2, Vec4};
 use lyon::{
     geom::point,
@@ -7,13 +8,22 @@ use lyon::{
     },
     path::Path,
 };
-use shader::{PathVertex, ShaderConstants, ShaderModules};
+use shader::{ShaderConstants, ShaderModules};
 use wgpu::*;
 
 use crate::{
     renderer::{Drawable, Renderer},
     scene::{Layer, PathCommand},
 };
+
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
+#[repr(C)]
+// NOTE: Keep the ATTRIBS array in sync with this struct
+pub struct PathVertex {
+    pub color: Vec4,
+    pub position: Vec2,
+    pub _padding: Vec2,
+}
 
 pub struct PathState {
     vertex_buffer: Buffer,
