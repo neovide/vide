@@ -1,5 +1,6 @@
 use std::{env::temp_dir, fs::create_dir_all, path::PathBuf, thread};
 
+use git2::Repository;
 use glamour::{point2, size2, vec2, Rect};
 use image::io::Reader as ImageReader;
 use lazy_static::lazy_static;
@@ -14,6 +15,13 @@ struct Assets;
 
 lazy_static! {
     static ref TEMP_DIR: PathBuf = temp_dir();
+    static ref GIT_USER: String = {
+        let repo = Repository::open_from_env().expect("Could not read git repository");
+        let config = repo.config().expect("Could not read config for repo");
+        config
+            .get_string("user.name")
+            .expect("Could not read user name")
+    };
 }
 
 fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
@@ -25,7 +33,10 @@ fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
         .last()
         .unwrap()
         .to_string();
-    let expected_path = format!("./test_data/{}.png", test_name);
+    let user_test_data_path = format!("./test_data/{}/", *GIT_USER);
+    create_dir_all(&user_test_data_path).unwrap();
+
+    let expected_path = format!("{}/{}.png", user_test_data_path, test_name);
     let expected = ImageReader::open(&expected_path).ok().map(|reader| {
         reader
             .decode()
@@ -188,4 +199,21 @@ fn simple_blurred_quad() {
     }
 
     assert_no_regressions(325, 325, scene);
+}
+
+#[test]
+fn swash_modern_ligatures() {
+    let scene = Scene::new()
+        .with_font("Monaspace Krypton Var".to_owned())
+        .with_text(Text::new(
+            "a==b a//b a~~b".to_owned(),
+            point2!(10., 25.),
+            20.,
+            Srgba::new(0., 0., 0., 1.),
+        ))
+        .with_parsed_font_features(vec![
+            "+calt", "+liga", "+ss01", "+ss02", "+ss03", "+ss04", "+ss05", "+ss06", "+ss07",
+            "+ss08", "+ss09",
+        ]);
+    assert_no_regressions(200, 30, scene);
 }
