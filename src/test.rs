@@ -115,6 +115,8 @@ fn simple_text() {
         scene.add_text_layout(layout, point2!(0., bottom));
     }
 
+    assert_eq!(scene.resources.fonts.len(), 1);
+
     assert_no_regressions(1000, 500, scene);
 }
 
@@ -230,5 +232,5 @@ fn text_layout_bounds() {
     ));
     scene.add_text_layout(layout, point2!(10., 10.));
 
-    assert_no_regressions(325, 325, scene);
+    assert_no_regressions(325, 35, scene);
 }
