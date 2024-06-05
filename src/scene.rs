@@ -4,9 +4,12 @@ mod quad;
 mod sprite;
 mod text;
 
-use glamour::Rect;
+use std::{collections::HashMap, sync::Arc};
+
+use glamour::{vec2, Point2, Rect};
 use palette::Srgba;
-use serde::Deserialize;
+use parley::layout::Layout;
+use serde::{Deserialize, Serialize};
 
 pub use layer::*;
 pub use path::*;
@@ -14,14 +17,16 @@ pub use quad::*;
 pub use sprite::*;
 pub use text::*;
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Scene {
+    pub resources: Resources,
     pub layers: Vec<Layer>,
 }
 
 impl Scene {
     pub fn new() -> Self {
         Self {
+            resources: Default::default(),
             layers: vec![Default::default()],
         }
     }
@@ -58,15 +63,6 @@ impl Scene {
         self
     }
 
-    pub fn with_font(mut self, font_name: String) -> Self {
-        self.layer_mut().font_name = font_name;
-        self
-    }
-
-    pub fn font(&self) -> &str {
-        self.layer().font_name.as_str()
-    }
-
     pub fn with_font_features(mut self, font_features: Vec<FontFeature>) -> Self {
         self.layer_mut().font_features = font_features;
         self
@@ -94,12 +90,52 @@ impl Scene {
         self
     }
 
-    pub fn add_text(&mut self, text: Text) {
-        self.layer_mut().add_text(text);
+    pub fn add_text_layout(&mut self, layout: Layout<Srgba>, position: Point2) {
+        for line in layout.lines() {
+            for glyph_run in line.glyph_runs() {
+                let run = glyph_run.run();
+                let font = run.font();
+                let font_id = font.data.id();
+                if !self.resources.fonts.contains_key(&font_id) {
+                    self.resources.fonts.insert(
+                        font_id,
+                        Font {
+                            data: Arc::from(font.data.data().to_vec()),
+                            id: font_id,
+                        },
+                    );
+                }
+                let style = glyph_run.style();
+                let color = style.brush.into();
+
+                let font_index = font.index as usize;
+                let size = run.font_size();
+                let normalized_coords = run.normalized_coords().to_vec();
+                let mut glyphs = Vec::new();
+                let mut current_x = 0.0;
+                for glyph in glyph_run.glyphs() {
+                    glyphs.push(Glyph {
+                        id: glyph.id,
+                        offset: vec2!(current_x + glyph.x, -glyph.y),
+                    });
+                    current_x += glyph.advance;
+                }
+
+                self.layer_mut().add_glyph_run(GlyphRun {
+                    position: position + vec2!(glyph_run.offset(), glyph_run.baseline()),
+                    font_id,
+                    font_index,
+                    color,
+                    size,
+                    normalized_coords,
+                    glyphs,
+                });
+            }
+        }
     }
 
-    pub fn with_text(mut self, text: Text) -> Self {
-        self.add_text(text);
+    pub fn with_text_layout(mut self, layout: Layout<Srgba>, position: Point2) -> Self {
+        self.add_text_layout(layout, position);
         self
     }
 
@@ -120,4 +156,9 @@ impl Scene {
         self.add_sprite(sprite);
         self
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Resources {
+    pub fonts: HashMap<u64, Font>,
 }

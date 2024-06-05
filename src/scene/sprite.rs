@@ -1,8 +1,8 @@
 use glamour::{Point2, Size2};
 use palette::Srgba;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Sprite {
     pub top_left: Point2,
     pub size: Size2,

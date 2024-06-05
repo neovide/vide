@@ -2,8 +2,8 @@ use rust_embed::RustEmbed;
 use wgpu::*;
 
 use crate::{
-    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Scene,
-    ATLAS_SIZE,
+    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState,
+    Resources, Scene, ATLAS_SIZE,
 };
 use glam::*;
 use shader::{ShaderConstants, ShaderLoader, ShaderModules};
@@ -29,6 +29,7 @@ pub trait Drawable {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        resources: &Resources,
         layer: &Layer,
     );
 }
@@ -355,6 +356,7 @@ impl Renderer {
                     &mut render_pass,
                     constants,
                     &self.universal_bind_group,
+                    &scene.resources,
                     layer,
                 );
 

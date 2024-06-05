@@ -1,72 +1,76 @@
-use glamour::Point2;
+use std::{fmt::Debug, sync::Arc};
+
+use base64::prelude::*;
+use glamour::{Point2, Vector2};
 use palette::Srgba;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use swash::FontRef;
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct Text {
-    pub text: String,
-    pub bottom_left: Point2,
-    #[serde(default = "default_font")]
-    pub font_name: String,
-    pub size: f32,
-    pub color: Srgba,
-    #[serde(default)]
-    pub bold: bool,
-    #[serde(default)]
-    pub italic: bool,
-    #[serde(default = "default_subpixel")]
-    pub subpixel: bool,
+pub struct Font {
+    pub data: Arc<Vec<u8>>,
+    pub id: u64,
 }
 
-fn default_subpixel() -> bool {
-    true
+impl Font {
+    pub fn as_swash_font_ref(&self, index: usize) -> Option<FontRef<'_>> {
+        FontRef::from_index(self.data.as_ref(), index)
+    }
 }
 
-#[cfg(not(target_os = "windows"))]
-fn default_font() -> String {
-    "monospace".to_string()
+impl<'a> Deserialize<'a> for Font {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        let data = String::deserialize(deserializer)?;
+        let data = BASE64_STANDARD.decode(data).unwrap();
+        Ok(Self {
+            data: data.into(),
+            id: 0,
+        })
+    }
 }
 
-#[cfg(target_os = "windows")]
-fn default_font() -> String {
-    "Courier New".to_string()
+impl Serialize for Font {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let data = BASE64_STANDARD.encode(self.data.as_ref());
+        data.serialize(serializer)
+    }
 }
 
-impl Text {
-    pub fn new(text: String, bottom_left: Point2, size: f32, color: Srgba) -> Self {
+impl Debug for Font {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Font").field("id", &self.id).finish()
+    }
+}
+
+impl Clone for Font {
+    fn clone(&self) -> Self {
         Self {
-            text,
-            bottom_left,
-            font_name: default_font(),
-            size,
-            color,
-            bold: false,
-            italic: false,
-            subpixel: true,
+            data: self.data.clone(),
+            id: self.id,
         }
     }
+}
 
-    pub fn with_font(mut self, font_name: String) -> Self {
-        self.font_name = font_name;
-        self
-    }
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GlyphRun {
+    // TODO: Store synthesis paramaters from swash here
+    pub position: Point2,
+    pub font_id: u64,
+    pub font_index: usize,
+    pub color: Srgba,
+    pub size: f32,
+    pub normalized_coords: Vec<i16>,
 
-    pub fn set_font(&mut self, font_name: String) {
-        self.font_name = font_name;
-    }
+    pub glyphs: Vec<Glyph>,
+}
 
-    pub fn with_bold(mut self) -> Self {
-        self.bold = true;
-        self
-    }
-
-    pub fn with_italic(mut self) -> Self {
-        self.italic = true;
-        self
-    }
-
-    pub fn without_subpixel(mut self) -> Self {
-        self.subpixel = false;
-        self
-    }
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Glyph {
+    pub id: u16,
+    pub offset: Vector2,
 }

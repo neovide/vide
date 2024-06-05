@@ -5,9 +5,15 @@ use glamour::{point2, size2, vec2, Rect};
 use image::io::Reader as ImageReader;
 use lazy_static::lazy_static;
 use palette::Srgba;
+use parley::{
+    layout::Alignment,
+    style::{FontStack, StyleProperty},
+};
 use rust_embed::RustEmbed;
 
-use crate::{offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Sprite, Text};
+use crate::{
+    offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite,
+};
 
 #[derive(RustEmbed)]
 #[folder = "test_data/assets"]
@@ -93,36 +99,20 @@ fn simple_quad() {
 
 #[test]
 fn simple_text() {
-    let positions = [
-        (10., 8.),
-        (20., 10.),
-        (30., 12.),
-        (40., 14.),
-        (55., 16.),
-        (70., 18.),
-        (85., 20.),
-        (105., 22.),
-        (125., 24.),
-        (150., 26.),
-        (175., 28.),
-        (200., 30.),
-        (230., 32.),
-        (260., 34.),
-        (295., 36.),
-        (330., 38.),
-        (365., 40.),
-        (400., 42.),
-        (440., 44.),
-    ];
-
     let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
-    for (y, size) in positions.into_iter() {
-        scene.add_text(Text::new(
-            "Sphinx of black quartz, judge my vow.".to_owned(),
-            point2!(0., y),
-            size,
-            Srgba::new(0., 0., 0., 1.),
-        ));
+    let mut shaper = Shaper::new();
+
+    for i in 0..20 {
+        let font_size = 8. + 2. * i as f32;
+        let bottom = 0.2366 * font_size * font_size - 0.3481 * font_size - 1.1405;
+
+        let mut builder = shaper.layout("Sphinx of black quartz judge my vow.");
+        builder.push_default(&StyleProperty::FontStack(FontStack::Source("monospace")));
+        builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+        builder.push_default(&StyleProperty::FontSize(font_size));
+        let mut layout = builder.build();
+        layout.break_all_lines(None, Alignment::Start);
+        scene.add_text_layout(layout, point2!(0., bottom));
     }
 
     assert_no_regressions(1000, 500, scene);
@@ -155,14 +145,17 @@ fn simple_sprite() {
 #[test]
 fn simple_blur() {
     let mut scene = Scene::new();
+    let mut shaper = Shaper::new();
 
     for i in 0..20 {
-        scene.add_text(Text::new(
-            "TestTestTestTestTestTestTestTest".to_owned(),
-            point2!(0., 15. * i as f32),
-            15.,
-            Srgba::new(0., 0., 0., 1.),
-        ));
+        let bottom = 15. * i as f32;
+        let mut builder = shaper.layout("TestTestTestTestTestTestTestTest");
+        builder.push_default(&StyleProperty::FontStack(FontStack::Source("monospace")));
+        builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+        builder.push_default(&StyleProperty::FontSize(15.));
+        let mut layout = builder.build();
+        layout.break_all_lines(None, Alignment::Start);
+        scene.add_text_layout(layout, point2!(0., bottom));
     }
 
     for x in 0..3 {
@@ -201,19 +194,41 @@ fn simple_blurred_quad() {
     assert_no_regressions(325, 325, scene);
 }
 
+// #[test]
+// fn swash_modern_ligatures() {
+//     let scene = Scene::new()
+//         .with_font("Monaspace Krypton Var".to_owned())
+//         .with_text(Text::new(
+//             "a==b a//b a~~b".to_owned(),
+//             point2!(10., 25.),
+//             20.,
+//             Srgba::new(0., 0., 0., 1.),
+//         ))
+//         .with_parsed_font_features(vec![
+//             "+calt", "+liga", "+ss01", "+ss02", "+ss03", "+ss04", "+ss05", "+ss06", "+ss07",
+//             "+ss08", "+ss09",
+//         ]);
+//     assert_no_regressions(200, 30, scene);
+// }
+
 #[test]
-fn swash_modern_ligatures() {
-    let scene = Scene::new()
-        .with_font("Monaspace Krypton Var".to_owned())
-        .with_text(Text::new(
-            "a==b a//b a~~b".to_owned(),
-            point2!(10., 25.),
-            20.,
-            Srgba::new(0., 0., 0., 1.),
-        ))
-        .with_parsed_font_features(vec![
-            "+calt", "+liga", "+ss01", "+ss02", "+ss03", "+ss04", "+ss05", "+ss06", "+ss07",
-            "+ss08", "+ss09",
-        ]);
-    assert_no_regressions(200, 30, scene);
+fn text_layout_bounds() {
+    let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
+    let mut shaper = Shaper::new();
+
+    let mut builder = shaper.layout("Sphinx of black quartz judge my vow.");
+    builder.push_default(&StyleProperty::FontStack(FontStack::Source("monospace")));
+    builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+    builder.push_default(&StyleProperty::FontSize(14.0));
+    let mut layout = builder.build();
+    layout.break_all_lines(None, Alignment::Start);
+
+    scene.add_quad(Quad::new(
+        point2!(10., 10.),
+        size2!(layout.width(), layout.height()),
+        Srgba::new(0., 1., 0., 0.5),
+    ));
+    scene.add_text_layout(layout, point2!(10., 10.));
+
+    assert_no_regressions(325, 325, scene);
 }

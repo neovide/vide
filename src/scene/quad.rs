@@ -2,9 +2,9 @@ use crate::quad::InstancedQuad;
 use glam::Vec4;
 use glamour::{AsRaw, Point2, Size2};
 use palette::Srgba;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Quad {
     top_left: Point2,
     size: Size2,

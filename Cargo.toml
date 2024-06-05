@@ -58,6 +58,9 @@ license.workspace = true
 # Shader crate containing each of the shaders for the
 # various primitives.
 shader = { path = "crates/shader" }
+# Encoding to and from a base64 string. Used for storing
+# fonts in the scene json format.
+base64 = "0.22.1"
 # In place transmutation crate for turning shader structs
 # into binary
 bytemuck = { workspace = true }
@@ -86,6 +89,9 @@ lyon = { version = "1.0.1", features = ["serialization"] }
 # ord implementation
 ordered-float = "4.2.0"
 palette = { workspace = true }
+# Font layout and shaping crate. Handles font fallback
+parley = { git = "https://github.com/linebender/parley" }
+# Random number generation
 rand = "0.8.5"
 rust-embed = { workspace = true }
 serde = { workspace = true }

@@ -1,34 +1,43 @@
 use glamour::Rect;
 use palette::Srgba;
-use serde::de::Error;
-use serde::Deserialize;
-use serde::Serialize;
-use serde::Serializer;
+use serde::{Deserialize, Serialize, Serializer, de::Error};
 use swash::Setting;
 
+use super::GlyphRun;
 use super::Path;
 use super::Quad;
 use super::Sprite;
-use super::Text;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Layer {
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub clip: Option<Rect<u32>>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "is_zero")]
     pub background_blur_radius: f32,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub background_color: Option<Srgba>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub font_features: Vec<FontFeature>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub quads: Vec<Quad>,
     #[serde(default)]
-    pub texts: Vec<Text>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub glyph_runs: Vec<GlyphRun>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<Path>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub sprites: Vec<Sprite>,
+}
+
+fn is_zero(value: &f32) -> bool {
+    *value == 0.0
 }
 
 impl Default for Layer {
@@ -37,13 +46,9 @@ impl Default for Layer {
             clip: None,
             background_blur_radius: 0.0,
             background_color: Some(Srgba::new(1.0, 1.0, 1.0, 1.0)),
-<<<<<<< HEAD
-            font_name: default_font(),
             font_features: Vec::new(),
-=======
->>>>>>> b238613 (wip glyph run work)
             quads: Vec::new(),
-            texts: Vec::new(),
+            glyph_runs: Vec::new(),
             paths: Vec::new(),
             sprites: Vec::new(),
         }
@@ -82,15 +87,6 @@ impl Layer {
         self.background_color = Some(color);
     }
 
-    pub fn with_font(mut self, font_name: String) -> Self {
-        self.font_name = font_name;
-        self
-    }
-
-    pub fn set_font(&mut self, font_name: String) {
-        self.font_name = font_name;
-    }
-
     pub fn set_font_features(&mut self, font_features: Vec<FontFeature>) {
         self.font_features = font_features;
     }
@@ -121,12 +117,12 @@ impl Layer {
         self
     }
 
-    pub fn add_text(&mut self, text: Text) {
-        self.texts.push(text);
+    pub fn add_glyph_run(&mut self, glyph_run: GlyphRun) {
+        self.glyph_runs.push(glyph_run);
     }
 
-    pub fn with_text(mut self, text: Text) -> Self {
-        self.add_text(text);
+    pub fn with_glyph_run(mut self, glyph_run: GlyphRun) -> Self {
+        self.add_glyph_run(glyph_run);
         self
     }
 

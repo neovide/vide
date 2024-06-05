@@ -9,6 +9,7 @@ use rust_embed::RustEmbed;
 use shader::{ShaderConstants, ShaderModules};
 use wgpu::{BindGroupLayout, RenderPipeline, *};
 
+use crate::Resources;
 use crate::{
     renderer::Drawable,
     scene::{Layer, Sprite},
@@ -235,6 +236,7 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        _: &Resources,
         layer: &Layer,
     ) {
         let sprites: Vec<_> = layer

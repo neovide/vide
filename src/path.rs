@@ -11,6 +11,7 @@ use lyon::{
 use shader::{ShaderConstants, ShaderModules};
 use wgpu::*;
 
+use crate::Resources;
 use crate::{
     renderer::{Drawable, Renderer},
     scene::{Layer, PathCommand},
@@ -113,6 +114,7 @@ impl Drawable for PathState {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         _universal_bind_group: &'a BindGroup,
+        _resources: &Resources,
         layer: &Layer,
     ) {
         let mut geometry: VertexBuffers<PathVertex, u32> = VertexBuffers::new();
