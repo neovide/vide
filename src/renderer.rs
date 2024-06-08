@@ -1,9 +1,8 @@
-use rust_embed::RustEmbed;
 use wgpu::*;
 
 use crate::{
-    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState, Scene,
-    ATLAS_SIZE,
+    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState,
+    Resources, Scene, ATLAS_SIZE,
 };
 use glam::*;
 use shader::{ShaderConstants, ShaderLoader, ShaderModules};
@@ -29,6 +28,7 @@ pub trait Drawable {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        resources: &Resources,
         layer: &Layer,
     );
 }
@@ -200,15 +200,15 @@ impl Renderer {
         self
     }
 
-    pub async fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
+    pub async fn add_default_drawables(&mut self) {
         self.add_drawable::<QuadState>().await;
         self.add_drawable::<GlyphState>().await;
         self.add_drawable::<PathState>().await;
-        self.add_drawable::<SpriteState<A>>().await;
+        self.add_drawable::<SpriteState>().await;
     }
 
-    pub async fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
-        self.add_default_drawables::<A>().await;
+    pub async fn with_default_drawables(mut self) -> Self {
+        self.add_default_drawables().await;
         self
     }
 
@@ -355,6 +355,7 @@ impl Renderer {
                     &mut render_pass,
                     constants,
                     &self.universal_bind_group,
+                    &scene.resources,
                     layer,
                 );
 

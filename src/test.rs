@@ -5,9 +5,13 @@ use glamour::{point2, size2, vec2, Rect};
 use image::io::Reader as ImageReader;
 use lazy_static::lazy_static;
 use palette::Srgba;
+use parley::style::{FontFamily, FontSettings, FontStack, StyleProperty};
 use rust_embed::RustEmbed;
+use swash::Setting;
 
-use crate::{offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Sprite, Text};
+use crate::{
+    offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite, Texture,
+};
 
 #[derive(RustEmbed)]
 #[folder = "test_data/assets"]
@@ -47,7 +51,7 @@ fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
     let actual = smol::block_on(async {
         let mut renderer = OffscreenRenderer::new(width, height)
             .await
-            .with_default_drawables::<Assets>()
+            .with_default_drawables()
             .await;
         renderer.draw(&scene).await
     });
@@ -93,37 +97,23 @@ fn simple_quad() {
 
 #[test]
 fn simple_text() {
-    let positions = [
-        (10., 8.),
-        (20., 10.),
-        (30., 12.),
-        (40., 14.),
-        (55., 16.),
-        (70., 18.),
-        (85., 20.),
-        (105., 22.),
-        (125., 24.),
-        (150., 26.),
-        (175., 28.),
-        (200., 30.),
-        (230., 32.),
-        (260., 34.),
-        (295., 36.),
-        (330., 38.),
-        (365., 40.),
-        (400., 42.),
-        (440., 44.),
-    ];
-
     let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
-    for (y, size) in positions.into_iter() {
-        scene.add_text(Text::new(
-            "Sphinx of black quartz, judge my vow.".to_owned(),
-            point2!(0., y),
-            size,
-            Srgba::new(0., 0., 0., 1.),
-        ));
+    let mut shaper = Shaper::new();
+    shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
+    shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+
+    for i in 0..20 {
+        let font_size = 8. + 2. * i as f32;
+        let y = 0.2366 * font_size * font_size - 0.3481 * font_size - 11.1405;
+
+        let layout = shaper.layout_with("Sphinx of black quartz judge my vow.", |builder| {
+            builder.push_default(&StyleProperty::FontSize(font_size));
+        });
+
+        scene.add_text_layout(layout, point2!(0., y));
     }
+
+    assert_eq!(scene.resources.fonts.len(), 1);
 
     assert_no_regressions(1000, 500, scene);
 }
@@ -143,11 +133,12 @@ fn simple_path() {
 
 #[test]
 fn simple_sprite() {
-    let scene = Scene::new().with_sprite(Sprite::new(
-        "Leaf.png".to_owned(),
-        point2!(10., 10.),
-        size2!(100., 100.),
-    ));
+    let image_file = Assets::get("Leaf.png").unwrap();
+    let image = image::load_from_memory(image_file.data.as_ref()).unwrap();
+    let texture = Texture::from_image(image);
+
+    let scene =
+        Scene::new().with_sprite(Sprite::new(texture, point2!(10., 10.), size2!(100., 100.)));
 
     assert_no_regressions(120, 120, scene);
 }
@@ -155,14 +146,16 @@ fn simple_sprite() {
 #[test]
 fn simple_blur() {
     let mut scene = Scene::new();
+    let mut shaper = Shaper::new();
+    shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
+    shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
 
     for i in 0..20 {
-        scene.add_text(Text::new(
-            "TestTestTestTestTestTestTestTest".to_owned(),
-            point2!(0., 15. * i as f32),
-            15.,
-            Srgba::new(0., 0., 0., 1.),
-        ));
+        let bottom = 15. * i as f32;
+        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+            builder.push_default(&StyleProperty::FontSize(15.));
+        });
+        scene.add_text_layout(layout, point2!(0., bottom));
     }
 
     for x in 0..3 {
@@ -203,17 +196,47 @@ fn simple_blurred_quad() {
 
 #[test]
 fn swash_modern_ligatures() {
-    let scene = Scene::new()
-        .with_font("Monaspace Krypton Var".to_owned())
-        .with_text(Text::new(
-            "a==b a//b a~~b".to_owned(),
-            point2!(10., 25.),
-            20.,
-            Srgba::new(0., 0., 0., 1.),
-        ))
-        .with_parsed_font_features(vec![
-            "+calt", "+liga", "+ss01", "+ss02", "+ss03", "+ss04", "+ss05", "+ss06", "+ss07",
-            "+ss08", "+ss09",
-        ]);
+    let mut scene = Scene::new();
+    let mut shaper = Shaper::new();
+
+    let layout = shaper.layout_with("a==b a//b a~~b", |builder| {
+        builder.push_default(&StyleProperty::FontStack(FontStack::Single(
+            FontFamily::Named("Monaspace Krypton Var"),
+        )));
+        builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+        builder.push_default(&StyleProperty::FontSize(16.));
+        let features = [
+            "calt", "ss01", "ss02", "ss03", "ss04", "ss05", "ss06", "ss07", "ss08", "ss09", "liga",
+        ];
+        builder.push_default(&StyleProperty::FontFeatures(FontSettings::List(
+            &features
+                .into_iter()
+                .map(|feature| (feature, 1).into())
+                .collect::<Vec<Setting<u16>>>(),
+        )));
+    });
+    scene.add_text_layout(layout, point2!(5., 5.));
+
     assert_no_regressions(200, 30, scene);
+}
+
+#[test]
+fn text_layout_bounds() {
+    let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
+    let mut shaper = Shaper::new();
+
+    let layout = shaper.layout_with("Sphinx of black quartz judge my vow.", |builder| {
+        builder.push_default(&StyleProperty::FontStack(FontStack::Source("monospace")));
+        builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+        builder.push_default(&StyleProperty::FontSize(14.0));
+    });
+
+    scene.add_quad(Quad::new(
+        point2!(10., 10.),
+        size2!(layout.width(), layout.height()),
+        Srgba::new(0., 1., 0., 0.5),
+    ));
+    scene.add_text_layout(layout, point2!(10., 10.));
+
+    assert_no_regressions(325, 35, scene);
 }

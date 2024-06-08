@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use etagere::{size2, AllocId, AtlasAllocator};
 use glam::Vec4;
@@ -9,17 +9,15 @@ use palette::Srgba;
 use shader::{ShaderConstants, ShaderModules};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
-    shape::{cluster::Glyph, ShapeContext},
     zeno::{Format, Placement, Vector},
-    CacheKey, FontRef, GlyphId,
+    FontRef, GlyphId,
 };
 use wgpu::{RenderPipeline, *};
 
 use crate::{
-    font::Font,
     renderer::{Drawable, Renderer},
-    scene::{Layer, Text},
-    FontFeature, ATLAS_SIZE,
+    scene::{GlyphRun, Layer},
+    FontId, Resources, ATLAS_SIZE,
 };
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -42,9 +40,7 @@ pub struct GlyphState {
     bind_group: BindGroup,
 
     scale_context: ScaleContext,
-    shaping_context: ShapeContext,
     glyph_lookup: HashMap<GlyphKey, (Placement, AllocId)>,
-    shaped_text_lookup: HashMap<ShapeKey, Vec<Glyph>>,
     atlas_allocator: AtlasAllocator,
 }
 
@@ -53,12 +49,13 @@ impl GlyphState {
     fn prepare_glyph<'a, 'b: 'a>(
         &'b mut self,
         queue: &Queue,
-        font_name: &str,
+        font_id: FontId,
         font_ref: FontRef<'a>,
         glyph: swash::GlyphId,
         bottom_left: Point2,
         size: f32,
         color: Srgba,
+        normalized_coords: &[i16],
     ) -> Option<InstancedGlyph> {
         // Create a font scaler for the given font and size
         let mut scaler = self
@@ -66,9 +63,10 @@ impl GlyphState {
             .builder(font_ref)
             .size(size)
             .hint(true)
+            .normalized_coords(normalized_coords)
             .build();
 
-        let glyph_key = GlyphKey::new(font_name, glyph, size, bottom_left);
+        let glyph_key = GlyphKey::new(font_id, glyph, size, bottom_left);
 
         // Get or find atlas allocation
         let (placement, allocation_rectangle) =
@@ -149,55 +147,26 @@ impl GlyphState {
         })
     }
 
-    pub fn shape_and_rasterize_text<'a, 'b: 'a>(
+    pub fn rasterize_glyph_run<'a, 'b: 'a>(
         &mut self,
         queue: &Queue,
-        font_name: &str,
         font_ref: FontRef<'a>,
-        font_features: &Vec<FontFeature>,
-        text: &Text,
+        glyph_run: &GlyphRun,
     ) -> Vec<InstancedGlyph> {
-        let key = ShapeKey::new(Arc::from(text.text.as_str()), font_ref, text.size);
-
-        let mut shaper = self
-            .shaping_context
-            .builder(font_ref)
-            .size(text.size)
-            .features(font_features)
-            .build();
-        let glyphs = self
-            .shaped_text_lookup
-            .entry(key)
-            .or_insert_with(|| {
-                shaper.add_str(&text.text);
-
-                let mut glyphs = Vec::new();
-
-                shaper.shape_with(|cluster| {
-                    for glyph in cluster.glyphs {
-                        glyphs.push(*glyph);
-                    }
-                });
-
-                glyphs
-            })
-            .clone();
-
-        let mut current_x = 0.;
-        glyphs
+        glyph_run
+            .glyphs
             .iter()
             .filter_map(|glyph| {
-                let instance = self.prepare_glyph(
+                self.prepare_glyph(
                     queue,
-                    font_name,
+                    glyph_run.font_id,
                     font_ref,
                     glyph.id,
-                    text.bottom_left + vec2!(current_x + glyph.x, -glyph.y),
-                    text.size,
-                    text.color,
-                );
-                current_x += glyph.advance;
-                instance
+                    glyph_run.position + glyph.offset,
+                    glyph_run.size,
+                    glyph_run.color,
+                    &glyph_run.normalized_coords,
+                )
             })
             .collect()
     }
@@ -277,10 +246,8 @@ impl Drawable for GlyphState {
             bind_group,
 
             scale_context: ScaleContext::new(),
-            shaping_context: ShapeContext::new(),
             atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
             glyph_lookup: HashMap::new(),
-            shaped_text_lookup: HashMap::new(),
         }
     }
 
@@ -343,23 +310,17 @@ impl Drawable for GlyphState {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        resources: &Resources,
         layer: &Layer,
     ) {
-        let font = Font::from_name(&layer.font_name).unwrap();
-        let font_ref = font.as_ref().unwrap();
-
         let glyphs: Vec<_> = layer
-            .texts
+            .glyph_runs
             .iter()
-            .flat_map(|text| {
-                self.shape_and_rasterize_text(
-                    queue,
-                    &layer.font_name,
-                    font_ref,
-                    &layer.font_features,
-                    text,
-                )
-                .into_iter()
+            .flat_map(|glyph_run| {
+                let font = resources.fonts.get(&glyph_run.font_id).unwrap();
+                let font_ref = font.as_swash_font_ref(glyph_run.font_index).unwrap();
+                self.rasterize_glyph_run(queue, font_ref, glyph_run)
+                    .into_iter()
             })
             .collect();
 
@@ -409,20 +370,20 @@ impl SubpixelOffset {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct GlyphKey {
     glyph: GlyphId,
-    font_name: Arc<str>,
+    font_id: FontId,
     size: OrderedFloat<f32>,
     x_offset: SubpixelOffset,
     y_offset: SubpixelOffset,
 }
 
 impl GlyphKey {
-    fn new(font_name: &str, glyph: GlyphId, size: f32, offset: Point2) -> Self {
+    fn new(font_id: FontId, glyph: GlyphId, size: f32, offset: Point2) -> Self {
         let size = size.into();
         let x_offset = SubpixelOffset::quantize(offset.x);
         let y_offset = SubpixelOffset::quantize(offset.y);
         Self {
             glyph,
-            font_name: Arc::from(font_name),
+            font_id,
             size,
             x_offset,
             y_offset,
@@ -431,24 +392,5 @@ impl GlyphKey {
 
     fn quantized_offset(&self) -> Vector {
         Vector::new(self.x_offset.as_f32(), self.y_offset.as_f32())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ShapeKey {
-    text: Arc<str>,
-    size: OrderedFloat<f32>,
-    font_cache_key: CacheKey,
-}
-
-impl ShapeKey {
-    fn new(text: Arc<str>, font_ref: FontRef, size: f32) -> Self {
-        let font_cache_key = font_ref.key;
-        let size = size.into();
-        Self {
-            text,
-            size,
-            font_cache_key,
-        }
     }
 }

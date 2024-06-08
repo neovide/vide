@@ -1,8 +1,8 @@
 use glamour::Point2;
 use palette::Srgba;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PathCommand {
     CubicBezierTo {
@@ -19,7 +19,7 @@ pub enum PathCommand {
     },
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Path {
     #[serde(default)]
     pub fill: Option<Srgba>,

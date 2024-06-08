@@ -78,6 +78,8 @@ fn main() {
                     }
                     WindowEvent::RedrawRequested => {
                         let mut scene = scene.read().clone();
+                        scene.add_layer(Default::default());
+                        scene.background(Srgba::new(0., 0., 0., 0.));
                         scene.add_quad(
                             Quad::new(
                                 Point2::new(mouse_pos.x as f32, mouse_pos.y as f32),

@@ -1,4 +1,3 @@
-use rust_embed::RustEmbed;
 use std::sync::Arc;
 use wgpu::*;
 use winit::{
@@ -81,12 +80,12 @@ impl<'a> WinitRenderer<'a> {
         self
     }
 
-    pub async fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
-        self.renderer.add_default_drawables::<A>().await;
+    pub async fn add_default_drawables(&mut self) {
+        self.renderer.add_default_drawables().await;
     }
 
-    pub async fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
-        self.add_default_drawables::<A>().await;
+    pub async fn with_default_drawables(mut self) -> Self {
+        self.add_default_drawables().await;
         self
     }
 

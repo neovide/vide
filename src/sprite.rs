@@ -1,11 +1,9 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 use etagere::{size2, AllocId, AtlasAllocator};
 use glam::*;
 use glam::{vec2, Vec4};
 use glamour::AsRaw;
-use image::GenericImageView;
-use rust_embed::RustEmbed;
 use shader::{ShaderConstants, ShaderModules};
 use wgpu::{BindGroupLayout, RenderPipeline, *};
 
@@ -14,6 +12,7 @@ use crate::{
     scene::{Layer, Sprite},
     Renderer, ATLAS_SIZE,
 };
+use crate::{Resources, TextureId};
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
@@ -25,34 +24,37 @@ pub struct InstancedSprite {
     pub color: Vec4,
 }
 
-pub struct SpriteState<A: RustEmbed> {
+pub struct SpriteState {
     buffer: Buffer,
     atlas_texture: Texture,
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
 
-    image_lookup: HashMap<String, AllocId>,
+    image_lookup: HashMap<TextureId, AllocId>,
     atlas_allocator: AtlasAllocator,
-    _assets: PhantomData<*const A>,
 }
 
-impl<A: RustEmbed> SpriteState<A> {
-    pub fn upload_sprite(&mut self, queue: &Queue, sprite: &Sprite) -> InstancedSprite {
+impl SpriteState {
+    pub fn upload_sprite(
+        &mut self,
+        resources: &Resources,
+        queue: &Queue,
+        sprite: &Sprite<TextureId>,
+    ) -> InstancedSprite {
         let allocation_rectangle = if let Some(alloc_id) = self.image_lookup.get(&sprite.texture) {
             self.atlas_allocator.get(*alloc_id)
         } else {
-            let image_file = A::get(&sprite.texture).unwrap();
-            let image = image::load_from_memory(image_file.data.as_ref()).unwrap();
-            let data = image.to_rgba8();
-            let (image_width, image_height) = image.dimensions();
+            let texture = resources
+                .textures
+                .get(&sprite.texture)
+                .expect("TextureId not found in resources");
 
             let allocation = self
                 .atlas_allocator
-                .allocate(size2(image_width as i32, image_height as i32))
+                .allocate(size2(texture.size.width as i32, texture.size.height as i32))
                 .expect("Could not allocate glyph to atlas");
 
-            self.image_lookup
-                .insert(sprite.texture.clone(), allocation.id);
+            self.image_lookup.insert(sprite.texture, allocation.id);
 
             queue.write_texture(
                 ImageCopyTexture {
@@ -65,15 +67,15 @@ impl<A: RustEmbed> SpriteState<A> {
                     },
                     aspect: TextureAspect::All,
                 },
-                &data,
+                &texture.data,
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(4 * image_width),
-                    rows_per_image: Some(image_height),
+                    bytes_per_row: Some(4 * texture.size.width),
+                    rows_per_image: Some(texture.size.height),
                 },
                 Extent3d {
-                    width: image_width,
-                    height: image_height,
+                    width: texture.size.width,
+                    height: texture.size.height,
                     depth_or_array_layers: 1,
                 },
             );
@@ -97,7 +99,7 @@ impl<A: RustEmbed> SpriteState<A> {
     }
 }
 
-impl<A: RustEmbed> Drawable for SpriteState<A> {
+impl Drawable for SpriteState {
     fn new(Renderer { device, .. }: &Renderer) -> Self {
         let buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Sprite buffer"),
@@ -172,7 +174,6 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
 
             image_lookup: HashMap::new(),
             atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
-            _assets: PhantomData,
         }
     }
 
@@ -235,12 +236,13 @@ impl<A: RustEmbed> Drawable for SpriteState<A> {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        resources: &Resources,
         layer: &Layer,
     ) {
         let sprites: Vec<_> = layer
             .sprites
             .iter()
-            .map(|sprite| self.upload_sprite(queue, sprite))
+            .map(|sprite| self.upload_sprite(resources, queue, sprite))
             .collect();
 
         render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));

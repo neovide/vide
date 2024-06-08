@@ -4,7 +4,7 @@ use palette::Srgba;
 use shader::{ShaderConstants, ShaderModules};
 use wgpu::*;
 
-use crate::{renderer::Drawable, scene::Layer, Quad, Renderer};
+use crate::{renderer::Drawable, scene::Layer, Quad, Renderer, Resources};
 
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
 #[repr(C, align(64))]
@@ -127,6 +127,7 @@ impl Drawable for QuadState {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
+        _resources: &Resources,
         layer: &Layer,
     ) {
         let mut quads = Vec::new();

@@ -1,95 +1,71 @@
-mod font_spec;
-
-use std::{collections::HashMap, sync::Arc};
-
-use glam::Vec4;
-use lazy_static::lazy_static;
-use ordered_float::OrderedFloat;
-use swash::{
-    shape::{cluster::Glyph, ShapeContext},
-    CacheKey, FontRef,
+use palette::Srgba;
+use parley::{
+    context::RangedBuilder, layout::Alignment, style::StyleProperty, FontContext, Layout,
+    LayoutContext,
 };
 
-use crate::{font::Font, Scene};
-
-use self::font_spec::IntoFontSpec;
-
-lazy_static! {
-    pub static ref SHAPER: Shaper = Shaper::new();
-}
-
-#[derive(Clone)]
-pub struct ShapedText {
-    shape_key: ShapeKey,
-    pub glyphs: Vec<Glyph>,
-    pub bounds: Vec4,
-}
-
 pub struct Shaper {
-    shaping_context: ShapeContext,
-    shaped_text_lookup: HashMap<ShapeKey, ShapedText>,
+    font_context: FontContext,
+    layout_context: LayoutContext<Srgba>,
+    default_styles: Vec<StyleProperty<'static, Srgba>>,
 }
 
 impl Shaper {
     pub fn new() -> Self {
         Self {
-            shaping_context: ShapeContext::new(),
-            shaped_text_lookup: HashMap::new(),
+            font_context: FontContext::default(),
+            layout_context: LayoutContext::new(),
+            default_styles: Vec::new(),
         }
     }
 
-    pub fn shape(&mut self, text: &str, font: &str, size: f32) -> ShapedText {
-        let font = Font::from_name(font).unwrap();
-        let font_ref = font.as_ref().unwrap();
+    pub fn layout_with<'a>(
+        &'a mut self,
+        text: &'a str,
+        build: impl FnOnce(&mut RangedBuilder<'a, Srgba, &'a str>),
+    ) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
 
-        let key = ShapeKey::new(Arc::from(text), font_ref, size.into());
+        build(&mut builder);
 
-        self.shaped_text_lookup
-            .entry(key.clone())
-            .or_insert_with({
-                let mut shaper = self
-                    .shaping_context
-                    .builder(font_ref)
-                    .size(*key.size)
-                    .build();
+        let mut layout = builder.build();
 
-                move || {
-                    shaper.add_str(key.text.as_ref());
+        layout.break_all_lines(None, Alignment::Start);
 
-                    let mut shaped_text = ShapedText {
-                        shape_key: key.clone(),
-                        glyphs: Vec::new(),
-                        bounds: Vec4::ZERO,
-                    };
+        layout
+    }
 
-                    shaper.shape_with(|cluster| {
-                        for glyph in cluster.glyphs {
-                            shaped_text.glyphs.push(*glyph);
-                        }
-                    });
+    pub fn layout_builder<'a>(&'a mut self, text: &'a str) -> RangedBuilder<'a, Srgba, &'a str> {
+        let mut builder =
+            // TODO: Dig through if this display scale is doing something important we need to
+            // replicate
+            self.layout_context
+                .ranged_builder(&mut self.font_context, text, 1.);
+        for style in &self.default_styles {
+            builder.push_default(style);
+        }
 
-                    shaped_text
-                }
-            })
-            .clone()
+        builder
+    }
+
+    pub fn layout(&mut self, text: &str) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
+        let mut layout = builder.build();
+        layout.break_all_lines(None, Alignment::Start);
+        layout
+    }
+
+    pub fn push_default(&mut self, style: StyleProperty<'static, Srgba>) {
+        self.default_styles.push(style);
+    }
+
+    pub fn clear_defaults(&mut self) {
+        self.default_styles.clear();
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ShapeKey {
-    text: Arc<str>,
-    size: OrderedFloat<f32>,
-    font_cache_key: CacheKey,
-}
-
-impl ShapeKey {
-    fn new(text: Arc<str>, font_ref: FontRef, size: f32) -> Self {
-        let font_cache_key = font_ref.key;
-        let size = size.into();
-        Self {
-            text,
-            size,
-            font_cache_key,
-        }
+impl Default for Shaper {
+    fn default() -> Self {
+        Self::new()
     }
 }
