@@ -13,6 +13,15 @@ use crate::Resources;
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+// Private Sealed trait is used here to ensure that the only two types allowed as generic type
+// arguments to sprite are Texture and TextureId. This way the same type can be used both before
+// the texture is stored in resources with Texture and after with TextureId.
+//
+// Further, since TextureId has a private field, it also can only be constructed inside this file
+// ensuring that the only way to add a sprite to a layer is by first adding the texture to the
+// resources. This doesn't prevent a user from adding the texture to a separate scene and then
+// adding the resulting texture id to a scene that doesn't contain the texture id, but its good
+// enough protection for now.
 trait Sealed {}
 #[allow(private_bounds)]
 pub trait SpriteTexture: Sealed {}
