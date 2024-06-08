@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use glamour::{vec2, Point2, Rect};
 use palette::Srgba;
 use parley::Layout;
 use serde::{Deserialize, Serialize};
 
-use super::{Font, Glyph, GlyphRun, Path, Quad, Resources, Sprite};
+use super::{Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Layer {
@@ -29,7 +27,7 @@ pub struct Layer {
     pub paths: Vec<Path>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub sprites: Vec<Sprite>,
+    pub sprites: Vec<Sprite<TextureId>>,
 }
 
 fn is_zero(value: &f32) -> bool {
@@ -109,11 +107,11 @@ impl Layer {
         self
     }
 
-    pub fn add_sprite(&mut self, sprite: Sprite) {
+    pub fn add_sprite(&mut self, sprite: Sprite<TextureId>) {
         self.sprites.push(sprite);
     }
 
-    pub fn with_sprite(mut self, sprite: Sprite) -> Self {
+    pub fn with_sprite(mut self, sprite: Sprite<TextureId>) -> Self {
         self.add_sprite(sprite);
         self
     }
@@ -128,18 +126,9 @@ impl Layer {
             for glyph_run in line.glyph_runs() {
                 let run = glyph_run.run();
                 let font = run.font();
-                let font_id = font.data.id();
-                if !resources.fonts.contains_key(&font_id) {
-                    resources.fonts.insert(
-                        font_id,
-                        Font {
-                            data: Arc::from(font.data.data().to_vec()),
-                            id: font_id,
-                        },
-                    );
-                }
+                let font_id = resources.store_font(font);
                 let style = glyph_run.style();
-                let color = style.brush.into();
+                let color = style.brush;
 
                 let font_index = font.index as usize;
                 let size = run.font_size();

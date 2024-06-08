@@ -91,11 +91,12 @@ impl Scene {
         self
     }
 
-    pub fn add_sprite(&mut self, sprite: Sprite) {
+    pub fn add_sprite(&mut self, sprite: Sprite<Texture>) {
+        let sprite = sprite.redirect_texture(&mut self.resources);
         self.layer_mut().add_sprite(sprite);
     }
 
-    pub fn with_sprite(mut self, sprite: Sprite) -> Self {
+    pub fn with_sprite(mut self, sprite: Sprite<Texture>) -> Self {
         self.add_sprite(sprite);
         self
     }
@@ -114,5 +115,6 @@ impl Scene {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Resources {
-    pub fonts: HashMap<u64, Font>,
+    pub fonts: HashMap<FontId, Font>,
+    pub textures: HashMap<TextureId, Texture>,
 }

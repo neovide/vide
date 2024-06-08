@@ -1,4 +1,3 @@
-use rust_embed::RustEmbed;
 use wgpu::*;
 
 use crate::{
@@ -201,15 +200,15 @@ impl Renderer {
         self
     }
 
-    pub async fn add_default_drawables<A: RustEmbed + 'static>(&mut self) {
+    pub async fn add_default_drawables(&mut self) {
         self.add_drawable::<QuadState>().await;
         self.add_drawable::<GlyphState>().await;
         self.add_drawable::<PathState>().await;
-        self.add_drawable::<SpriteState<A>>().await;
+        self.add_drawable::<SpriteState>().await;
     }
 
-    pub async fn with_default_drawables<A: RustEmbed + 'static>(mut self) -> Self {
-        self.add_default_drawables::<A>().await;
+    pub async fn with_default_drawables(mut self) -> Self {
+        self.add_default_drawables().await;
         self
     }
 

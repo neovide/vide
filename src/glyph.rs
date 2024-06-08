@@ -14,11 +14,10 @@ use swash::{
 };
 use wgpu::{RenderPipeline, *};
 
-
 use crate::{
     renderer::{Drawable, Renderer},
     scene::{GlyphRun, Layer},
-    Resources, ATLAS_SIZE,
+    FontId, Resources, ATLAS_SIZE,
 };
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -50,7 +49,7 @@ impl GlyphState {
     fn prepare_glyph<'a, 'b: 'a>(
         &'b mut self,
         queue: &Queue,
-        font_id: u64,
+        font_id: FontId,
         font_ref: FontRef<'a>,
         glyph: swash::GlyphId,
         bottom_left: Point2,
@@ -320,7 +319,7 @@ impl Drawable for GlyphState {
             .flat_map(|glyph_run| {
                 let font = resources.fonts.get(&glyph_run.font_id).unwrap();
                 let font_ref = font.as_swash_font_ref(glyph_run.font_index).unwrap();
-                self.rasterize_glyph_run(queue, font_ref, &glyph_run)
+                self.rasterize_glyph_run(queue, font_ref, glyph_run)
                     .into_iter()
             })
             .collect();
@@ -371,14 +370,14 @@ impl SubpixelOffset {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct GlyphKey {
     glyph: GlyphId,
-    font_id: u64,
+    font_id: FontId,
     size: OrderedFloat<f32>,
     x_offset: SubpixelOffset,
     y_offset: SubpixelOffset,
 }
 
 impl GlyphKey {
-    fn new(font_id: u64, glyph: GlyphId, size: f32, offset: Point2) -> Self {
+    fn new(font_id: FontId, glyph: GlyphId, size: f32, offset: Point2) -> Self {
         let size = size.into();
         let x_offset = SubpixelOffset::quantize(offset.x);
         let y_offset = SubpixelOffset::quantize(offset.y);

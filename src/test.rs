@@ -10,7 +10,7 @@ use rust_embed::RustEmbed;
 use swash::Setting;
 
 use crate::{
-    offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite,
+    offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite, Texture,
 };
 
 #[derive(RustEmbed)]
@@ -51,7 +51,7 @@ fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
     let actual = smol::block_on(async {
         let mut renderer = OffscreenRenderer::new(width, height)
             .await
-            .with_default_drawables::<Assets>()
+            .with_default_drawables()
             .await;
         renderer.draw(&scene).await
     });
@@ -133,11 +133,12 @@ fn simple_path() {
 
 #[test]
 fn simple_sprite() {
-    let scene = Scene::new().with_sprite(Sprite::new(
-        "Leaf.png".to_owned(),
-        point2!(10., 10.),
-        size2!(100., 100.),
-    ));
+    let image_file = Assets::get("Leaf.png").unwrap();
+    let image = image::load_from_memory(image_file.data.as_ref()).unwrap();
+    let texture = Texture::from_image(image);
+
+    let scene =
+        Scene::new().with_sprite(Sprite::new(texture, point2!(10., 10.), size2!(100., 100.)));
 
     assert_no_regressions(120, 120, scene);
 }

@@ -63,3 +63,9 @@ impl Shaper {
         self.default_styles.clear();
     }
 }
+
+impl Default for Shaper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
