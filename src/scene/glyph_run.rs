@@ -3,9 +3,8 @@ use std::{fmt::Debug, sync::Arc};
 use base64::prelude::*;
 use glamour::{Point2, Vector2};
 use palette::Srgba;
-use parley::style::{FontFeature, FontSettings, FontVariation};
-use serde::{de::Error, Deserialize, Serialize, Serializer};
-use swash::{FontRef, Setting};
+use serde::{Deserialize, Serialize};
+use swash::FontRef;
 
 pub struct Font {
     pub data: Arc<Vec<u8>>,
