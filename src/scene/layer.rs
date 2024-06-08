@@ -1,12 +1,11 @@
-use glamour::Rect;
-use palette::Srgba;
-use serde::{Deserialize, Serialize, Serializer, de::Error};
-use swash::Setting;
+use std::sync::Arc;
 
-use super::GlyphRun;
-use super::Path;
-use super::Quad;
-use super::Sprite;
+use glamour::{vec2, Point2, Rect};
+use palette::Srgba;
+use parley::Layout;
+use serde::{Deserialize, Serialize};
+
+use super::{Font, Glyph, GlyphRun, Path, Quad, Resources, Sprite};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Layer {
@@ -19,9 +18,6 @@ pub struct Layer {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub background_color: Option<Srgba>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub font_features: Vec<FontFeature>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub quads: Vec<Quad>,
@@ -46,7 +42,6 @@ impl Default for Layer {
             clip: None,
             background_blur_radius: 0.0,
             background_color: Some(Srgba::new(1.0, 1.0, 1.0, 1.0)),
-            font_features: Vec::new(),
             quads: Vec::new(),
             glyph_runs: Vec::new(),
             paths: Vec::new(),
@@ -87,27 +82,6 @@ impl Layer {
         self.background_color = Some(color);
     }
 
-    pub fn set_font_features(&mut self, font_features: Vec<FontFeature>) {
-        self.font_features = font_features;
-    }
-
-    pub fn set_parsed_font_features(&mut self, font_features: &[&str]) {
-        self.font_features = font_features
-            .iter()
-            .map(|feature| FontFeature::parse(feature).unwrap())
-            .collect();
-    }
-
-    pub fn with_font_features(mut self, font_features: Vec<FontFeature>) -> Self {
-        self.set_font_features(font_features);
-        self
-    }
-
-    pub fn with_parsed_font_features(mut self, font_features: &[&str]) -> Self {
-        self.set_parsed_font_features(font_features);
-        self
-    }
-
     pub fn add_quad(&mut self, quad: Quad) {
         self.quads.push(quad);
     }
@@ -143,55 +117,63 @@ impl Layer {
         self.add_sprite(sprite);
         self
     }
-}
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct FontFeature(pub String, pub u16);
+    pub fn add_text_layout(
+        &mut self,
+        resources: &mut Resources,
+        layout: Layout<Srgba>,
+        position: Point2,
+    ) {
+        for line in layout.lines() {
+            for glyph_run in line.glyph_runs() {
+                let run = glyph_run.run();
+                let font = run.font();
+                let font_id = font.data.id();
+                if !resources.fonts.contains_key(&font_id) {
+                    resources.fonts.insert(
+                        font_id,
+                        Font {
+                            data: Arc::from(font.data.data().to_vec()),
+                            id: font_id,
+                        },
+                    );
+                }
+                let style = glyph_run.style();
+                let color = style.brush.into();
 
-impl FontFeature {
-    pub fn parse(feature: &str) -> Result<Self, String> {
-        if let Some(name) = feature.strip_prefix('+') {
-            Ok(FontFeature(name.trim().to_string(), 1u16))
-        } else if let Some(name) = feature.strip_prefix('-') {
-            Ok(FontFeature(name.trim().to_string(), 0u16))
-        } else if let Some((name, value)) = feature.split_once('=') {
-            let value = value.parse();
-            if let Ok(value) = value {
-                Ok(FontFeature(name.to_string(), value))
-            } else {
-                Err("Value assigned to font feature is not an integer".to_string())
+                let font_index = font.index as usize;
+                let size = run.font_size();
+                let normalized_coords = run.normalized_coords().to_vec();
+                let mut glyphs = Vec::new();
+                let mut current_x = 0.0;
+                for glyph in glyph_run.glyphs() {
+                    glyphs.push(Glyph {
+                        id: glyph.id,
+                        offset: vec2!(current_x + glyph.x, -glyph.y),
+                    });
+                    current_x += glyph.advance;
+                }
+
+                self.add_glyph_run(GlyphRun {
+                    position: position + vec2!(glyph_run.offset(), glyph_run.baseline()),
+                    font_id,
+                    font_index,
+                    color,
+                    size,
+                    normalized_coords,
+                    glyphs,
+                });
             }
-        } else {
-            Err("Font feature is not prefixed with +, - or contains =".to_string())
         }
     }
-}
 
-impl<'de> Deserialize<'de> for FontFeature {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let text = String::deserialize(deserializer)?;
-        FontFeature::parse(&text).map_err(D::Error::custom)
-    }
-}
-
-impl Serialize for FontFeature {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.1 {
-            0 => serializer.serialize_str(&format!("-{}", self.0)),
-            1 => serializer.serialize_str(&format!("+{}", self.0)),
-            value => serializer.serialize_str(&format!("{}={}", self.0, value)),
-        }
-    }
-}
-
-impl Into<Setting<u16>> for &FontFeature {
-    fn into(self) -> Setting<u16> {
-        (self.0.as_ref(), self.1).into()
+    pub fn with_text_layout(
+        mut self,
+        resources: &mut Resources,
+        layout: Layout<Srgba>,
+        position: Point2,
+    ) -> Self {
+        self.add_text_layout(resources, layout, position);
+        self
     }
 }

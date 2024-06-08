@@ -1,5 +1,8 @@
 use palette::Srgba;
-use parley::{context::RangedBuilder, style::StyleProperty, FontContext, LayoutContext};
+use parley::{
+    context::RangedBuilder, layout::Alignment, style::StyleProperty, FontContext, Layout,
+    LayoutContext,
+};
 
 pub struct Shaper {
     font_context: FontContext,
@@ -16,7 +19,23 @@ impl Shaper {
         }
     }
 
-    pub fn layout<'a>(&'a mut self, text: &'a str) -> RangedBuilder<'a, Srgba, &'a str> {
+    pub fn layout_with<'a>(
+        &'a mut self,
+        text: &'a str,
+        build: impl FnOnce(&mut RangedBuilder<'a, Srgba, &'a str>),
+    ) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
+
+        build(&mut builder);
+
+        let mut layout = builder.build();
+
+        layout.break_all_lines(None, Alignment::Start);
+
+        layout
+    }
+
+    pub fn layout_builder<'a>(&'a mut self, text: &'a str) -> RangedBuilder<'a, Srgba, &'a str> {
         let mut builder =
             // TODO: Dig through if this display scale is doing something important we need to
             // replicate
@@ -27,6 +46,13 @@ impl Shaper {
         }
 
         builder
+    }
+
+    pub fn layout(&mut self, text: &str) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
+        let mut layout = builder.build();
+        layout.break_all_lines(None, Alignment::Start);
+        layout
     }
 
     pub fn push_default(&mut self, style: StyleProperty<'static, Srgba>) {

@@ -74,3 +74,68 @@ pub struct Glyph {
     pub id: u16,
     pub offset: Vector2,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FontFeature {
+    tag: String,
+    value: f32,
+}
+
+impl FontFeature {
+    pub fn parse(feature: &str) -> Result<Self, String> {
+        if let Some(name) = feature.strip_prefix('+') {
+            Ok(FontFeature {
+                tag: name.trim().to_string(),
+                value: 1.,
+            })
+        } else if let Some(name) = feature.strip_prefix('-') {
+            Ok(FontFeature {
+                tag: name.trim().to_string(),
+                value: 0.,
+            })
+        } else if let Some((name, value)) = feature.split_once('=') {
+            let value = value.parse();
+            if let Ok(value) = value {
+                Ok(FontFeature {
+                    tag: name.to_string(),
+                    value,
+                })
+            } else {
+                Err("Value assigned to font feature is not an integer".to_string())
+            }
+        } else {
+            Err("Font feature is not prefixed with +, - or contains =".to_string())
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for FontFeature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let text = String::deserialize(deserializer)?;
+        FontFeature::parse(&text).map_err(D::Error::custom)
+    }
+}
+
+impl Serialize for FontFeature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.value == 0. {
+            serializer.serialize_str(&format!("-{}", self.tag))
+        } else if self.value == 1. {
+            serializer.serialize_str(&format!("+{}", self.tag))
+        } else {
+            serializer.serialize_str(&format!("{}={}", self.tag, self.value))
+        }
+    }
+}
+
+impl Into<FontVariation> for &FontFeature {
+    fn into(self) -> Setting<f32> {
+        (self.tag.as_ref(), self.value).into()
+    }
+}

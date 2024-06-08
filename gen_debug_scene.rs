@@ -16,26 +16,23 @@ extern crate vide;
 
 use glamour::{point2, size2, Rect};
 use palette::Srgba;
-use parley::{
-    layout::Alignment,
-    style::{FontStack, StyleProperty},
-};
+use parley::style::{FontStack, StyleProperty};
+
 use vide::*;
 
 fn main() {
     let mut scene = Scene::new();
     let mut shaper = Shaper::new();
+    shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
+    shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
 
     for i in 0..20 {
         let font_size = 8. + 2. * i as f32;
         let bottom = 0.2366 * font_size * font_size - 0.3481 * font_size - 1.1405;
 
-        let mut builder = shaper.layout("Sphinx of black quartz judge my vow.");
-        builder.push_default(&StyleProperty::FontStack(FontStack::Source("monospace")));
-        builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
-        builder.push_default(&StyleProperty::FontSize(font_size));
-        let mut layout = builder.build();
-        layout.break_all_lines(None, Alignment::Start);
+        let layout = shaper.layout_with("Sphinx of black quartz judge my vow.", |builder| {
+            builder.push_default(&StyleProperty::FontSize(font_size));
+        });
         scene.add_text_layout(layout, point2!(0., bottom));
     }
 
@@ -43,7 +40,7 @@ fn main() {
         Layer::new()
             .with_clip(Rect::new(point2!(0, 0), size2!(200, 200)))
             .with_blur(3.0)
-            .with_background(Srgba::new(0.5, 0.5, 1.0, 0.0))
+            .with_background(Srgba::new(0.0, 0.0, 0.0, 0.0))
             .with_path(
                 Path::new(point2!(20., 20.))
                     .with_fill(Srgba::new(0., 1., 0., 1.))
