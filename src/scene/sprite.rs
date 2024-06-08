@@ -55,6 +55,8 @@ impl<T: SpriteTexture> Sprite<T> {
 }
 
 impl Sprite<Texture> {
+    /// Takes the full Texture out of the sprite struct and stores it in the passed Resources
+    /// replacing the texture with a TextureId.
     pub fn redirect_texture(&self, resources: &mut Resources) -> Sprite<TextureId> {
         let texture_id = resources.store_texture(self.texture.clone());
         Sprite {
@@ -70,6 +72,8 @@ impl Sprite<Texture> {
 pub struct TextureId(u64);
 
 impl Resources {
+    /// Stores a texture in the resources and returns a TextureId. Note: this currently doesn't
+    /// check for duplication, so be careful to not store the same texture multiple times.
     pub fn store_texture(&mut self, texture: Texture) -> TextureId {
         let id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
         self.textures.insert(TextureId(id), texture);

@@ -91,11 +91,25 @@ impl Scene {
         self
     }
 
+    /// Adds the given sprite with included texture to the current layer.
+    ///
+    /// WARNING: This will store whatever texture is associated with this sprite in the resources
+    /// without checking for duplication. If you want to avoid duplication, you should use
+    /// `store_texture` on `self.resources` to get a TextureId, and then use that TextureId in the
+    /// sprites. To add a Sprite<TextureId>, use `add_sprite` on the layer like this:
+    /// `scene.layer_mut().add_sprite(sprite)`.
     pub fn add_sprite(&mut self, sprite: Sprite<Texture>) {
         let sprite = sprite.redirect_texture(&mut self.resources);
         self.layer_mut().add_sprite(sprite);
     }
 
+    /// Adds the given sprite with included texture to the current layer.
+    ///
+    /// WARNING: This will store whatever texture is associated with this sprite in the resources
+    /// without checking for duplication. If you want to avoid duplication, you should use
+    /// `store_texture` on `self.resources` to get a TextureId, and then use that TextureId in the
+    /// sprites. To add a Sprite<TextureId>, use `add_sprite` on the layer like this:
+    /// `scene.layer_mut().add_sprite(sprite)`.
     pub fn with_sprite(mut self, sprite: Sprite<Texture>) -> Self {
         self.add_sprite(sprite);
         self
