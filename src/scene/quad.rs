@@ -1,4 +1,4 @@
-use crate::quad::InstancedQuad;
+use crate::default_drawables::InstancedQuad;
 use glam::Vec4;
 use glamour::{AsRaw, Point2, Size2};
 use palette::Srgba;

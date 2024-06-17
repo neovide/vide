@@ -1,13 +1,10 @@
+mod default_drawables;
 mod drawable;
-mod glyph;
 mod offscreen_renderer;
-mod path;
-mod quad;
 mod renderer;
 mod scene;
 mod shader;
 mod shaper;
-mod sprite;
 mod winit_renderer;
 
 #[cfg(test)]

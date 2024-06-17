@@ -1,12 +1,9 @@
 use wgpu::*;
 
 use crate::{
+    default_drawables::{GlyphState, PathState, QuadState, SpriteState},
     drawable::Drawable,
-    glyph::GlyphState,
-    path::PathState,
-    quad::QuadState,
     shader::{ShaderConstants, ShaderLoader, ShaderModules},
-    sprite::SpriteState,
     Scene, ATLAS_SIZE,
 };
 use glam::*;
