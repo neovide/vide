@@ -1,4 +1,4 @@
-use crate::Preprocessor;
+use crate::shader::Preprocessor;
 use codespan_reporting::{
     diagnostic::{Diagnostic, Label},
     files::{Files, SimpleFile},

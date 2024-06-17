@@ -8,13 +8,14 @@ use lyon::{
     },
     path::Path,
 };
-use shader::{ShaderConstants, ShaderModules};
 use wgpu::*;
 
 use crate::Resources;
 use crate::{
-    renderer::{Drawable, Renderer},
+    drawable::Drawable,
+    renderer::Renderer,
     scene::{Layer, PathCommand},
+    shader::{ShaderConstants, ShaderModules},
 };
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]

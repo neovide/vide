@@ -2,7 +2,6 @@
 
 resolver = "2"
 members = [
-    "crates/shader",
     "crates/scene_viewer",
 ]
 exclude = [".git", "target"]
@@ -55,15 +54,14 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-# Shader crate containing each of the shaders for the
-# various primitives.
-shader = { path = "crates/shader" }
 # Encoding to and from a base64 string. Used for storing
 # fonts in the scene json format.
 base64 = "0.22.1"
 # In place transmutation crate for turning shader structs
 # into binary
 bytemuck = { workspace = true }
+# Used to make the error output for shader recompilation easier to read
+codespan-reporting = "0.11.1"
 # Atlas packing crate for carefully fitting rectangles into
 # larger rectangles. Used for the glyph atlas when rendering
 # text
@@ -84,6 +82,8 @@ log = { workspace = true }
 # Tesselation crate which lets us turn high level paths into
 # lists of triangles efficiently
 lyon = { version = "1.0.1", features = ["serialization"] }
+# File watcher crate. Used to watch for shader changes
+notify-debouncer-full = "0.3.1"
 # Rust doesn't implement ord for floats which makes deriving
 # hashes hard. This wraps floats and provides a consistent
 # ord implementation
@@ -105,7 +105,9 @@ smol = "1.2"
 swash = "0.1.12"
 # Used to make the Shaper thread safe
 thread_local = "1.1.7"
-wgpu = { workspace = true }
+# Used to make the error output for shader recompilation easier to read
+termcolor = "1.4.1"
+wgpu = { workspace = true, features = ["glsl"] }
 winit = { workspace = true }
 
 [dev-dependencies]

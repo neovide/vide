@@ -4,12 +4,12 @@ use etagere::{size2, AllocId, AtlasAllocator};
 use glam::*;
 use glam::{vec2, Vec4};
 use glamour::AsRaw;
-use shader::{ShaderConstants, ShaderModules};
 use wgpu::{BindGroupLayout, RenderPipeline, *};
 
 use crate::{
-    renderer::Drawable,
+    drawable::Drawable,
     scene::{Layer, Sprite},
+    shader::{ShaderConstants, ShaderModules},
     Renderer, ATLAS_SIZE,
 };
 use crate::{Resources, TextureId};

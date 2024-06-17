@@ -4,7 +4,6 @@
 struct ShaderConstants {
     vec2 surface_size;
     vec2 atlas_size;
-    vec4 clip;
 };
 
 const vec2 UNIT_QUAD_VERTICES[6] = vec2[6](

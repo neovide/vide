@@ -5,7 +5,7 @@ use glamour::{point2, size2, vec2, Rect};
 use image::io::Reader as ImageReader;
 use lazy_static::lazy_static;
 use palette::Srgba;
-use parley::style::{FontFamily, FontSettings, FontStack, StyleProperty};
+use parley::style::{FontFamily, FontSettings, FontStack, FontWeight, StyleProperty};
 use rust_embed::RustEmbed;
 use swash::Setting;
 
@@ -195,6 +195,28 @@ fn simple_blurred_quad() {
 }
 
 #[test]
+fn overlapping_quads() {
+    let mut scene = Scene::new();
+    let colors = [
+        Srgba::new(1., 0., 0., 0.5),
+        Srgba::new(1., 1., 0., 0.5),
+        Srgba::new(0., 1., 0., 0.5),
+        Srgba::new(0., 1., 1., 0.5),
+        Srgba::new(0., 0., 1., 0.5),
+    ];
+
+    for (i, color) in colors.into_iter().enumerate() {
+        scene.add_quad(Quad::new(
+            point2!(10., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
+            size2!(50., 50.),
+            color,
+        ));
+    }
+
+    assert_no_regressions(110, 110, scene);
+}
+
+#[test]
 fn swash_modern_ligatures() {
     let mut scene = Scene::new();
     let mut shaper = Shaper::new();
@@ -239,4 +261,32 @@ fn text_layout_bounds() {
     scene.add_text_layout(layout, point2!(10., 10.));
 
     assert_no_regressions(325, 35, scene);
+}
+
+#[test]
+fn parley_line_breaking_and_font_fallback() {
+    let mut scene = Scene::new();
+    let mut shaper = Shaper::new();
+
+    let padding = 10.;
+    let layout = shaper.layout_within_with(
+        "Some text here. Let's make it a bit longer so that line wrapping kicks in 😊. And also some اللغة العربية arabic text.",
+        400.,
+        |builder| {
+            builder.push_default(&StyleProperty::FontStack(FontStack::Source("serif")));
+            builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+            builder.push_default(&StyleProperty::FontSize(24.));
+
+            builder.push(&StyleProperty::FontWeight(FontWeight::new(600.)), 0..4);
+        });
+
+    let layout_width = layout.width();
+    let layout_height = layout.height();
+    scene.add_text_layout(layout, point2!(padding, padding));
+
+    assert_no_regressions(
+        (layout_width + padding * 2.) as u32,
+        (layout_height + padding * 2.) as u32,
+        scene,
+    );
 }

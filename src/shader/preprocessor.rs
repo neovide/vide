@@ -1,4 +1,4 @@
-use crate::Shader;
+use crate::shader::Shader;
 
 pub(crate) struct PreprocessedFile {
     pub filename: String,

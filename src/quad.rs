@@ -1,10 +1,14 @@
 use glam::*;
 use glamour::{Point2, Size2};
 use palette::Srgba;
-use shader::{ShaderConstants, ShaderModules};
 use wgpu::*;
 
-use crate::{renderer::Drawable, scene::Layer, Quad, Renderer, Resources};
+use crate::{
+    drawable::Drawable,
+    scene::Layer,
+    shader::{ShaderConstants, ShaderModules},
+    Quad, Renderer, Resources,
+};
 
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
 #[repr(C, align(64))]

@@ -6,19 +6,29 @@ use glam::*;
 use glamour::{vec2, Point2, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
-use shader::{ShaderConstants, ShaderModules};
 use swash::{
-    scale::{Render, ScaleContext, Source, StrikeWith},
+    scale::{image::Content, Render, ScaleContext, Source, StrikeWith},
     zeno::{Format, Placement, Vector},
     FontRef, GlyphId,
 };
 use wgpu::{RenderPipeline, *};
 
 use crate::{
-    renderer::{Drawable, Renderer},
+    drawable::Drawable,
+    renderer::Renderer,
     scene::{GlyphRun, Layer},
+    shader::{ShaderConstants, ShaderModules},
     FontId, Resources, ATLAS_SIZE,
 };
+
+#[derive(Copy, Clone, Default)]
+#[repr(u32)]
+pub enum GlyphKind {
+    #[default]
+    Mask = 0,
+    Subpixel = 1,
+    Color = 2,
+}
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
@@ -26,10 +36,10 @@ pub struct InstancedGlyph {
     pub bottom_left: Vec2,
     pub atlas_top_left: Vec2,
     pub atlas_size: Vec2,
-    // Need a Vec2 of padding here so that the first 4 fields
-    // Are some multiple of 16 bytes in size.
-    // Vec2s are 8 bytes, Vec4s are 16 bytes.
-    pub _padding: Vec2,
+    pub kind: i32,
+    // Need a float of padding here so that fields are all aligned to
+    // 16 bytes in size. Vec2s are 8 bytes, Vec4s are 16 bytes.
+    _padding: f32,
     pub color: Vec4,
 }
 
@@ -40,7 +50,7 @@ pub struct GlyphState {
     bind_group: BindGroup,
 
     scale_context: ScaleContext,
-    glyph_lookup: HashMap<GlyphKey, (Placement, AllocId)>,
+    glyph_lookup: HashMap<GlyphKey, (Placement, Content, AllocId)>,
     atlas_allocator: AtlasAllocator,
 }
 
@@ -69,9 +79,13 @@ impl GlyphState {
         let glyph_key = GlyphKey::new(font_id, glyph, size, bottom_left);
 
         // Get or find atlas allocation
-        let (placement, allocation_rectangle) =
-            if let Some((placement, alloc_id)) = self.glyph_lookup.get(&glyph_key) {
-                (*placement, self.atlas_allocator.get(*alloc_id))
+        let (placement, content, allocation_rectangle) =
+            if let Some((placement, content, alloc_id)) = self.glyph_lookup.get(&glyph_key) {
+                (
+                    *placement,
+                    content.clone(),
+                    self.atlas_allocator.get(*alloc_id),
+                )
             } else {
                 let image = Render::new(&[
                     Source::ColorOutline(0),
@@ -99,7 +113,7 @@ impl GlyphState {
                     .expect("Could not allocate glyph to atlas");
 
                 self.glyph_lookup
-                    .insert(glyph_key, (image.placement, allocation.id));
+                    .insert(glyph_key, (image.placement, image.content, allocation.id));
 
                 queue.write_texture(
                     ImageCopyTexture {
@@ -125,7 +139,7 @@ impl GlyphState {
                     },
                 );
 
-                (image.placement, allocation.rectangle)
+                (image.placement, image.content.clone(), allocation.rectangle)
             };
 
         let bottom_left = bottom_left.floor()
@@ -142,6 +156,11 @@ impl GlyphState {
                 allocation_rectangle.min.y as f32,
             ),
             atlas_size: glam::vec2(placement.width as f32, placement.height as f32),
+            kind: match content {
+                Content::Mask => GlyphKind::Mask as i32,
+                Content::SubpixelMask => GlyphKind::Subpixel as i32,
+                Content::Color => GlyphKind::Color as i32,
+            },
             _padding: Default::default(),
             color: Vec4::from_array(color.into_linear().into()),
         })
