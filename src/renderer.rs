@@ -1,37 +1,17 @@
 use wgpu::*;
 
 use crate::{
-    glyph::GlyphState, path::PathState, quad::QuadState, scene::Layer, sprite::SpriteState,
-    Resources, Scene, ATLAS_SIZE,
+    drawable::Drawable,
+    glyph::GlyphState,
+    path::PathState,
+    quad::QuadState,
+    shader::{ShaderConstants, ShaderLoader, ShaderModules},
+    sprite::SpriteState,
+    Scene, ATLAS_SIZE,
 };
 use glam::*;
-use shader::{ShaderConstants, ShaderLoader, ShaderModules};
 
 use futures::executor::block_on;
-
-pub trait Drawable {
-    fn new(renderer: &Renderer) -> Self
-    where
-        Self: Sized;
-
-    fn create_pipeline(
-        &self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) -> Result<RenderPipeline, String>;
-
-    fn draw<'b, 'a: 'b>(
-        &'a mut self,
-        queue: &Queue,
-        render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
-        resources: &Resources,
-        layer: &Layer,
-    );
-}
 
 struct DrawablePipeline {
     drawable: Box<dyn Drawable>,
@@ -266,7 +246,6 @@ impl Renderer {
         let constants = ShaderConstants {
             surface_size: vec2(self.width as f32, self.height as f32),
             atlas_size: ATLAS_SIZE,
-            clip: Vec4::ZERO,
         };
 
         let mut first = true;

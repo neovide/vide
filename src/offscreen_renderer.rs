@@ -2,7 +2,7 @@ use futures_intrusive::channel::shared::oneshot_channel;
 use image::{imageops::crop_imm, ImageBuffer, Rgba};
 use wgpu::{Instance, PowerPreference, RequestAdapterOptions};
 
-use crate::{renderer::Drawable, Renderer, Scene};
+use crate::{drawable::Drawable, Renderer, Scene};
 
 pub struct OffscreenRenderer {
     pub instance: Instance,

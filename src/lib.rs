@@ -1,9 +1,11 @@
+mod drawable;
 mod glyph;
 mod offscreen_renderer;
 mod path;
 mod quad;
 mod renderer;
 mod scene;
+mod shader;
 mod shaper;
 mod sprite;
 mod winit_renderer;
@@ -16,6 +18,7 @@ use glam::{vec2, Vec2};
 pub use offscreen_renderer::OffscreenRenderer;
 pub use renderer::Renderer;
 pub use scene::*;
+pub use shader::*;
 pub use shaper::Shaper;
 pub use winit_renderer::WinitRenderer;
 

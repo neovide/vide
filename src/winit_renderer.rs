@@ -5,7 +5,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{renderer::Drawable, Renderer, Scene};
+use crate::{drawable::Drawable, Renderer, Scene};
 
 pub struct WinitRenderer<'a> {
     pub instance: Instance,

@@ -52,11 +52,6 @@ fn main() {
                 point2!(150., 100.),
                 size2!(100., 100.),
                 Srgba::new(1., 0., 0., 1.),
-            ))
-            .with_sprite(Sprite::new(
-                "Leaf.png".to_owned(),
-                point2!(300., 300.),
-                size2!(100., 100.),
             )),
     );
 

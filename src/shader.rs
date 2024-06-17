@@ -29,12 +29,22 @@ use wgpu::{
     Device, ErrorFilter, ShaderModule, ShaderModuleDescriptor, ShaderSource,
 };
 
+use crate::{Renderer, ATLAS_SIZE};
+
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 pub struct ShaderConstants {
     pub surface_size: Vec2,
     pub atlas_size: Vec2,
-    pub clip: Vec4,
+}
+
+impl From<Renderer> for ShaderConstants {
+    fn from(value: Renderer) -> Self {
+        ShaderConstants {
+            surface_size: vec2(value.width as f32, value.height as f32),
+            atlas_size: ATLAS_SIZE,
+        }
+    }
 }
 
 #[derive(Default)]

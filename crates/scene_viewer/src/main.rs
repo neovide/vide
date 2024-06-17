@@ -6,7 +6,6 @@ use glamour::{Point2, Size2};
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 use palette::Srgba;
 use parking_lot::RwLock;
-use rust_embed::RustEmbed;
 use winit::{
     dpi::PhysicalPosition,
     event::{Event, WindowEvent},
@@ -16,14 +15,10 @@ use winit::{
 
 use vide::{Quad, Scene, WinitRenderer};
 
-#[derive(RustEmbed)]
-#[folder = "assets"]
-struct Assets;
-
 async fn create_renderer(window: Arc<Window>) -> WinitRenderer<'static> {
     WinitRenderer::new(Arc::clone(&window))
         .await
-        .with_default_drawables::<Assets>()
+        .with_default_drawables()
         .await
 }
 

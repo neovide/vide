@@ -23,7 +23,12 @@ void main() {
 
     if (glyph.kind == 0 || glyph.kind == 1) {
         out_color = text_color * atlas_color + (1.0 - text_color.w * atlas_color) * surface_color;
+        if (atlas_color.x != 0.0 || atlas_color.y != 0.0 || atlas_color.z != 0.0) {
+            out_color.w = 1.0;
+        } else {
+            out_color.w = 0.0;
+        }
     } else {
-        out_color = text_color * atlas_color;
+        out_color = atlas_color;
     }
 }

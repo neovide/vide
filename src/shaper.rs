@@ -35,6 +35,37 @@ impl Shaper {
         layout
     }
 
+    pub fn layout_within_with<'a>(
+        &'a mut self,
+        text: &'a str,
+        max_advance: f32,
+        build: impl FnOnce(&mut RangedBuilder<'a, Srgba, &'a str>),
+    ) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
+
+        build(&mut builder);
+
+        let mut layout = builder.build();
+
+        layout.break_all_lines(Some(max_advance), Alignment::Start);
+
+        layout
+    }
+
+    pub fn layout(&mut self, text: &str) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
+        let mut layout = builder.build();
+        layout.break_all_lines(None, Alignment::Start);
+        layout
+    }
+
+    pub fn layout_within(&mut self, text: &str, max_advance: f32) -> Layout<Srgba> {
+        let mut builder = self.layout_builder(text);
+        let mut layout = builder.build();
+        layout.break_all_lines(Some(max_advance), Alignment::Start);
+        layout
+    }
+
     pub fn layout_builder<'a>(&'a mut self, text: &'a str) -> RangedBuilder<'a, Srgba, &'a str> {
         let mut builder =
             // TODO: Dig through if this display scale is doing something important we need to
@@ -46,13 +77,6 @@ impl Shaper {
         }
 
         builder
-    }
-
-    pub fn layout(&mut self, text: &str) -> Layout<Srgba> {
-        let mut builder = self.layout_builder(text);
-        let mut layout = builder.build();
-        layout.break_all_lines(None, Alignment::Start);
-        layout
     }
 
     pub fn push_default(&mut self, style: StyleProperty<'static, Srgba>) {
