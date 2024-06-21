@@ -10,6 +10,7 @@ use lyon::{
 };
 use wgpu::*;
 
+use crate::pipeline_builder::{GeometryBuffer, GeometryVertex, PipelineBuilder};
 use crate::Resources;
 use crate::{
     drawable::Drawable,
@@ -27,30 +28,27 @@ pub struct PathVertex {
     pub _padding: Vec2,
 }
 
+impl GeometryVertex for PathVertex {
+    fn vertex_attributes() -> Vec<VertexAttribute> {
+        vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2]
+            .into_iter()
+            .collect()
+    }
+}
+
 pub struct PathState {
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
+    pipeline_builder: PipelineBuilder,
+    geometry_buffer: GeometryBuffer<PathVertex>,
 }
 
 impl Drawable for PathState {
-    fn new(Renderer { device, .. }: &Renderer) -> Self {
-        let vertex_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Path Vertex Buffer"),
-            size: std::mem::size_of::<PathVertex>() as u64 * 100000,
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let index_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Path Index Buffer"),
-            size: std::mem::size_of::<u32>() as u64 * 100000,
-            usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
+    fn new(renderer: &Renderer) -> Self {
+        let geometry_buffer = GeometryBuffer::new(renderer, "path");
+        let pipeline_builder = PipelineBuilder::new(renderer, "Path", "path", &[&geometry_buffer]);
 
         Self {
-            vertex_buffer,
-            index_buffer,
+            pipeline_builder,
+            geometry_buffer,
         }
     }
 
@@ -59,54 +57,15 @@ impl Drawable for PathState {
         device: &Device,
         shaders: &ShaderModules,
         format: &TextureFormat,
-        _universal_bind_group_layout: &BindGroupLayout,
+        universal_bind_group_layout: &BindGroupLayout,
     ) -> Result<RenderPipeline, String> {
-        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Path render pipeline"),
-            layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
-                label: Some("Path Pipeline layout"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[PushConstantRange {
-                    stages: ShaderStages::all(),
-                    range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-                }],
-            })),
-            vertex: VertexState {
-                module: shaders.get_vertex("path")?,
-                entry_point: "main",
-                buffers: &[VertexBufferLayout {
-                    array_stride: std::mem::size_of::<PathVertex>() as BufferAddress,
-                    step_mode: VertexStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float32x4, 1 => Float32x2, 2 => Float32x2],
-                }],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: shaders.get_fragment("path")?,
-                entry_point: "main",
-                targets: &[Some(ColorTargetState {
-                    format: *format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 4,
-                ..Default::default()
-            },
-            multiview: None,
-        }))
+        self.pipeline_builder.build(
+            device,
+            shaders,
+            format,
+            universal_bind_group_layout,
+            &[&self.geometry_buffer],
+        )
     }
 
     fn draw<'b, 'a: 'b>(
@@ -114,7 +73,7 @@ impl Drawable for PathState {
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
-        _universal_bind_group: &'a BindGroup,
+        universal_bind_group: &'a BindGroup,
         _resources: &Resources,
         layer: &Layer,
     ) {
@@ -181,26 +140,13 @@ impl Drawable for PathState {
                     .expect("Could not tesselate path");
             }
 
-            render_pass.set_push_constants(
-                ShaderStages::all(),
-                0,
-                bytemuck::cast_slice(&[constants]),
-            );
+            self.pipeline_builder
+                .set_bind_groups(render_pass, constants, universal_bind_group);
 
-            queue.write_buffer(
-                &self.vertex_buffer,
-                0,
-                bytemuck::cast_slice(&geometry.vertices[..]),
-            );
-            queue.write_buffer(
-                &self.index_buffer,
-                0,
-                bytemuck::cast_slice(&geometry.indices[..]),
-            );
+            self.geometry_buffer
+                .upload(&geometry.vertices, &geometry.indices, queue);
 
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);
-            render_pass.draw_indexed(0..geometry.indices.len() as u32, 0, 0..1);
+            self.geometry_buffer.draw(render_pass);
         }
     }
 }

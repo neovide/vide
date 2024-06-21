@@ -1,9 +1,5 @@
-use std::collections::HashMap;
-
-use etagere::{size2, AllocId, AtlasAllocator};
-use glam::Vec4;
 use glam::*;
-use glamour::{vec2, Point2, ToRaw};
+use glamour::{size2, vec2, Point2, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
 use swash::{
@@ -15,10 +11,11 @@ use wgpu::{RenderPipeline, *};
 
 use crate::{
     drawable::Drawable,
+    pipeline_builder::{Atlas, InstanceBuffer, PipelineBuilder},
     renderer::Renderer,
     scene::{GlyphRun, Layer},
     shader::{ShaderConstants, ShaderModules},
-    FontId, Resources, ATLAS_SIZE,
+    FontId, Resources,
 };
 
 #[derive(Copy, Clone, Default)]
@@ -44,14 +41,10 @@ pub struct InstancedGlyph {
 }
 
 pub struct GlyphState {
-    buffer: Buffer,
-    atlas_texture: Texture,
-    bind_group_layout: BindGroupLayout,
-    bind_group: BindGroup,
-
+    pipeline_builder: PipelineBuilder,
+    glyph_buffer: InstanceBuffer<InstancedGlyph>,
+    atlas: Atlas<GlyphKey, (Placement, Content)>,
     scale_context: ScaleContext,
-    glyph_lookup: HashMap<GlyphKey, (Placement, Content, AllocId)>,
-    atlas_allocator: AtlasAllocator,
 }
 
 impl GlyphState {
@@ -79,14 +72,8 @@ impl GlyphState {
         let glyph_key = GlyphKey::new(font_id, glyph, size, bottom_left);
 
         // Get or find atlas allocation
-        let (placement, content, allocation_rectangle) =
-            if let Some((placement, content, alloc_id)) = self.glyph_lookup.get(&glyph_key) {
-                (
-                    *placement,
-                    content.clone(),
-                    self.atlas_allocator.get(*alloc_id),
-                )
-            } else {
+        let ((placement, content), glyph_location) =
+            self.atlas.lookup_or_upload(queue, glyph_key.clone(), || {
                 let image = Render::new(&[
                     Source::ColorOutline(0),
                     Source::ColorBitmap(StrikeWith::BestFit),
@@ -104,43 +91,12 @@ impl GlyphState {
                     return None;
                 }
 
-                let allocation = self
-                    .atlas_allocator
-                    .allocate(size2(
-                        image.placement.width as i32,
-                        image.placement.height as i32,
-                    ))
-                    .expect("Could not allocate glyph to atlas");
-
-                self.glyph_lookup
-                    .insert(glyph_key, (image.placement, image.content, allocation.id));
-
-                queue.write_texture(
-                    ImageCopyTexture {
-                        texture: &self.atlas_texture,
-                        mip_level: 0,
-                        origin: Origin3d {
-                            x: allocation.rectangle.min.x as u32,
-                            y: allocation.rectangle.min.y as u32,
-                            z: 0,
-                        },
-                        aspect: TextureAspect::All,
-                    },
-                    &image.data,
-                    ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: Some(4 * image.placement.width),
-                        rows_per_image: Some(image.placement.height),
-                    },
-                    Extent3d {
-                        width: image.placement.width,
-                        height: image.placement.height,
-                        depth_or_array_layers: 1,
-                    },
-                );
-
-                (image.placement, image.content.clone(), allocation.rectangle)
-            };
+                Some((
+                    (image.placement, image.content),
+                    image.data,
+                    size2!(image.placement.width, image.placement.height),
+                ))
+            })?;
 
         let bottom_left = bottom_left.floor()
             + vec2!(
@@ -151,10 +107,7 @@ impl GlyphState {
         // Add the glyph to instances
         Some(InstancedGlyph {
             bottom_left: bottom_left.to_raw(),
-            atlas_top_left: glam::vec2(
-                allocation_rectangle.min.x as f32,
-                allocation_rectangle.min.y as f32,
-            ),
+            atlas_top_left: glam::vec2(glyph_location.min.x as f32, glyph_location.min.y as f32),
             atlas_size: glam::vec2(placement.width as f32, placement.height as f32),
             kind: match content {
                 Content::Mask => GlyphKind::Mask as i32,
@@ -192,81 +145,18 @@ impl GlyphState {
 }
 
 impl Drawable for GlyphState {
-    fn new(Renderer { device, .. }: &Renderer) -> Self {
-        let buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Glyph buffer"),
-            size: std::mem::size_of::<InstancedGlyph>() as u64 * 100000,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let atlas_texture = device.create_texture(&TextureDescriptor {
-            label: Some("Glyph atlas texture descriptor"),
-            size: Extent3d {
-                width: ATLAS_SIZE.x as u32,
-                height: ATLAS_SIZE.y as u32,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Glyph bind group layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-            ],
-        });
-
-        let atlas_texture_view = atlas_texture.create_view(&TextureViewDescriptor::default());
-
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Glyph bind group"),
-            layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&atlas_texture_view),
-                },
-            ],
-        });
+    fn new(renderer: &Renderer) -> Self {
+        let glyph_buffer = InstanceBuffer::new(renderer, "glyph");
+        let atlas = Atlas::new(renderer, "glyph");
+        let pipeline_builder =
+            PipelineBuilder::new(renderer, "Glyph", "glyph", &[&glyph_buffer, &atlas]);
 
         Self {
-            buffer,
-            atlas_texture,
-            bind_group_layout,
-            bind_group,
+            glyph_buffer,
+            atlas,
+            pipeline_builder,
 
             scale_context: ScaleContext::new(),
-            atlas_allocator: AtlasAllocator::new(size2(ATLAS_SIZE.x as i32, ATLAS_SIZE.y as i32)),
-            glyph_lookup: HashMap::new(),
         }
     }
 
@@ -277,50 +167,13 @@ impl Drawable for GlyphState {
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     ) -> Result<RenderPipeline, String> {
-        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Glyph Pipeline Layout"),
-            bind_group_layouts: &[&self.bind_group_layout, &universal_bind_group_layout],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::all(),
-                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-            }],
-        });
-
-        Ok(device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Glyph Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: VertexState {
-                module: shaders.get_vertex("glyph")?,
-                entry_point: "main",
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: shaders.get_fragment("glyph")?,
-                entry_point: "main",
-                targets: &[Some(ColorTargetState {
-                    format: *format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 4,
-                ..Default::default()
-            },
-            multiview: None,
-        }))
+        self.pipeline_builder.build(
+            device,
+            shaders,
+            format,
+            universal_bind_group_layout,
+            &[&self.glyph_buffer, &self.atlas],
+        )
     }
 
     fn draw<'b, 'a: 'b>(
@@ -342,13 +195,10 @@ impl Drawable for GlyphState {
                     .into_iter()
             })
             .collect();
-
-        render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
-
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&glyphs[..]));
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.set_bind_group(1, universal_bind_group, &[]);
-        render_pass.draw(0..6, 0..glyphs.len() as u32);
+        self.pipeline_builder
+            .set_bind_groups(render_pass, constants, universal_bind_group);
+        self.glyph_buffer.upload(glyphs, queue);
+        self.glyph_buffer.draw(render_pass);
     }
 }
 

@@ -1,14 +1,15 @@
+use futures::executor::block_on;
+use glam::*;
+use glamour::AsRaw;
 use wgpu::*;
 
 use crate::{
     default_drawables::{GlyphState, PathState, QuadState, SpriteState},
     drawable::Drawable,
+    pipeline_builder::ATLAS_SIZE,
     shader::{ShaderConstants, ShaderLoader, ShaderModules},
-    Scene, ATLAS_SIZE,
+    Scene,
 };
-use glam::*;
-
-use futures::executor::block_on;
 
 struct DrawablePipeline {
     drawable: Box<dyn Drawable>,
@@ -242,7 +243,7 @@ impl Renderer {
 
         let constants = ShaderConstants {
             surface_size: vec2(self.width as f32, self.height as f32),
-            atlas_size: ATLAS_SIZE,
+            atlas_size: ATLAS_SIZE.as_raw().as_vec2(),
         };
 
         let mut first = true;
