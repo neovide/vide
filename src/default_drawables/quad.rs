@@ -5,9 +5,9 @@ use wgpu::*;
 
 use crate::{
     drawable::Drawable,
-    pipeline_builder::{InstanceBuffer, PipelineBuilder},
+    pipeline_builder::{InstanceBuffer, PipelineReference},
     scene::Layer,
-    shader::{ShaderConstants, ShaderModules},
+    shader::ShaderConstants,
     Quad, Renderer, Resources,
 };
 
@@ -29,34 +29,21 @@ pub struct InstancedQuad {
 }
 
 pub struct QuadState {
-    pipeline_builder: PipelineBuilder,
     quad_buffer: InstanceBuffer<InstancedQuad>,
 }
 
 impl Drawable for QuadState {
     fn new(renderer: &Renderer) -> Self {
-        let quad_buffer = InstanceBuffer::new(renderer, "Quad");
-        let pipeline_builder = PipelineBuilder::new(renderer, "Quad", "quad", &[&quad_buffer]);
-        Self {
-            pipeline_builder,
-            quad_buffer,
-        }
+        let quad_buffer = InstanceBuffer::new(renderer, "quad");
+        Self { quad_buffer }
     }
 
-    fn create_pipeline(
-        &self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) -> Result<RenderPipeline, String> {
-        self.pipeline_builder.build(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &[&self.quad_buffer],
-        )
+    fn name(&self) -> &str {
+        "quad"
+    }
+
+    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+        vec![&self.quad_buffer]
     }
 
     fn draw<'b, 'a: 'b>(
@@ -64,7 +51,6 @@ impl Drawable for QuadState {
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
         _resources: &Resources,
         layer: &Layer,
     ) {
@@ -93,8 +79,6 @@ impl Drawable for QuadState {
         }
 
         quads.extend(layer.quads.iter().map(|quad| quad.to_instanced()));
-        self.pipeline_builder
-            .set_bind_groups(render_pass, constants, universal_bind_group);
         self.quad_buffer.upload(quads, queue);
         self.quad_buffer.draw(render_pass);
     }

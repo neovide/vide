@@ -7,14 +7,14 @@ use swash::{
     zeno::{Format, Placement, Vector},
     FontRef, GlyphId,
 };
-use wgpu::{RenderPipeline, *};
+use wgpu::*;
 
 use crate::{
     drawable::Drawable,
-    pipeline_builder::{Atlas, InstanceBuffer, PipelineBuilder},
+    pipeline_builder::{Atlas, InstanceBuffer, PipelineReference},
     renderer::Renderer,
     scene::{GlyphRun, Layer},
-    shader::{ShaderConstants, ShaderModules},
+    shader::ShaderConstants,
     FontId, Resources,
 };
 
@@ -41,7 +41,6 @@ pub struct InstancedGlyph {
 }
 
 pub struct GlyphState {
-    pipeline_builder: PipelineBuilder,
     glyph_buffer: InstanceBuffer<InstancedGlyph>,
     atlas: Atlas<GlyphKey, (Placement, Content)>,
     scale_context: ScaleContext,
@@ -148,40 +147,28 @@ impl Drawable for GlyphState {
     fn new(renderer: &Renderer) -> Self {
         let glyph_buffer = InstanceBuffer::new(renderer, "glyph");
         let atlas = Atlas::new(renderer, "glyph");
-        let pipeline_builder =
-            PipelineBuilder::new(renderer, "Glyph", "glyph", &[&glyph_buffer, &atlas]);
 
         Self {
             glyph_buffer,
             atlas,
-            pipeline_builder,
 
             scale_context: ScaleContext::new(),
         }
     }
 
-    fn create_pipeline(
-        &self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) -> Result<RenderPipeline, String> {
-        self.pipeline_builder.build(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &[&self.glyph_buffer, &self.atlas],
-        )
+    fn name(&self) -> &str {
+        "glyph"
+    }
+
+    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+        vec![&self.glyph_buffer, &self.atlas]
     }
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
+        _constants: ShaderConstants,
         resources: &Resources,
         layer: &Layer,
     ) {
@@ -195,8 +182,6 @@ impl Drawable for GlyphState {
                     .into_iter()
             })
             .collect();
-        self.pipeline_builder
-            .set_bind_groups(render_pass, constants, universal_bind_group);
         self.glyph_buffer.upload(glyphs, queue);
         self.glyph_buffer.draw(render_pass);
     }

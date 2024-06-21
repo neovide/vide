@@ -12,7 +12,6 @@ pub use instance_buffer::*;
 
 pub struct PipelineBuilder {
     name: String,
-    shader_name: String,
 
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
@@ -22,7 +21,6 @@ impl PipelineBuilder {
     pub fn new(
         Renderer { device, .. }: &Renderer,
         name: &str,
-        shader_name: &str,
         references: &[&dyn PipelineReference],
     ) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -56,7 +54,6 @@ impl PipelineBuilder {
 
         Self {
             name: name.to_string(),
-            shader_name: shader_name.to_string(),
             bind_group_layout,
             bind_group,
         }
@@ -88,13 +85,13 @@ impl PipelineBuilder {
             label: Some(&format!("{} Pipeline", self.name)),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
-                module: shaders.get_vertex(&self.shader_name)?,
+                module: shaders.get_vertex(&self.name)?,
                 entry_point: "main",
                 buffers: &vertex_buffer_layouts,
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
-                module: shaders.get_fragment(&self.shader_name)?,
+                module: shaders.get_fragment(&self.name)?,
                 entry_point: "main",
                 targets: &[Some(ColorTargetState {
                     format: *format,

@@ -10,13 +10,13 @@ use lyon::{
 };
 use wgpu::*;
 
-use crate::pipeline_builder::{GeometryBuffer, GeometryVertex, PipelineBuilder};
+use crate::pipeline_builder::{GeometryBuffer, GeometryVertex, PipelineReference};
 use crate::Resources;
 use crate::{
     drawable::Drawable,
     renderer::Renderer,
     scene::{Layer, PathCommand},
-    shader::{ShaderConstants, ShaderModules},
+    shader::ShaderConstants,
 };
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
@@ -37,43 +37,29 @@ impl GeometryVertex for PathVertex {
 }
 
 pub struct PathState {
-    pipeline_builder: PipelineBuilder,
     geometry_buffer: GeometryBuffer<PathVertex>,
 }
 
 impl Drawable for PathState {
     fn new(renderer: &Renderer) -> Self {
         let geometry_buffer = GeometryBuffer::new(renderer, "path");
-        let pipeline_builder = PipelineBuilder::new(renderer, "Path", "path", &[&geometry_buffer]);
 
-        Self {
-            pipeline_builder,
-            geometry_buffer,
-        }
+        Self { geometry_buffer }
     }
 
-    fn create_pipeline(
-        &self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) -> Result<RenderPipeline, String> {
-        self.pipeline_builder.build(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &[&self.geometry_buffer],
-        )
+    fn name(&self) -> &str {
+        "path"
+    }
+
+    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+        vec![&self.geometry_buffer]
     }
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
+        _constants: ShaderConstants,
         _resources: &Resources,
         layer: &Layer,
     ) {
@@ -139,9 +125,6 @@ impl Drawable for PathState {
                     )
                     .expect("Could not tesselate path");
             }
-
-            self.pipeline_builder
-                .set_bind_groups(render_pass, constants, universal_bind_group);
 
             self.geometry_buffer
                 .upload(&geometry.vertices, &geometry.indices, queue);

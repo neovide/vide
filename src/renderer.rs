@@ -6,21 +6,25 @@ use wgpu::*;
 use crate::{
     default_drawables::{GlyphState, PathState, QuadState, SpriteState},
     drawable::Drawable,
-    pipeline_builder::ATLAS_SIZE,
+    pipeline_builder::{PipelineBuilder, ATLAS_SIZE},
     shader::{ShaderConstants, ShaderLoader, ShaderModules},
     Scene,
 };
 
 struct DrawablePipeline {
     drawable: Box<dyn Drawable>,
+    pipeline_builder: PipelineBuilder,
     render_pipeline: Option<RenderPipeline>,
 }
 
 impl DrawablePipeline {
-    fn new<T: Drawable + 'static>(drawable: T) -> Self {
+    fn new<T: Drawable + 'static>(drawable: T, renderer: &Renderer) -> Self {
         let drawable = Box::new(drawable);
+        let pipeline_builder =
+            PipelineBuilder::new(renderer, drawable.name(), &drawable.references());
         Self {
             drawable,
+            pipeline_builder,
             render_pipeline: None,
         }
     }
@@ -33,9 +37,13 @@ impl DrawablePipeline {
         universal_bind_group_layout: &BindGroupLayout,
     ) {
         device.push_error_scope(ErrorFilter::Validation);
-        let pipeline =
-            self.drawable
-                .create_pipeline(device, shaders, format, universal_bind_group_layout);
+        let pipeline = self.pipeline_builder.build(
+            device,
+            shaders,
+            format,
+            universal_bind_group_layout,
+            &self.drawable.references(),
+        );
         let validation_error = device.pop_error_scope().await;
 
         if validation_error.is_none() {
@@ -161,7 +169,7 @@ impl Renderer {
 
     pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
         let drawable = T::new(self);
-        let mut drawable_pipeline = DrawablePipeline::new(drawable);
+        let mut drawable_pipeline = DrawablePipeline::new(drawable, &self);
         drawable_pipeline
             .create_pipeline(
                 &self.device,
@@ -327,11 +335,16 @@ impl Renderer {
                     render_pass.set_scissor_rect(x, y, w, h);
                 }
 
+                drawable.pipeline_builder.set_bind_groups(
+                    &mut render_pass,
+                    constants,
+                    &self.universal_bind_group,
+                );
+
                 drawable.drawable.draw(
                     &self.queue,
                     &mut render_pass,
                     constants,
-                    &self.universal_bind_group,
                     &scene.resources,
                     layer,
                 );

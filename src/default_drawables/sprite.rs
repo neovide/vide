@@ -1,13 +1,13 @@
 use glam::Vec4;
 use glam::*;
 use glamour::AsRaw;
-use wgpu::{BindGroupLayout, RenderPipeline, *};
+use wgpu::*;
 
-use crate::pipeline_builder::{Atlas, InstanceBuffer, PipelineBuilder};
+use crate::pipeline_builder::{Atlas, InstanceBuffer, PipelineReference};
 use crate::{
     drawable::Drawable,
     scene::{Layer, Sprite},
-    shader::{ShaderConstants, ShaderModules},
+    shader::ShaderConstants,
     Renderer,
 };
 use crate::{Resources, TextureId};
@@ -23,7 +23,6 @@ pub struct InstancedSprite {
 }
 
 pub struct SpriteState {
-    pipeline_builder: PipelineBuilder,
     sprite_buffer: InstanceBuffer<InstancedSprite>,
     atlas: Atlas<TextureId>,
 }
@@ -57,38 +56,26 @@ impl Drawable for SpriteState {
     fn new(renderer: &Renderer) -> Self {
         let sprite_buffer = InstanceBuffer::new(renderer, "sprite");
         let atlas = Atlas::new(renderer, "sprite");
-        let pipeline_builder =
-            PipelineBuilder::new(renderer, "Sprite", "sprite", &[&sprite_buffer, &atlas]);
 
         Self {
             sprite_buffer,
             atlas,
-            pipeline_builder,
         }
     }
 
-    fn create_pipeline(
-        &self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) -> Result<RenderPipeline, String> {
-        self.pipeline_builder.build(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &[&self.sprite_buffer, &self.atlas],
-        )
+    fn name(&self) -> &str {
+        "sprite"
+    }
+
+    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+        vec![&self.sprite_buffer, &self.atlas]
     }
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
+        _constants: ShaderConstants,
         resources: &Resources,
         layer: &Layer,
     ) {
@@ -98,8 +85,6 @@ impl Drawable for SpriteState {
             .map(|sprite| self.upload_sprite(resources, queue, sprite))
             .collect();
 
-        self.pipeline_builder
-            .set_bind_groups(render_pass, constants, universal_bind_group);
         self.sprite_buffer.upload(sprites, queue);
         self.sprite_buffer.draw(render_pass);
     }
