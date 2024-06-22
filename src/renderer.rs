@@ -1,52 +1,15 @@
+use futures::executor::block_on;
+use glam::*;
+use glamour::AsRaw;
 use wgpu::*;
 
 use crate::{
-    drawable::Drawable,
-    glyph::GlyphState,
-    path::PathState,
-    quad::QuadState,
+    default_drawables::{GlyphState, PathState, QuadState, SpriteState},
+    drawable::{Drawable, DrawablePipeline},
+    drawable_reference::ATLAS_SIZE,
     shader::{ShaderConstants, ShaderLoader, ShaderModules},
-    sprite::SpriteState,
-    Scene, ATLAS_SIZE,
+    Scene,
 };
-use glam::*;
-
-use futures::executor::block_on;
-
-struct DrawablePipeline {
-    drawable: Box<dyn Drawable>,
-    render_pipeline: Option<RenderPipeline>,
-}
-
-impl DrawablePipeline {
-    fn new<T: Drawable + 'static>(drawable: T) -> Self {
-        let drawable = Box::new(drawable);
-        Self {
-            drawable,
-            render_pipeline: None,
-        }
-    }
-
-    async fn create_pipeline(
-        &mut self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) {
-        device.push_error_scope(ErrorFilter::Validation);
-        let pipeline =
-            self.drawable
-                .create_pipeline(device, shaders, format, universal_bind_group_layout);
-        let validation_error = device.pop_error_scope().await;
-
-        if validation_error.is_none() {
-            if let Ok(pipeline) = pipeline {
-                self.render_pipeline = Some(pipeline);
-            }
-        }
-    }
-}
 
 pub struct Renderer {
     pub adapter: Adapter,
@@ -163,7 +126,7 @@ impl Renderer {
 
     pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
         let drawable = T::new(self);
-        let mut drawable_pipeline = DrawablePipeline::new(drawable);
+        let mut drawable_pipeline = DrawablePipeline::new(&self, drawable);
         drawable_pipeline
             .create_pipeline(
                 &self.device,
@@ -245,7 +208,7 @@ impl Renderer {
 
         let constants = ShaderConstants {
             surface_size: vec2(self.width as f32, self.height as f32),
-            atlas_size: ATLAS_SIZE,
+            atlas_size: ATLAS_SIZE.as_raw().as_vec2(),
         };
 
         let mut first = true;
@@ -256,6 +219,10 @@ impl Renderer {
                     label: Some("Render Encoder"),
                 });
             for drawable in self.drawables.iter_mut() {
+                if !drawable.ready() {
+                    continue;
+                }
+
                 // Either clear the offscreen texture or copy the previous layer to it
                 if first {
                     encoder.clear_texture(
@@ -290,11 +257,6 @@ impl Renderer {
                     );
                 }
 
-                let render_pipeline = match &drawable.render_pipeline {
-                    Some(render_pipeline) => render_pipeline,
-                    None => continue,
-                };
-
                 // The first drawable should clear the output texture
                 let attachment_op = if first {
                     Operations::<Color> {
@@ -319,7 +281,6 @@ impl Renderer {
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
-                render_pass.set_pipeline(render_pipeline);
 
                 if let Some(clip) = layer.clip {
                     let x = clip.origin.x.min(self.width);
@@ -329,7 +290,7 @@ impl Renderer {
                     render_pass.set_scissor_rect(x, y, w, h);
                 }
 
-                drawable.drawable.draw(
+                drawable.draw(
                     &self.queue,
                     &mut render_pass,
                     constants,
