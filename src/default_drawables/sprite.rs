@@ -4,7 +4,8 @@ use glamour::AsRaw;
 use wgpu::*;
 
 use crate::{
-    drawable::{Atlas, Drawable, DrawableReference, InstanceBuffer},
+    drawable::Drawable,
+    drawable_reference::{Atlas, DrawableReference, InstanceBuffer},
     scene::{Layer, Sprite},
     shader::ShaderConstants,
     Renderer,

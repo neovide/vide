@@ -1,14 +1,9 @@
-mod atlas;
-mod geometry_buffer;
-mod instance_buffer;
-
 use wgpu::*;
 
-use crate::{Layer, Renderer, Resources, ShaderConstants, ShaderModules};
-
-pub use atlas::*;
-pub use geometry_buffer::*;
-pub use instance_buffer::*;
+use crate::{
+    drawable_reference::DrawableReference, Layer, Renderer, Resources, ShaderConstants,
+    ShaderModules,
+};
 
 pub trait Drawable {
     fn new(renderer: &Renderer) -> Self
@@ -26,18 +21,6 @@ pub trait Drawable {
         resources: &Resources,
         layer: &Layer,
     );
-}
-
-pub trait DrawableReference {
-    fn layout(&self) -> Option<BindGroupLayoutEntry> {
-        None
-    }
-    fn entry(&self) -> Option<BindGroupEntry> {
-        None
-    }
-    fn vertex<'b, 'a: 'b>(&'a self) -> Option<VertexBufferLayout<'b>> {
-        None
-    }
 }
 
 pub(crate) struct DrawablePipeline {

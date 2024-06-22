@@ -11,7 +11,8 @@ use lyon::{
 use wgpu::*;
 
 use crate::{
-    drawable::{Drawable, DrawableReference, GeometryBuffer, GeometryVertex},
+    drawable::Drawable,
+    drawable_reference::{DrawableReference, GeometryBuffer, GeometryVertex},
     renderer::Renderer,
     scene::{Layer, PathCommand},
     shader::ShaderConstants,

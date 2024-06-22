@@ -4,7 +4,8 @@ use palette::Srgba;
 use wgpu::*;
 
 use crate::{
-    drawable::{Drawable, DrawableReference, InstanceBuffer},
+    drawable::Drawable,
+    drawable_reference::{DrawableReference, InstanceBuffer},
     scene::Layer,
     shader::ShaderConstants,
     Quad, Renderer, Resources,

@@ -10,7 +10,8 @@ use swash::{
 use wgpu::*;
 
 use crate::{
-    drawable::{Atlas, Drawable, DrawableReference, InstanceBuffer},
+    drawable::Drawable,
+    drawable_reference::{Atlas, DrawableReference, InstanceBuffer},
     renderer::Renderer,
     scene::{GlyphRun, Layer},
     shader::ShaderConstants,

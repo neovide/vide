@@ -5,7 +5,8 @@ use wgpu::*;
 
 use crate::{
     default_drawables::{GlyphState, PathState, QuadState, SpriteState},
-    drawable::{Drawable, DrawablePipeline, ATLAS_SIZE},
+    drawable::{Drawable, DrawablePipeline},
+    drawable_reference::ATLAS_SIZE,
     shader::{ShaderConstants, ShaderLoader, ShaderModules},
     Scene,
 };
