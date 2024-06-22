@@ -11,6 +11,16 @@ pub struct Layer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub clip: Option<Rect<u32>>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stencil: Option<LayerContents>,
+    #[serde(default)]
+    #[serde(flatten)]
+    pub contents: LayerContents,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LayerContents {
+    #[serde(default)]
     #[serde(skip_serializing_if = "is_zero")]
     pub background_blur_radius: f32,
     #[serde(default)]
@@ -30,14 +40,9 @@ pub struct Layer {
     pub sprites: Vec<Sprite<TextureId>>,
 }
 
-fn is_zero(value: &f32) -> bool {
-    *value == 0.0
-}
-
-impl Default for Layer {
+impl Default for LayerContents {
     fn default() -> Self {
         Self {
-            clip: None,
             background_blur_radius: 0.0,
             background_color: Some(Srgba::new(1.0, 1.0, 1.0, 1.0)),
             quads: Vec::new(),
@@ -48,13 +53,27 @@ impl Default for Layer {
     }
 }
 
+fn is_zero(value: &f32) -> bool {
+    *value == 0.0
+}
+
+impl Default for Layer {
+    fn default() -> Self {
+        Self {
+            clip: None,
+            stencil: None,
+            contents: LayerContents::default(),
+        }
+    }
+}
+
 impl Layer {
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn with_clip(mut self, clip: Rect<u32>) -> Self {
-        self.clip = Some(clip);
+        self.set_clip(clip);
         self
     }
 
@@ -62,26 +81,35 @@ impl Layer {
         self.clip = Some(clip);
     }
 
+    pub fn with_stencil(mut self, clip_layer: Layer) -> Self {
+        self.set_stencil(clip_layer);
+        self
+    }
+
+    pub fn set_stencil(&mut self, clip_layer: Layer) {
+        self.stencil = Some(clip_layer.contents);
+    }
+
     pub fn with_blur(mut self, radius: f32) -> Self {
-        self.background_blur_radius = radius;
+        self.set_blur(radius);
         self
     }
 
     pub fn set_blur(&mut self, radius: f32) {
-        self.background_blur_radius = radius;
+        self.contents.background_blur_radius = radius;
     }
 
     pub fn with_background(mut self, color: Srgba) -> Self {
-        self.background_color = Some(color);
+        self.set_background(color);
         self
     }
 
     pub fn set_background(&mut self, color: Srgba) {
-        self.background_color = Some(color);
+        self.contents.background_color = Some(color);
     }
 
     pub fn add_quad(&mut self, quad: Quad) {
-        self.quads.push(quad);
+        self.contents.quads.push(quad);
     }
 
     pub fn with_quad(mut self, quad: Quad) -> Self {
@@ -90,7 +118,7 @@ impl Layer {
     }
 
     pub fn add_glyph_run(&mut self, glyph_run: GlyphRun) {
-        self.glyph_runs.push(glyph_run);
+        self.contents.glyph_runs.push(glyph_run);
     }
 
     pub fn with_glyph_run(mut self, glyph_run: GlyphRun) -> Self {
@@ -99,7 +127,7 @@ impl Layer {
     }
 
     pub fn add_path(&mut self, path: Path) {
-        self.paths.push(path);
+        self.contents.paths.push(path);
     }
 
     pub fn with_path(mut self, path: Path) -> Self {
@@ -108,7 +136,7 @@ impl Layer {
     }
 
     pub fn add_sprite(&mut self, sprite: Sprite<TextureId>) {
-        self.sprites.push(sprite);
+        self.contents.sprites.push(sprite);
     }
 
     pub fn with_sprite(mut self, sprite: Sprite<TextureId>) -> Self {

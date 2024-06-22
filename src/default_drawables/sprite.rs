@@ -80,6 +80,7 @@ impl Drawable for SpriteState {
         layer: &Layer,
     ) {
         let sprites: Vec<_> = layer
+            .contents
             .sprites
             .iter()
             .map(|sprite| self.upload_sprite(resources, queue, sprite))

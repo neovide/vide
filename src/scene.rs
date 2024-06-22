@@ -55,17 +55,17 @@ impl Scene {
     }
 
     pub fn with_clip(mut self, clip: Rect<u32>) -> Self {
-        self.layer_mut().clip = Some(clip);
+        self.layer_mut().set_clip(clip);
         self
     }
 
     pub fn with_blur(mut self, radius: f32) -> Self {
-        self.layer_mut().background_blur_radius = radius;
+        self.layer_mut().set_blur(radius);
         self
     }
 
     pub fn background(&mut self, color: Srgba) {
-        self.layer_mut().background_color = Some(color);
+        self.layer_mut().set_background(color);
     }
 
     pub fn with_background(mut self, color: Srgba) -> Self {

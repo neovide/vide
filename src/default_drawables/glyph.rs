@@ -173,6 +173,7 @@ impl Drawable for GlyphState {
         layer: &Layer,
     ) {
         let glyphs: Vec<_> = layer
+            .contents
             .glyph_runs
             .iter()
             .flat_map(|glyph_run| {

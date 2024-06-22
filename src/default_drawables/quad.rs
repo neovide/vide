@@ -55,7 +55,8 @@ impl Drawable for QuadState {
         layer: &Layer,
     ) {
         let mut quads = Vec::new();
-        if layer.background_color.is_some() || layer.background_blur_radius != 0.0 {
+        if layer.contents.background_color.is_some() || layer.contents.background_blur_radius != 0.0
+        {
             quads.push(
                 Quad::new(
                     layer
@@ -71,14 +72,17 @@ impl Drawable for QuadState {
                             constants.surface_size.x,
                             constants.surface_size.y,
                         )),
-                    layer.background_color.unwrap_or(Srgba::new(1., 1., 1., 1.)),
+                    layer
+                        .contents
+                        .background_color
+                        .unwrap_or(Srgba::new(1., 1., 1., 1.)),
                 )
-                .with_background_blur(layer.background_blur_radius)
+                .with_background_blur(layer.contents.background_blur_radius)
                 .to_instanced(),
             );
         }
 
-        quads.extend(layer.quads.iter().map(|quad| quad.to_instanced()));
+        quads.extend(layer.contents.quads.iter().map(|quad| quad.to_instanced()));
         self.quad_buffer.upload(quads, queue);
         self.quad_buffer.draw(render_pass);
     }

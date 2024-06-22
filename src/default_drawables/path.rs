@@ -67,7 +67,7 @@ impl Drawable for PathState {
         let mut fill_tesselator = FillTessellator::new();
         let mut stroke_tesselator = StrokeTessellator::new();
 
-        for scene_path in layer.paths.iter() {
+        for scene_path in layer.contents.paths.iter() {
             let mut builder = Path::builder();
             builder.begin(point(scene_path.start.x, scene_path.start.y));
             for path_command in scene_path.commands.iter() {
