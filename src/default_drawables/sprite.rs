@@ -1,14 +1,14 @@
 use glam::Vec4;
 use glam::*;
-use glamour::AsRaw;
+use glamour::{AsRaw, Rect};
 use wgpu::*;
 
 use crate::{
     drawable::Drawable,
     drawable_reference::{Atlas, DrawableReference, InstanceBuffer},
-    scene::{Layer, Sprite},
+    scene::Sprite,
     shader::ShaderConstants,
-    Renderer,
+    LayerContents, Renderer,
 };
 use crate::{Resources, TextureId};
 
@@ -77,10 +77,10 @@ impl Drawable for SpriteState {
         render_pass: &mut RenderPass<'b>,
         _constants: ShaderConstants,
         resources: &Resources,
-        layer: &Layer,
+        _clip: Option<Rect<u32>>,
+        layer: &LayerContents,
     ) {
         let sprites: Vec<_> = layer
-            .contents
             .sprites
             .iter()
             .map(|sprite| self.upload_sprite(resources, queue, sprite))

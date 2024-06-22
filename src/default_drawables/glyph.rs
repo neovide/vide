@@ -1,5 +1,5 @@
 use glam::*;
-use glamour::{size2, vec2, Point2, ToRaw};
+use glamour::{size2, vec2, Point2, Rect, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
 use swash::{
@@ -13,9 +13,9 @@ use crate::{
     drawable::Drawable,
     drawable_reference::{Atlas, DrawableReference, InstanceBuffer},
     renderer::Renderer,
-    scene::{GlyphRun, Layer},
+    scene::GlyphRun,
     shader::ShaderConstants,
-    FontId, Resources,
+    FontId, LayerContents, Resources,
 };
 
 #[derive(Copy, Clone, Default)]
@@ -170,10 +170,10 @@ impl Drawable for GlyphState {
         render_pass: &mut RenderPass<'b>,
         _constants: ShaderConstants,
         resources: &Resources,
-        layer: &Layer,
+        _clip: Option<Rect<u32>>,
+        layer: &LayerContents,
     ) {
         let glyphs: Vec<_> = layer
-            .contents
             .glyph_runs
             .iter()
             .flat_map(|glyph_run| {

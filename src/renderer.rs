@@ -296,7 +296,8 @@ impl Renderer {
                     constants,
                     &self.universal_bind_group,
                     &scene.resources,
-                    layer,
+                    layer.clip,
+                    &layer.contents,
                 );
 
                 first = false;

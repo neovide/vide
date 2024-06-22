@@ -1,7 +1,8 @@
+use glamour::Rect;
 use wgpu::*;
 
 use crate::{
-    drawable_reference::DrawableReference, Layer, Renderer, Resources, ShaderConstants,
+    drawable_reference::DrawableReference, LayerContents, Renderer, Resources, ShaderConstants,
     ShaderModules,
 };
 
@@ -19,7 +20,8 @@ pub trait Drawable {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         resources: &Resources,
-        layer: &Layer,
+        clip: Option<Rect<u32>>,
+        layer: &LayerContents,
     );
 }
 
@@ -170,7 +172,8 @@ impl DrawablePipeline {
         constants: ShaderConstants,
         universal_bind_group: &'a BindGroup,
         resources: &Resources,
-        layer: &Layer,
+        clip: Option<Rect<u32>>,
+        layer_contents: &LayerContents,
     ) {
         render_pass.set_pipeline(self.render_pipeline.as_ref().unwrap());
 
@@ -179,7 +182,13 @@ impl DrawablePipeline {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, universal_bind_group, &[]);
 
-        self.drawable
-            .draw(queue, render_pass, constants, resources, layer);
+        self.drawable.draw(
+            queue,
+            render_pass,
+            constants,
+            resources,
+            clip,
+            layer_contents,
+        );
     }
 }

@@ -1,5 +1,6 @@
 use glam::*;
 use glam::{vec2, Vec4};
+use glamour::Rect;
 use lyon::{
     geom::point,
     lyon_tessellation::{
@@ -10,11 +11,12 @@ use lyon::{
 };
 use wgpu::*;
 
+use crate::LayerContents;
 use crate::{
     drawable::Drawable,
     drawable_reference::{DrawableReference, GeometryBuffer, GeometryVertex},
     renderer::Renderer,
-    scene::{Layer, PathCommand},
+    scene::PathCommand,
     shader::ShaderConstants,
     Resources,
 };
@@ -61,13 +63,14 @@ impl Drawable for PathState {
         render_pass: &mut RenderPass<'b>,
         _constants: ShaderConstants,
         _resources: &Resources,
-        layer: &Layer,
+        _clip: Option<Rect<u32>>,
+        layer: &LayerContents,
     ) {
         let mut geometry: VertexBuffers<PathVertex, u32> = VertexBuffers::new();
         let mut fill_tesselator = FillTessellator::new();
         let mut stroke_tesselator = StrokeTessellator::new();
 
-        for scene_path in layer.contents.paths.iter() {
+        for scene_path in layer.paths.iter() {
             let mut builder = Path::builder();
             builder.begin(point(scene_path.start.x, scene_path.start.y));
             for path_command in scene_path.commands.iter() {
