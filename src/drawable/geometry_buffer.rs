@@ -7,7 +7,7 @@ use wgpu::*;
 
 use crate::Renderer;
 
-use super::PipelineReference;
+use super::DrawableReference;
 
 pub trait GeometryVertex {
     fn vertex_attributes() -> Vec<VertexAttribute>;
@@ -65,7 +65,7 @@ impl<Vertex: bytemuck::Pod + GeometryVertex> GeometryBuffer<Vertex> {
     }
 }
 
-impl<Vertex> PipelineReference for GeometryBuffer<Vertex> {
+impl<Vertex> DrawableReference for GeometryBuffer<Vertex> {
     fn vertex<'b, 'a: 'b>(&'a self) -> Option<VertexBufferLayout<'b>> {
         Some(VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as BufferAddress,

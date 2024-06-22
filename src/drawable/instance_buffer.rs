@@ -4,7 +4,7 @@ use wgpu::*;
 
 use crate::Renderer;
 
-use super::PipelineReference;
+use super::DrawableReference;
 
 /// A buffer containing instances of a struct which will be drawn with a standard 6 vertex quad.
 pub struct InstanceBuffer<Instance> {
@@ -41,7 +41,7 @@ impl<Instance: bytemuck::Pod> InstanceBuffer<Instance> {
     }
 }
 
-impl<Instance> PipelineReference for InstanceBuffer<Instance> {
+impl<Instance> DrawableReference for InstanceBuffer<Instance> {
     fn layout(&self) -> Option<BindGroupLayoutEntry> {
         Some(BindGroupLayoutEntry {
             binding: 0,

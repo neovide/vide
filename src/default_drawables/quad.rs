@@ -4,8 +4,7 @@ use palette::Srgba;
 use wgpu::*;
 
 use crate::{
-    drawable::Drawable,
-    pipeline_builder::{InstanceBuffer, PipelineReference},
+    drawable::{Drawable, DrawableReference, InstanceBuffer},
     scene::Layer,
     shader::ShaderConstants,
     Quad, Renderer, Resources,
@@ -42,7 +41,7 @@ impl Drawable for QuadState {
         "quad"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
         vec![&self.quad_buffer]
     }
 

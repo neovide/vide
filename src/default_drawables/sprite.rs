@@ -3,9 +3,8 @@ use glam::*;
 use glamour::AsRaw;
 use wgpu::*;
 
-use crate::pipeline_builder::{Atlas, InstanceBuffer, PipelineReference};
 use crate::{
-    drawable::Drawable,
+    drawable::{Atlas, Drawable, DrawableReference, InstanceBuffer},
     scene::{Layer, Sprite},
     shader::ShaderConstants,
     Renderer,
@@ -67,7 +66,7 @@ impl Drawable for SpriteState {
         "sprite"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
         vec![&self.sprite_buffer, &self.atlas]
     }
 

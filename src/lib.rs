@@ -7,7 +7,6 @@ mod shader;
 mod shaper;
 mod winit_renderer;
 
-mod pipeline_builder;
 #[cfg(test)]
 mod test;
 

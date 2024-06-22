@@ -10,13 +10,12 @@ use lyon::{
 };
 use wgpu::*;
 
-use crate::pipeline_builder::{GeometryBuffer, GeometryVertex, PipelineReference};
-use crate::Resources;
 use crate::{
-    drawable::Drawable,
+    drawable::{Drawable, DrawableReference, GeometryBuffer, GeometryVertex},
     renderer::Renderer,
     scene::{Layer, PathCommand},
     shader::ShaderConstants,
+    Resources,
 };
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
@@ -51,7 +50,7 @@ impl Drawable for PathState {
         "path"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
         vec![&self.geometry_buffer]
     }
 

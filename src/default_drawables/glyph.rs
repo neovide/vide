@@ -10,8 +10,7 @@ use swash::{
 use wgpu::*;
 
 use crate::{
-    drawable::Drawable,
-    pipeline_builder::{Atlas, InstanceBuffer, PipelineReference},
+    drawable::{Atlas, Drawable, DrawableReference, InstanceBuffer},
     renderer::Renderer,
     scene::{GlyphRun, Layer},
     shader::ShaderConstants,
@@ -160,7 +159,7 @@ impl Drawable for GlyphState {
         "glyph"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn PipelineReference> {
+    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
         vec![&self.glyph_buffer, &self.atlas]
     }
 

@@ -6,7 +6,7 @@ use wgpu::*;
 
 use crate::Renderer;
 
-use super::PipelineReference;
+use super::DrawableReference;
 
 pub const ATLAS_SIZE: Size2<u32> = size2!(1024, 1024);
 
@@ -110,7 +110,7 @@ fn euclid_to_glamour<Units>(euclid_rectangle: euclid::Box2D<i32, Units>) -> Box2
     )
 }
 
-impl<Key, UserData> PipelineReference for Atlas<Key, UserData> {
+impl<Key, UserData> DrawableReference for Atlas<Key, UserData> {
     fn layout(&self) -> Option<BindGroupLayoutEntry> {
         Some(BindGroupLayoutEntry {
             binding: 0,

@@ -5,54 +5,10 @@ use wgpu::*;
 
 use crate::{
     default_drawables::{GlyphState, PathState, QuadState, SpriteState},
-    drawable::Drawable,
-    pipeline_builder::{PipelineBuilder, ATLAS_SIZE},
+    drawable::{Drawable, DrawablePipeline, ATLAS_SIZE},
     shader::{ShaderConstants, ShaderLoader, ShaderModules},
     Scene,
 };
-
-struct DrawablePipeline {
-    drawable: Box<dyn Drawable>,
-    pipeline_builder: PipelineBuilder,
-    render_pipeline: Option<RenderPipeline>,
-}
-
-impl DrawablePipeline {
-    fn new<T: Drawable + 'static>(drawable: T, renderer: &Renderer) -> Self {
-        let drawable = Box::new(drawable);
-        let pipeline_builder =
-            PipelineBuilder::new(renderer, drawable.name(), &drawable.references());
-        Self {
-            drawable,
-            pipeline_builder,
-            render_pipeline: None,
-        }
-    }
-
-    async fn create_pipeline(
-        &mut self,
-        device: &Device,
-        shaders: &ShaderModules,
-        format: &TextureFormat,
-        universal_bind_group_layout: &BindGroupLayout,
-    ) {
-        device.push_error_scope(ErrorFilter::Validation);
-        let pipeline = self.pipeline_builder.build(
-            device,
-            shaders,
-            format,
-            universal_bind_group_layout,
-            &self.drawable.references(),
-        );
-        let validation_error = device.pop_error_scope().await;
-
-        if validation_error.is_none() {
-            if let Ok(pipeline) = pipeline {
-                self.render_pipeline = Some(pipeline);
-            }
-        }
-    }
-}
 
 pub struct Renderer {
     pub adapter: Adapter,
@@ -169,7 +125,7 @@ impl Renderer {
 
     pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
         let drawable = T::new(self);
-        let mut drawable_pipeline = DrawablePipeline::new(drawable, &self);
+        let mut drawable_pipeline = DrawablePipeline::new(&self, drawable);
         drawable_pipeline
             .create_pipeline(
                 &self.device,
@@ -262,6 +218,10 @@ impl Renderer {
                     label: Some("Render Encoder"),
                 });
             for drawable in self.drawables.iter_mut() {
+                if !drawable.ready() {
+                    continue;
+                }
+
                 // Either clear the offscreen texture or copy the previous layer to it
                 if first {
                     encoder.clear_texture(
@@ -296,11 +256,6 @@ impl Renderer {
                     );
                 }
 
-                let render_pipeline = match &drawable.render_pipeline {
-                    Some(render_pipeline) => render_pipeline,
-                    None => continue,
-                };
-
                 // The first drawable should clear the output texture
                 let attachment_op = if first {
                     Operations::<Color> {
@@ -325,7 +280,6 @@ impl Renderer {
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
-                render_pass.set_pipeline(render_pipeline);
 
                 if let Some(clip) = layer.clip {
                     let x = clip.origin.x.min(self.width);
@@ -335,16 +289,11 @@ impl Renderer {
                     render_pass.set_scissor_rect(x, y, w, h);
                 }
 
-                drawable.pipeline_builder.set_bind_groups(
-                    &mut render_pass,
-                    constants,
-                    &self.universal_bind_group,
-                );
-
-                drawable.drawable.draw(
+                drawable.draw(
                     &self.queue,
                     &mut render_pass,
                     constants,
+                    &self.universal_bind_group,
                     &scene.resources,
                     layer,
                 );
