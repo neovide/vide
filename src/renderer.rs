@@ -184,7 +184,7 @@ impl Renderer {
 
     pub async fn add_drawable<T: Drawable + 'static>(&mut self) {
         let drawable = T::new(self);
-        let mut drawable_pipeline = DrawablePipeline::new(&self, drawable);
+        let mut drawable_pipeline = DrawablePipeline::new(self, drawable);
         drawable_pipeline
             .create_pipeline(
                 &self.device,
@@ -329,7 +329,7 @@ impl Renderer {
                 &layer.contents,
                 &mut encoder,
                 &mut first,
-                &frame,
+                frame,
                 &frame_view,
                 &offscreen_view,
                 &multisampled_view,
@@ -364,7 +364,7 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &mask_view,
+                        view: mask_view,
                         resolve_target: None,
                         ops: Operations::<Color> {
                             load: LoadOp::<_>::Clear(Color::TRANSPARENT),
@@ -396,7 +396,7 @@ impl Renderer {
                     &mut drawable_scope,
                     constants,
                     &self.universal_mask_bind_group,
-                    &resources,
+                    resources,
                     clip,
                     mask_contents,
                 );
@@ -408,7 +408,7 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Clear Mask"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &mask_view,
+                        view: mask_view,
                         resolve_target: None,
                         ops: Operations {
                             load: LoadOp::Clear(Color {
@@ -450,7 +450,7 @@ impl Renderer {
                     RenderPassDescriptor {
                         label: Some("Clear Offscreen Texture Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
-                            view: &offscreen_view,
+                            view: offscreen_view,
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(Color::WHITE),
@@ -504,8 +504,8 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &multisampled_view,
-                        resolve_target: Some(&frame_view),
+                        view: multisampled_view,
+                        resolve_target: Some(frame_view),
                         ops: attachment_op,
                     })],
                     depth_stencil_attachment: None,
@@ -532,7 +532,7 @@ impl Renderer {
                 &mut drawable_scope,
                 constants,
                 &self.universal_content_bind_group,
-                &resources,
+                resources,
                 clip,
                 contents,
             );

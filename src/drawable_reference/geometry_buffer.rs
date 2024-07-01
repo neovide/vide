@@ -64,7 +64,7 @@ impl<Vertex: bytemuck::Pod + GeometryVertex> GeometryBuffer<Vertex> {
         self.previous_index_count.store(0, Ordering::Relaxed);
     }
 
-    pub fn upload(&self, vertices: &Vec<Vertex>, indices: &Vec<u32>, queue: &Queue) {
+    pub fn upload(&self, vertices: &[Vertex], indices: &[u32], queue: &Queue) {
         let previous_vertex_count = self.previous_vertex_count.load(Ordering::Relaxed);
         let new_vertex_memory_start =
             previous_vertex_count as u64 * std::mem::size_of::<Vertex>() as u64;
@@ -75,20 +75,20 @@ impl<Vertex: bytemuck::Pod + GeometryVertex> GeometryBuffer<Vertex> {
         queue.write_buffer(
             &self.vertex_buffer,
             new_vertex_memory_start as u64,
-            bytemuck::cast_slice(&vertices[..]),
+            bytemuck::cast_slice(vertices),
         );
         queue.write_buffer(
             &self.index_buffer,
             new_index_memory_start as u64,
-            bytemuck::cast_slice(&indices[..]),
+            bytemuck::cast_slice(indices),
         );
 
         self.vertex_count.store(
-            previous_vertex_count as u32 + vertices.len() as u32,
+            previous_vertex_count + vertices.len() as u32,
             Ordering::Relaxed,
         );
         self.index_count.store(
-            previous_index_count as u32 + indices.len() as u32,
+            previous_index_count + indices.len() as u32,
             Ordering::Relaxed,
         );
     }

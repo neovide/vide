@@ -164,7 +164,7 @@ impl Drawable for GlyphState {
         "glyph"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
+    fn references(&self) -> Vec<&dyn DrawableReference> {
         vec![&self.glyph_buffer, &self.atlas]
     }
 

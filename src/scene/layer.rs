@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct Layer {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,16 +55,6 @@ impl Default for LayerContents {
 
 fn is_zero(value: &f32) -> bool {
     *value == 0.0
-}
-
-impl Default for Layer {
-    fn default() -> Self {
-        Self {
-            clip: None,
-            mask: None,
-            contents: LayerContents::default(),
-        }
-    }
 }
 
 impl Layer {

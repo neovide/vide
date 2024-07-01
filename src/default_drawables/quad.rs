@@ -41,7 +41,7 @@ impl Drawable for QuadState {
         "quad"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
+    fn references(&self) -> Vec<&dyn DrawableReference> {
         vec![&self.quad_buffer]
     }
 

@@ -53,7 +53,7 @@ impl Drawable for PathState {
         "path"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
+    fn references(&self) -> Vec<&dyn DrawableReference> {
         vec![&self.geometry_buffer]
     }
 

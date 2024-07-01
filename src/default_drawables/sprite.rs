@@ -71,7 +71,7 @@ impl Drawable for SpriteState {
         "sprite"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
+    fn references(&self) -> Vec<&dyn DrawableReference> {
         vec![&self.sprite_buffer, &self.atlas]
     }
 

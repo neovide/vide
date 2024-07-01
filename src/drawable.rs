@@ -12,7 +12,7 @@ pub trait Drawable {
         Self: Sized;
 
     fn name(&self) -> &str;
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference>;
+    fn references(&self) -> Vec<&dyn DrawableReference>;
     fn start_frame(&mut self);
 
     fn draw<'b, 'a: 'b>(
@@ -94,7 +94,7 @@ impl DrawablePipeline {
     ) -> Result<(), String> {
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some(&format!("{} Pipeline Layout", self.name)),
-            bind_group_layouts: &[&self.bind_group_layout, &universal_bind_group_layout],
+            bind_group_layouts: &[&self.bind_group_layout, universal_bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStages::all(),
                 range: 0..std::mem::size_of::<ShaderConstants>() as u32,
@@ -142,7 +142,7 @@ impl DrawablePipeline {
                 layout: Some(&render_pipeline_layout),
                 vertex: vertex.clone(),
                 fragment: fragment.clone(),
-                primitive: primitive.clone(),
+                primitive,
                 depth_stencil: None,
                 multisample: MultisampleState {
                     count: 4,
@@ -157,7 +157,7 @@ impl DrawablePipeline {
                 layout: Some(&render_pipeline_layout),
                 vertex: vertex.clone(),
                 fragment: fragment.clone(),
-                primitive: primitive.clone(),
+                primitive,
                 depth_stencil: None,
                 multisample: MultisampleState {
                     count: 1,
