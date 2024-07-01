@@ -79,6 +79,10 @@ impl Drawable for SpriteState {
         self.sprite_buffer.start_frame();
     }
 
+    fn has_work(&self, contents: &LayerContents) -> bool {
+        !contents.sprites.is_empty()
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

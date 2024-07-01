@@ -433,6 +433,10 @@ impl Renderer {
         let mut content_scope = self.profiler.scope("content", encoder, &self.device);
 
         for drawable in self.drawables.iter_mut() {
+            if !drawable.has_work(contents) {
+                continue;
+            }
+
             // Either clear the offscreen texture or copy the previous layer to it
             if *first {
                 content_scope.scoped_render_pass(
@@ -453,7 +457,7 @@ impl Renderer {
                         timestamp_writes: None,
                     },
                 );
-            } else {
+            } else if drawable.needs_offscreen_copy() {
                 let mut copy_scope = content_scope.scope("Copy Frame to Offscreen", &self.device);
                 copy_scope.copy_texture_to_texture(
                     ImageCopyTexture {
