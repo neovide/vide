@@ -23,10 +23,10 @@ pub struct Renderer {
     pub width: u32,
     pub height: u32,
 
-    pub offscreen_texture: Texture,
-    pub multisampled_texture: Texture,
-    pub mask_texture: Texture,
-    pub blank_texture: Texture,
+    pub offscreen_texture: ViewedTexture,
+    pub multisampled_texture: ViewedTexture,
+    pub mask_texture: ViewedTexture,
+    pub blank_texture: ViewedTexture,
 
     pub sampler: Sampler,
     pub universal_bind_group_layout: BindGroupLayout,
@@ -63,14 +63,14 @@ impl Renderer {
 
         let shaders = shader_loader.load(&device);
 
-        let offscreen_texture = create_texture(&device, width, height, format, 1, "Offscreen");
+        let offscreen_texture = ViewedTexture::new(&device, width, height, format, 1, "Offscreen");
         let multisampled_texture =
-            create_texture(&device, width, height, format, 4, "Multisampled");
-        let mask_texture = create_texture(&device, width, height, format, 1, "Mask");
-        let blank_texture = create_texture(&device, 1, 1, format, 1, "Blank");
+            ViewedTexture::new(&device, width, height, format, 4, "Multisampled");
+        let mask_texture = ViewedTexture::new(&device, width, height, format, 1, "Mask");
+        let blank_texture = ViewedTexture::new(&device, 1, 1, format, 1, "Blank");
         queue.write_texture(
             ImageCopyTexture {
-                texture: &blank_texture,
+                texture: &blank_texture.texture,
                 mip_level: 0,
                 origin: Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
@@ -134,15 +134,15 @@ impl Renderer {
         let universal_content_bind_group = create_bind_group(
             &device,
             &universal_bind_group_layout,
-            &offscreen_texture,
-            &mask_texture,
+            &offscreen_texture.texture,
+            &mask_texture.texture,
             &sampler,
         );
         let universal_mask_bind_group = create_bind_group(
             &device,
             &universal_bind_group_layout,
-            &blank_texture,
-            &blank_texture,
+            &blank_texture.texture,
+            &blank_texture.texture,
             &sampler,
         );
         let shaders = shaders.await;
@@ -217,7 +217,7 @@ impl Renderer {
         if new_width != 0 && new_height != 0 {
             self.width = new_width;
             self.height = new_height;
-            self.offscreen_texture = create_texture(
+            self.offscreen_texture = ViewedTexture::new(
                 &self.device,
                 new_width,
                 new_height,
@@ -225,7 +225,7 @@ impl Renderer {
                 1,
                 "Offscreen",
             );
-            self.multisampled_texture = create_texture(
+            self.multisampled_texture = ViewedTexture::new(
                 &self.device,
                 new_width,
                 new_height,
@@ -234,11 +234,11 @@ impl Renderer {
                 "Multisampled",
             );
             self.mask_texture =
-                create_texture(&self.device, new_width, new_height, self.format, 1, "Mask");
+                ViewedTexture::new(&self.device, new_width, new_height, self.format, 1, "Mask");
 
             self.queue.write_texture(
                 ImageCopyTexture {
-                    texture: &self.blank_texture,
+                    texture: &self.blank_texture.texture,
                     mip_level: 0,
                     origin: Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
@@ -259,15 +259,15 @@ impl Renderer {
             self.universal_content_bind_group = create_bind_group(
                 &self.device,
                 &self.universal_bind_group_layout,
-                &self.offscreen_texture,
-                &self.mask_texture,
+                &self.offscreen_texture.texture,
+                &self.mask_texture.texture,
                 &self.sampler,
             );
             self.universal_mask_bind_group = create_bind_group(
                 &self.device,
                 &self.universal_bind_group_layout,
-                &self.blank_texture,
-                &self.blank_texture,
+                &self.blank_texture.texture,
+                &self.blank_texture.texture,
                 &self.sampler,
             );
         }
@@ -294,9 +294,6 @@ impl Renderer {
         }
 
         let frame_view = frame.create_view(&Default::default());
-        let offscreen_view = self.offscreen_texture.create_view(&Default::default());
-        let multisampled_view = self.multisampled_texture.create_view(&Default::default());
-        let mask_view = self.mask_texture.create_view(&Default::default());
 
         let constants = ShaderConstants {
             surface_size: vec2(self.width as f32, self.height as f32),
@@ -319,7 +316,6 @@ impl Renderer {
             self.draw_mask(
                 layer.mask.as_ref(),
                 &mut encoder,
-                &mask_view,
                 layer.clip,
                 constants,
                 &scene.resources,
@@ -331,8 +327,6 @@ impl Renderer {
                 &mut first,
                 frame,
                 &frame_view,
-                &offscreen_view,
-                &multisampled_view,
                 layer.clip,
                 constants,
                 &scene.resources,
@@ -351,7 +345,6 @@ impl Renderer {
         &mut self,
         mask_contents: Option<&LayerContents>,
         encoder: &mut CommandEncoder,
-        mask_view: &TextureView,
         clip: Option<Rect<u32>>,
         constants: ShaderConstants,
         resources: &Resources,
@@ -364,7 +357,7 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: mask_view,
+                        view: &self.mask_texture.view,
                         resolve_target: None,
                         ops: Operations::<Color> {
                             load: LoadOp::<_>::Clear(Color::TRANSPARENT),
@@ -408,7 +401,7 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Clear Mask"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: mask_view,
+                        view: &self.mask_texture.view,
                         resolve_target: None,
                         ops: Operations {
                             load: LoadOp::Clear(Color {
@@ -433,8 +426,6 @@ impl Renderer {
         first: &mut bool,
         frame: &Texture,
         frame_view: &TextureView,
-        offscreen_view: &TextureView,
-        multisampled_view: &TextureView,
         clip: Option<Rect<u32>>,
         constants: ShaderConstants,
         resources: &Resources,
@@ -450,7 +441,7 @@ impl Renderer {
                     RenderPassDescriptor {
                         label: Some("Clear Offscreen Texture Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
-                            view: offscreen_view,
+                            view: &self.offscreen_texture.view,
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(Color::WHITE),
@@ -472,7 +463,7 @@ impl Renderer {
                         aspect: Default::default(),
                     },
                     ImageCopyTexture {
-                        texture: &self.offscreen_texture,
+                        texture: &self.offscreen_texture.texture,
                         mip_level: 0,
                         origin: Origin3d::ZERO,
                         aspect: Default::default(),
@@ -504,7 +495,7 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: multisampled_view,
+                        view: &self.multisampled_texture.view,
                         resolve_target: Some(frame_view),
                         ops: attachment_op,
                     })],
@@ -546,30 +537,39 @@ impl Renderer {
     }
 }
 
-fn create_texture(
-    device: &Device,
-    width: u32,
-    height: u32,
-    format: TextureFormat,
-    samples: u32,
-    label: &'static str,
-) -> Texture {
-    device.create_texture(&TextureDescriptor {
-        size: Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: samples,
-        dimension: TextureDimension::D2,
-        format,
-        usage: TextureUsages::TEXTURE_BINDING
-            | TextureUsages::COPY_DST
-            | TextureUsages::RENDER_ATTACHMENT,
-        label: Some(label),
-        view_formats: &[],
-    })
+pub struct ViewedTexture {
+    texture: Texture,
+    view: TextureView,
+}
+
+impl ViewedTexture {
+    fn new(
+        device: &Device,
+        width: u32,
+        height: u32,
+        format: TextureFormat,
+        samples: u32,
+        label: &'static str,
+    ) -> Self {
+        let texture = device.create_texture(&TextureDescriptor {
+            size: Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: samples,
+            dimension: TextureDimension::D2,
+            format,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            label: Some(label),
+            view_formats: &[],
+        });
+        let view = texture.create_view(&Default::default());
+        Self { texture, view }
+    }
 }
 
 fn create_bind_group(
