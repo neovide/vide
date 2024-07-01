@@ -236,24 +236,21 @@ struct GlyphKey {
     font_id: FontId,
     size: OrderedFloat<f32>,
     x_offset: SubpixelOffset,
-    y_offset: SubpixelOffset,
 }
 
 impl GlyphKey {
     fn new(font_id: FontId, glyph: GlyphId, size: f32, offset: Point2) -> Self {
         let size = size.into();
         let x_offset = SubpixelOffset::quantize(offset.x);
-        let y_offset = SubpixelOffset::quantize(offset.y);
         Self {
             glyph,
             font_id,
             size,
             x_offset,
-            y_offset,
         }
     }
 
     fn quantized_offset(&self) -> Vector {
-        Vector::new(self.x_offset.as_f32(), self.y_offset.as_f32())
+        Vector::new(self.x_offset.as_f32(), 0.)
     }
 }
