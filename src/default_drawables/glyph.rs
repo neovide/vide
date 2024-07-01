@@ -11,7 +11,7 @@ use wgpu::*;
 
 use crate::{
     drawable::Drawable,
-    drawable_reference::{Atlas, DrawableReference, InstanceBuffer},
+    drawable_reference::{Atlas, ConstructResult, DrawableReference, InstanceBuffer},
     renderer::Renderer,
     scene::GlyphRun,
     shader::ShaderConstants,
@@ -59,20 +59,24 @@ impl GlyphState {
         color: Srgba,
         normalized_coords: &[i16],
     ) -> Option<InstancedGlyph> {
+        profiling::scope!("Preparing glyph");
         // Create a font scaler for the given font and size
-        let mut scaler = self
-            .scale_context
-            .builder(font_ref)
-            .size(size)
-            .hint(true)
-            .normalized_coords(normalized_coords)
-            .build();
 
         let glyph_key = GlyphKey::new(font_id, glyph, size, bottom_left);
 
         // Get or find atlas allocation
         let ((placement, content), glyph_location) =
             self.atlas.lookup_or_upload(queue, glyph_key.clone(), || {
+                profiling::scope!("Rasterizing glyph");
+                let mut scaler = {
+                    profiling::scope!("Creating font scaler");
+                    self.scale_context
+                        .builder(font_ref)
+                        .size(size)
+                        .hint(true)
+                        .normalized_coords(normalized_coords)
+                        .build()
+                };
                 let image = Render::new(&[
                     Source::ColorOutline(0),
                     Source::ColorBitmap(StrikeWith::BestFit),
@@ -87,14 +91,14 @@ impl GlyphState {
                 .expect("Could not render glyph into an image");
 
                 if image.placement.width == 0 || image.placement.height == 0 {
-                    return None;
+                    return ConstructResult::Empty;
                 }
 
-                Some((
+                ConstructResult::Constructed(
                     (image.placement, image.content),
                     image.data,
                     size2!(image.placement.width, image.placement.height),
-                ))
+                )
             })?;
 
         let bottom_left = bottom_left.floor()
@@ -162,6 +166,10 @@ impl Drawable for GlyphState {
 
     fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
         vec![&self.glyph_buffer, &self.atlas]
+    }
+
+    fn start_frame(&mut self) {
+        self.glyph_buffer.start_frame();
     }
 
     fn draw<'b, 'a: 'b>(

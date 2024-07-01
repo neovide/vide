@@ -14,7 +14,7 @@ extern crate parley;
 extern crate serde_json;
 extern crate vide;
 
-use glamour::{point2, size2, Rect};
+use glamour::{point2, size2, vec2, Rect};
 use palette::Srgba;
 use parley::style::{FontStack, StyleProperty};
 
@@ -54,6 +54,39 @@ fn main() {
                 Srgba::new(1., 0., 0., 1.),
             )),
     );
+
+    scene.add_layer(Default::default());
+
+    let colors = [
+        Srgba::new(1., 0., 0., 0.5),
+        Srgba::new(1., 1., 0., 0.5),
+        Srgba::new(0., 1., 0., 0.5),
+        Srgba::new(0., 1., 1., 0.5),
+        Srgba::new(0., 0., 1., 0.5),
+    ];
+
+    for (i, color) in colors.into_iter().enumerate() {
+        scene.add_quad(Quad::new(
+            point2!(500., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
+            size2!(50., 50.),
+            *color,
+        ));
+    }
+
+    let mut mask_layer = Layer::new();
+    shaper.clear_defaults();
+    shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
+    shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+
+    for i in 0..20 {
+        let bottom = 15. * i as f32;
+        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+            builder.push_default(&StyleProperty::FontSize(15.));
+        });
+        mask_layer.add_text_layout(&mut scene.resources, layout, point2!(500., bottom));
+    }
+
+    scene.set_mask(mask_layer);
 
     // Serialize the scene to a json string and write the string to ./scene.json
     let scene_json = serde_json::to_string_pretty(&scene).unwrap();

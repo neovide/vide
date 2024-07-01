@@ -1,11 +1,12 @@
 use glam::Vec4;
 use glam::*;
 use glamour::{AsRaw, Rect};
+use log::warn;
 use wgpu::*;
 
 use crate::{
     drawable::Drawable,
-    drawable_reference::{Atlas, DrawableReference, InstanceBuffer},
+    drawable_reference::{Atlas, ConstructResult, DrawableReference, InstanceBuffer},
     scene::Sprite,
     shader::ShaderConstants,
     LayerContents, Renderer,
@@ -35,9 +36,12 @@ impl SpriteState {
         sprite: &Sprite<TextureId>,
     ) -> InstancedSprite {
         let Some((_, sprite_location)) = self.atlas.lookup_or_upload(queue, sprite.texture, || {
-            let texture = resources.textures.get(&sprite.texture)?;
+            let Some(texture) = resources.textures.get(&sprite.texture) else {
+                warn!("Sprite texture not in resources");
+                return ConstructResult::Failed;
+            };
 
-            Some(((), texture.data.clone(), texture.size))
+            ConstructResult::Constructed((), texture.data.clone(), texture.size)
         }) else {
             panic!("Referenced texture not in scene resources");
         };
@@ -69,6 +73,10 @@ impl Drawable for SpriteState {
 
     fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
         vec![&self.sprite_buffer, &self.atlas]
+    }
+
+    fn start_frame(&mut self) {
+        self.sprite_buffer.start_frame();
     }
 
     fn draw<'b, 'a: 'b>(

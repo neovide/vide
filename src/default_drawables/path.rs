@@ -57,6 +57,10 @@ impl Drawable for PathState {
         vec![&self.geometry_buffer]
     }
 
+    fn start_frame(&mut self) {
+        self.geometry_buffer.start_frame();
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
@@ -69,6 +73,10 @@ impl Drawable for PathState {
         let mut geometry: VertexBuffers<PathVertex, u32> = VertexBuffers::new();
         let mut fill_tesselator = FillTessellator::new();
         let mut stroke_tesselator = StrokeTessellator::new();
+
+        if layer.paths.is_empty() {
+            return;
+        }
 
         for scene_path in layer.paths.iter() {
             let mut builder = Path::builder();
@@ -128,11 +136,11 @@ impl Drawable for PathState {
                     )
                     .expect("Could not tesselate path");
             }
-
-            self.geometry_buffer
-                .upload(&geometry.vertices, &geometry.indices, queue);
-
-            self.geometry_buffer.draw(render_pass);
         }
+
+        self.geometry_buffer
+            .upload(&geometry.vertices, &geometry.indices, queue);
+
+        self.geometry_buffer.draw(render_pass);
     }
 }

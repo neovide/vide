@@ -5,7 +5,8 @@ layout (push_constant) uniform ShaderConstants constants;
 
 layout (set=0, binding=0) buffer readonly InstancedQuad quads[];
 layout (set=1, binding=0) uniform texture2D surface;
-layout (set=1, binding=1) uniform sampler texture_sampler;
+layout (set=1, binding=1) uniform texture2D mask;
+layout (set=1, binding=2) uniform sampler texture_sampler;
 
 layout (location=0) in uint in_instance_index;
 
@@ -29,6 +30,7 @@ float compute_erf7(float x){
 
 void main() {
     InstancedQuad quad = quads[in_instance_index];
+    vec4 mask_color = texture(sampler2D(mask, texture_sampler), gl_FragCoord.xy / constants.surface_size);
 
     float distance = quad_distance(quad, gl_FragCoord.xy);
     if (quad.blur > 0.0) {
@@ -69,4 +71,6 @@ void main() {
             }
         }
     }
+
+    out_color.w *= mask_color.w;
 }

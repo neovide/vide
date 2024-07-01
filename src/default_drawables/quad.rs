@@ -45,6 +45,10 @@ impl Drawable for QuadState {
         vec![&self.quad_buffer]
     }
 
+    fn start_frame(&mut self) {
+        self.quad_buffer.start_frame();
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

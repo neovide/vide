@@ -11,6 +11,8 @@ pub struct InstanceBuffer<Instance> {
     instance_buffer: Buffer,
     instance_count: u32,
 
+    previous_instance_count: u32,
+
     _phantom: PhantomData<Instance>,
 }
 
@@ -26,18 +28,30 @@ impl<Instance: bytemuck::Pod> InstanceBuffer<Instance> {
         Self {
             instance_buffer,
             instance_count: 0,
+            previous_instance_count: 0,
             _phantom: PhantomData,
         }
     }
 
-    pub fn upload(&mut self, instances: Vec<Instance>, queue: &Queue) {
-        let instance_data: &[u8] = bytemuck::cast_slice(&instances[..]);
-        queue.write_buffer(&self.instance_buffer, 0, instance_data);
-        self.instance_count = instances.len() as u32;
+    pub fn start_frame(&mut self) {
+        self.previous_instance_count = 0;
+        self.instance_count = 0;
     }
 
-    pub fn draw(&self, render_pass: &mut RenderPass<'_>) {
-        render_pass.draw(0..6, 0..self.instance_count);
+    pub fn upload(&mut self, instances: Vec<Instance>, queue: &Queue) {
+        let instance_data: &[u8] = bytemuck::cast_slice(&instances[..]);
+
+        queue.write_buffer(
+            &self.instance_buffer,
+            std::mem::size_of::<Instance>() as u64 * self.previous_instance_count as u64,
+            instance_data,
+        );
+        self.instance_count += instances.len() as u32;
+    }
+
+    pub fn draw(&mut self, render_pass: &mut RenderPass<'_>) {
+        render_pass.draw(0..6, self.previous_instance_count..self.instance_count);
+        self.previous_instance_count = self.instance_count;
     }
 }
 

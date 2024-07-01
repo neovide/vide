@@ -12,7 +12,7 @@ pub struct Layer {
     pub clip: Option<Rect<u32>>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stencil: Option<LayerContents>,
+    pub mask: Option<LayerContents>,
     #[serde(default)]
     #[serde(flatten)]
     pub contents: LayerContents,
@@ -44,7 +44,7 @@ impl Default for LayerContents {
     fn default() -> Self {
         Self {
             background_blur_radius: 0.0,
-            background_color: Some(Srgba::new(1.0, 1.0, 1.0, 1.0)),
+            background_color: None,
             quads: Vec::new(),
             glyph_runs: Vec::new(),
             paths: Vec::new(),
@@ -61,7 +61,7 @@ impl Default for Layer {
     fn default() -> Self {
         Self {
             clip: None,
-            stencil: None,
+            mask: None,
             contents: LayerContents::default(),
         }
     }
@@ -81,13 +81,13 @@ impl Layer {
         self.clip = Some(clip);
     }
 
-    pub fn with_stencil(mut self, clip_layer: Layer) -> Self {
-        self.set_stencil(clip_layer);
+    pub fn with_mask(mut self, mask_layer: Layer) -> Self {
+        self.set_mask(mask_layer);
         self
     }
 
-    pub fn set_stencil(&mut self, clip_layer: Layer) {
-        self.stencil = Some(clip_layer.contents);
+    pub fn set_mask(&mut self, mask_layer: Layer) {
+        self.mask = Some(mask_layer.contents);
     }
 
     pub fn with_blur(mut self, radius: f32) -> Self {

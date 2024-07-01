@@ -44,7 +44,7 @@ impl<'a> WinitRenderer<'a> {
             format: swapchain_format,
             width: size.width,
             height: size.height,
-            present_mode: PresentMode::Fifo,
+            present_mode: PresentMode::Immediate,
             alpha_mode: swapchain_capabilities.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -151,7 +151,18 @@ impl<'a> WinitRenderer<'a> {
         match surface.get_current_texture() {
             Ok(frame) => {
                 self.renderer.render(scene, &frame.texture);
-                frame.present();
+
+                {
+                    profiling::scope!("present");
+                    frame.present();
+                }
+                profiling::finish_frame!();
+
+                self.renderer.profiler.end_frame().unwrap();
+
+                self.renderer
+                    .profiler
+                    .process_finished_frame(self.renderer.queue.get_timestamp_period());
                 true
             }
             Err(SurfaceError::Lost) => {

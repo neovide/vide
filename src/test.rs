@@ -290,3 +290,41 @@ fn parley_line_breaking_and_font_fallback() {
         scene,
     );
 }
+
+#[test]
+fn complex_mask_clips_properly() {
+    let mut scene = Scene::new();
+
+    let colors = [
+        Srgba::new(1., 0., 0., 0.5),
+        Srgba::new(1., 1., 0., 0.5),
+        Srgba::new(0., 1., 0., 0.5),
+        Srgba::new(0., 1., 1., 0.5),
+        Srgba::new(0., 0., 1., 0.5),
+    ];
+
+    for (i, color) in colors.into_iter().enumerate() {
+        scene.add_quad(Quad::new(
+            point2!(10., 10.) + vec2!(i as f32 * 20., i as f32 * 20.),
+            size2!(100., 100.),
+            color,
+        ));
+    }
+
+    let mut mask_layer = Layer::new();
+    let mut shaper = Shaper::new();
+    shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
+    shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+
+    for i in 0..20 {
+        let bottom = 20. * i as f32;
+        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+            builder.push_default(&StyleProperty::FontSize(20.));
+        });
+        mask_layer.add_text_layout(&mut scene.resources, layout, point2!(0., bottom));
+    }
+
+    scene.set_mask(mask_layer);
+
+    assert_no_regressions(210, 210, scene);
+}
