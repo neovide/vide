@@ -43,8 +43,7 @@ winit = "0.29.10"
 # Cross platform graphics api based on webgpu. This way we
 # can write our graphics code once and run it everywhere
 [workspace.dependencies.wgpu]
-git = "https://github.com/cwfitzgerald/wgpu"
-rev = "329513b8550834129a7c0c10c6d7548451a3f613"
+version = "0.20.1"
 features = ["vulkan-portability"]
 
 [package]
@@ -91,6 +90,8 @@ ordered-float = "4.2.0"
 palette = { workspace = true }
 # Font layout and shaping crate. Handles font fallback
 parley = { git = "https://github.com/linebender/parley" }
+# Convenient macros for recording profiling data
+profiling = { version = "1.0.15", features = ["profile-with-tracy"] }
 # Random number generation
 rand = "0.8.5"
 rust-embed = { workspace = true }
@@ -108,6 +109,7 @@ thread_local = "1.1.7"
 # Used to make the error output for shader recompilation easier to read
 termcolor = "1.4.1"
 wgpu = { workspace = true, features = ["glsl"] }
+wgpu-profiler = { path = "../wgpu-profiler", features = ["tracy"] }
 winit = { workspace = true }
 
 [dev-dependencies]

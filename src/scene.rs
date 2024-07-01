@@ -29,6 +29,7 @@ impl Scene {
             resources: Default::default(),
             layers: vec![Default::default()],
         }
+        .with_background(Srgba::new(1., 1., 1., 1.))
     }
 
     pub fn add_layer(&mut self, layer: Layer) {
@@ -55,17 +56,26 @@ impl Scene {
     }
 
     pub fn with_clip(mut self, clip: Rect<u32>) -> Self {
-        self.layer_mut().clip = Some(clip);
+        self.layer_mut().set_clip(clip);
         self
     }
 
+    pub fn with_mask(mut self, mask_layer: Layer) -> Self {
+        self.layer_mut().set_mask(mask_layer);
+        self
+    }
+
+    pub fn set_mask(&mut self, mask_layer: Layer) {
+        self.layer_mut().set_mask(mask_layer);
+    }
+
     pub fn with_blur(mut self, radius: f32) -> Self {
-        self.layer_mut().background_blur_radius = radius;
+        self.layer_mut().set_blur(radius);
         self
     }
 
     pub fn background(&mut self, color: Srgba) {
-        self.layer_mut().background_color = Some(color);
+        self.layer_mut().set_background(color);
     }
 
     pub fn with_background(mut self, color: Srgba) -> Self {

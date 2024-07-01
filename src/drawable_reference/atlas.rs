@@ -14,7 +14,19 @@ pub struct Atlas<Key, UserData = ()> {
     texture: Texture,
     texture_view: TextureView,
     allocator: AtlasAllocator,
-    lookup: HashMap<Key, (UserData, AllocId)>,
+    // When the value is None, the key is in the atlas but the construction resulted in an empty
+    // image and is tombstoned so that construction isn't attempted again for that key.
+    lookup: HashMap<Key, Option<(UserData, AllocId)>>,
+}
+
+pub enum ConstructResult<UserData> {
+    // Returned when the result is constructed and should be uploaded to the atlas.
+    Constructed(UserData, Vec<u8>, Size2<u32>),
+    // Returned when the result is empty on purpose and construction for this key shouldn't be
+    // attempted again.
+    Empty,
+    // Returned when the result is empty because construction failed and should be attempted again.
+    Failed,
 }
 
 impl<Key: Eq + Hash, UserData: Clone> Atlas<Key, UserData> {
@@ -54,51 +66,70 @@ impl<Key: Eq + Hash, UserData: Clone> Atlas<Key, UserData> {
         &mut self,
         queue: &Queue,
         key: Key,
-        construct_image: impl FnOnce() -> Option<(UserData, Vec<u8>, Size2<u32>)>,
+        construct_image: impl FnOnce() -> ConstructResult<UserData>,
     ) -> Option<(UserData, Box2<i32>)> {
-        if let Some((user_data, alloc_id)) = self.lookup.get(&key) {
-            let allocation_rectangle = self.allocator.get(*alloc_id);
-            Some((user_data.clone(), euclid_to_glamour(allocation_rectangle)))
-        } else {
-            let Some((user_data, image_data, image_size)) = construct_image() else {
-                return None;
-            };
+        match self.lookup.get(&key) {
+            Some(Some((user_data, alloc_id))) => {
+                let allocation_rectangle = self.allocator.get(*alloc_id);
+                Some((user_data.clone(), euclid_to_glamour(allocation_rectangle)))
+            }
+            // Tombstone. Don't attempt to construct
+            Some(None) => None,
+            // Not in the atlas yet. Attempt to construct an image to upload
+            None => {
+                profiling::scope!("Atlas upload");
 
-            let allocation = self
-                .allocator
-                .allocate(euclid::size2(
-                    image_size.width as i32,
-                    image_size.height as i32,
-                ))
-                .expect("Could not allocate glyph to atlas");
+                let (user_data, image_data, image_size) = match construct_image() {
+                    ConstructResult::Constructed(user_data, image_data, image_size) => {
+                        (user_data, image_data, image_size)
+                    }
+                    ConstructResult::Empty => {
+                        self.lookup.insert(key, None);
+                        return None;
+                    }
+                    ConstructResult::Failed => {
+                        dbg!("Could not construct glyph image");
+                        return None;
+                    }
+                };
 
-            self.lookup.insert(key, (user_data.clone(), allocation.id));
+                let allocation = self
+                    .allocator
+                    .allocate(euclid::size2(
+                        image_size.width as i32,
+                        image_size.height as i32,
+                    ))
+                    .expect("Could not allocate glyph to atlas");
 
-            queue.write_texture(
-                ImageCopyTexture {
-                    texture: &self.texture,
-                    mip_level: 0,
-                    origin: Origin3d {
-                        x: allocation.rectangle.min.x as u32,
-                        y: allocation.rectangle.min.y as u32,
-                        z: 0,
+                self.lookup
+                    .insert(key, Some((user_data.clone(), allocation.id)));
+
+                queue.write_texture(
+                    ImageCopyTexture {
+                        texture: &self.texture,
+                        mip_level: 0,
+                        origin: Origin3d {
+                            x: allocation.rectangle.min.x as u32,
+                            y: allocation.rectangle.min.y as u32,
+                            z: 0,
+                        },
+                        aspect: TextureAspect::All,
                     },
-                    aspect: TextureAspect::All,
-                },
-                &image_data,
-                ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * image_size.width),
-                    rows_per_image: Some(image_size.height),
-                },
-                Extent3d {
-                    width: image_size.width,
-                    height: image_size.height,
-                    depth_or_array_layers: 1,
-                },
-            );
+                    &image_data,
+                    ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * image_size.width),
+                        rows_per_image: Some(image_size.height),
+                    },
+                    Extent3d {
+                        width: image_size.width,
+                        height: image_size.height,
+                        depth_or_array_layers: 1,
+                    },
+                );
 
-            Some((user_data, euclid_to_glamour(allocation.rectangle)))
+                Some((user_data, euclid_to_glamour(allocation.rectangle)))
+            }
         }
     }
 }

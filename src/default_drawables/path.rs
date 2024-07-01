@@ -1,5 +1,6 @@
 use glam::*;
 use glam::{vec2, Vec4};
+use glamour::Rect;
 use lyon::{
     geom::point,
     lyon_tessellation::{
@@ -10,11 +11,12 @@ use lyon::{
 };
 use wgpu::*;
 
+use crate::LayerContents;
 use crate::{
     drawable::Drawable,
     drawable_reference::{DrawableReference, GeometryBuffer, GeometryVertex},
     renderer::Renderer,
-    scene::{Layer, PathCommand},
+    scene::PathCommand,
     shader::ShaderConstants,
     Resources,
 };
@@ -51,8 +53,12 @@ impl Drawable for PathState {
         "path"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
+    fn references(&self) -> Vec<&dyn DrawableReference> {
         vec![&self.geometry_buffer]
+    }
+
+    fn start_frame(&mut self) {
+        self.geometry_buffer.start_frame();
     }
 
     fn draw<'b, 'a: 'b>(
@@ -61,11 +67,16 @@ impl Drawable for PathState {
         render_pass: &mut RenderPass<'b>,
         _constants: ShaderConstants,
         _resources: &Resources,
-        layer: &Layer,
+        _clip: Option<Rect<u32>>,
+        layer: &LayerContents,
     ) {
         let mut geometry: VertexBuffers<PathVertex, u32> = VertexBuffers::new();
         let mut fill_tesselator = FillTessellator::new();
         let mut stroke_tesselator = StrokeTessellator::new();
+
+        if layer.paths.is_empty() {
+            return;
+        }
 
         for scene_path in layer.paths.iter() {
             let mut builder = Path::builder();
@@ -125,11 +136,11 @@ impl Drawable for PathState {
                     )
                     .expect("Could not tesselate path");
             }
-
-            self.geometry_buffer
-                .upload(&geometry.vertices, &geometry.indices, queue);
-
-            self.geometry_buffer.draw(render_pass);
         }
+
+        self.geometry_buffer
+            .upload(&geometry.vertices, &geometry.indices, queue);
+
+        self.geometry_buffer.draw(render_pass);
     }
 }

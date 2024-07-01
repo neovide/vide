@@ -11,6 +11,8 @@ mod winit_renderer;
 #[cfg(test)]
 mod test;
 
+pub use parley;
+
 pub use offscreen_renderer::OffscreenRenderer;
 pub use renderer::Renderer;
 pub use scene::*;

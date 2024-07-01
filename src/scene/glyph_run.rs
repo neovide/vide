@@ -31,6 +31,13 @@ pub struct Glyph {
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, Hash, PartialEq, Eq)]
 pub struct FontId(u64);
 
+#[cfg(test)]
+impl FontId {
+    pub fn new(id: u64) -> Self {
+        Self(id)
+    }
+}
+
 impl Resources {
     pub fn store_font(&mut self, font: &ParleyFont) -> FontId {
         let id = FontId(font.data.id());

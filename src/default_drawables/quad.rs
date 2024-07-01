@@ -1,14 +1,13 @@
 use glam::*;
-use glamour::{Point2, Size2};
+use glamour::{Point2, Rect, Size2};
 use palette::Srgba;
 use wgpu::*;
 
 use crate::{
     drawable::Drawable,
     drawable_reference::{DrawableReference, InstanceBuffer},
-    scene::Layer,
     shader::ShaderConstants,
-    Quad, Renderer, Resources,
+    LayerContents, Quad, Renderer, Resources,
 };
 
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
@@ -42,8 +41,12 @@ impl Drawable for QuadState {
         "quad"
     }
 
-    fn references<'a>(&'a self) -> Vec<&'a dyn DrawableReference> {
+    fn references(&self) -> Vec<&dyn DrawableReference> {
         vec![&self.quad_buffer]
+    }
+
+    fn start_frame(&mut self) {
+        self.quad_buffer.start_frame();
     }
 
     fn draw<'b, 'a: 'b>(
@@ -52,21 +55,18 @@ impl Drawable for QuadState {
         render_pass: &mut RenderPass<'b>,
         constants: ShaderConstants,
         _resources: &Resources,
-        layer: &Layer,
+        clip: Option<Rect<u32>>,
+        layer: &LayerContents,
     ) {
         let mut quads = Vec::new();
         if layer.background_color.is_some() || layer.background_blur_radius != 0.0 {
             quads.push(
                 Quad::new(
-                    layer
-                        .clip
-                        .map(|clip| clip.origin)
+                    clip.map(|clip| clip.origin)
                         .unwrap_or(Point2::<u32>::ZERO)
                         .try_cast()
                         .unwrap(),
-                    layer
-                        .clip
-                        .map(|clip| clip.size.try_cast().unwrap())
+                    clip.map(|clip| clip.size.try_cast().unwrap())
                         .unwrap_or(Size2::new(
                             constants.surface_size.x,
                             constants.surface_size.y,
