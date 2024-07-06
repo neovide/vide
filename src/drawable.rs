@@ -18,6 +18,13 @@ pub trait Drawable {
     }
     fn start_frame(&mut self);
     fn has_work(&self, contents: &LayerContents) -> bool;
+    fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {
+        vec![Some(ColorTargetState {
+            format,
+            blend: Some(BlendState::ALPHA_BLENDING),
+            write_mask: ColorWrites::ALL,
+        })]
+    }
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
@@ -119,11 +126,7 @@ impl DrawablePipeline {
             compilation_options: Default::default(),
         };
 
-        let targets = [Some(ColorTargetState {
-            format: *format,
-            blend: Some(BlendState::ALPHA_BLENDING),
-            write_mask: ColorWrites::ALL,
-        })];
+        let targets = self.drawable.targets(*format);
         let fragment = Some(FragmentState {
             module: shaders.get_fragment(&self.name)?,
             entry_point: "main",

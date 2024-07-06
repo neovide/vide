@@ -14,7 +14,8 @@ layout(set = 1, binding = 2) uniform sampler texture_sampler;
 layout(location = 0) in uint in_instance_index;
 layout(location = 1) in vec2 in_atlas_position;
 
-out vec4 out_color;
+layout(location = 0) out vec4 out_color;
+layout(location = 0, index = 1) out vec4 out_blend;
 
 void main() {
     InstancedGlyph glyph = glyphs[in_instance_index];
@@ -24,15 +25,19 @@ void main() {
     vec4 text_color = glyph.color;
 
     if (glyph.kind == 0 || glyph.kind == 1) {
-        out_color = text_color * atlas_color + (1.0 - text_color.w * atlas_color) * surface_color;
-        if (atlas_color.x != 0.0 || atlas_color.y != 0.0 || atlas_color.z != 0.0) {
-            out_color.w = 1.0;
-        } else {
-            out_color.w = 0.0;
-        }
+        out_color = text_color * atlas_color;
+        out_blend = text_color.w * atlas_color;
+
+        // out_color = text_color * atlas_color + (1.0 - text_color.w * atlas_color) * surface_color;
+        // if (atlas_color.x != 0.0 || atlas_color.y != 0.0 || atlas_color.z != 0.0) {
+        //     out_color.w = 1.0;
+        // } else {
+        //     out_color.w = 0.0;
+        // }
     } else {
         out_color = atlas_color;
     }
 
     out_color.w *= mask_color.w;
+    out_blend.w *= mask_color.w;
 }
