@@ -193,6 +193,21 @@ impl Drawable for GlyphState {
         !contents.glyph_runs.is_empty()
     }
 
+    fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {
+        vec![Some(ColorTargetState {
+            format,
+            blend: Some(BlendState {
+                color: BlendComponent {
+                    src_factor: BlendFactor::Src,
+                    dst_factor: BlendFactor::OneMinusSrc1,
+                    operation: BlendOperation::Add,
+                },
+                alpha: BlendComponent::OVER,
+            }),
+            write_mask: ColorWrites::ALL,
+        })]
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

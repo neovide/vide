@@ -46,6 +46,7 @@ impl Renderer {
                         | Features::SPIRV_SHADER_PASSTHROUGH
                         | Features::VERTEX_WRITABLE_STORAGE
                         | Features::CLEAR_TEXTURE
+                        | Features::DUAL_SOURCE_BLENDING
                         | GpuProfiler::ALL_WGPU_TIMER_FEATURES,
                     required_limits: Limits {
                         max_push_constant_size: 256,
