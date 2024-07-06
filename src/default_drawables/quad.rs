@@ -45,8 +45,18 @@ impl Drawable for QuadState {
         vec![&self.quad_buffer]
     }
 
+    fn needs_offscreen_copy(&self) -> bool {
+        true
+    }
+
     fn start_frame(&mut self) {
         self.quad_buffer.start_frame();
+    }
+
+    fn has_work(&self, contents: &LayerContents) -> bool {
+        !contents.quads.is_empty()
+            || contents.background_color.is_some()
+            || contents.background_blur_radius != 0.0
     }
 
     fn draw<'b, 'a: 'b>(

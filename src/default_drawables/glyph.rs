@@ -168,8 +168,16 @@ impl Drawable for GlyphState {
         vec![&self.glyph_buffer, &self.atlas]
     }
 
+    fn needs_offscreen_copy(&self) -> bool {
+        true
+    }
+
     fn start_frame(&mut self) {
         self.glyph_buffer.start_frame();
+    }
+
+    fn has_work(&self, contents: &LayerContents) -> bool {
+        !contents.glyph_runs.is_empty()
     }
 
     fn draw<'b, 'a: 'b>(

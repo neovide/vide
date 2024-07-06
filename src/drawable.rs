@@ -13,7 +13,11 @@ pub trait Drawable {
 
     fn name(&self) -> &str;
     fn references(&self) -> Vec<&dyn DrawableReference>;
+    fn needs_offscreen_copy(&self) -> bool {
+        false
+    }
     fn start_frame(&mut self);
+    fn has_work(&self, contents: &LayerContents) -> bool;
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
@@ -191,8 +195,16 @@ impl DrawablePipeline {
         self.render_content_pipeline.is_some() && self.render_mask_pipeline.is_some()
     }
 
+    pub fn needs_offscreen_copy(&self) -> bool {
+        self.drawable.needs_offscreen_copy()
+    }
+
     pub fn start_frame(&mut self) {
         self.drawable.start_frame();
+    }
+
+    pub fn has_work(&self, contents: &LayerContents) -> bool {
+        self.drawable.has_work(contents)
     }
 
     pub fn draw_content<'b, 'a: 'b>(

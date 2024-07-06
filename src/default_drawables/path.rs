@@ -61,6 +61,10 @@ impl Drawable for PathState {
         self.geometry_buffer.start_frame();
     }
 
+    fn has_work(&self, contents: &LayerContents) -> bool {
+        !contents.paths.is_empty()
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
