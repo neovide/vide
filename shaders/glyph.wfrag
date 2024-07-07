@@ -1,0 +1,44 @@
+#include "common.wgsl"
+#include "glyph.wgsl"
+
+var<push_constant> constants: ShaderConstants;
+
+@group(0) @binding(0) var<storage> glyphs: array<InstancedGlyph>;
+@group(0) @binding(1) var atlas: texture_2d<f32>;
+@group(1) @binding(1) var mask: texture_2d<f32>;
+@group(1) @binding(2) var texture_sampler: sampler;
+
+struct VertexOutput {
+    @location(0) instance_index: u32,
+    @location(1) atlas_position: vec2<f32>,
+}
+
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(0) @second_blend_source blend: vec4<f32>,
+}
+
+@fragment
+fn main(
+    vertex_output: VertexOutput,
+    @builtin(position) position: vec4<f32>,
+) -> FragmentOutput {
+    let instance = glyphs[vertex_output.instance_index];
+    let mask_color = textureSample(mask, texture_sampler, position.xy / constants.surface_size);
+    let atlas_color = textureSample(atlas, texture_sampler, vertex_output.atlas_position);
+    let text_color = instance.color;
+
+    var out: FragmentOutput;
+    if (instance.kind == 0 || instance.kind == 1) {
+        out.color = text_color * atlas_color;
+        out.blend = text_color.w * atlas_color;
+    } else {
+        out.color = atlas_color;
+        out.blend = vec4(1.0) * atlas_color.w;
+    }
+
+    out.color.w *= mask_color.w;
+    out.blend.w *= mask_color.w;
+
+    return out;
+}
