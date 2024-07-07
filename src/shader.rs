@@ -64,7 +64,7 @@ impl ShaderModules {
 }
 
 #[derive(RustEmbed)]
-#[folder = "glsl/"]
+#[folder = "shaders/"]
 struct Shader;
 
 pub struct ShaderLoader {
@@ -132,22 +132,29 @@ impl ShaderLoader {
                     .unwrap_or_default()
                     .to_str()
                     .unwrap_or_default();
-                let stage = match ext {
-                    "vert" => Some(ShaderStage::Vertex),
-                    "frag" => Some(ShaderStage::Fragment),
-                    "comp" => Some(ShaderStage::Compute),
+                let extension_info = match ext {
+                    "vert" => Some((ShaderStage::Vertex, true)),
+                    "wvert" => Some((ShaderStage::Vertex, false)),
+                    "frag" => Some((ShaderStage::Fragment, true)),
+                    "wfrag" => Some((ShaderStage::Fragment, false)),
+                    "comp" => Some((ShaderStage::Compute, true)),
+                    "wcomp" => Some((ShaderStage::Compute, false)),
                     _ => None,
                 };
-                if let Some(stage) = stage {
+                if let Some((stage, glsl)) = extension_info {
                     let preprocessor = Preprocessor::new(&file.data, path.to_str().unwrap());
 
                     let label = format!("{}_{}", &name, &ext).to_string();
                     let descriptor = ShaderModuleDescriptor {
                         label: Some(&label),
-                        source: ShaderSource::Glsl {
-                            shader: Cow::from(&preprocessor.content),
-                            stage,
-                            defines: FastHashMap::default(),
+                        source: if glsl {
+                            ShaderSource::Glsl {
+                                shader: Cow::from(&preprocessor.content),
+                                stage,
+                                defines: FastHashMap::default(),
+                            }
+                        } else {
+                            ShaderSource::Wgsl(Cow::from(&preprocessor.content))
                         },
                     };
                     let module = device.create_shader_module(descriptor);
