@@ -30,11 +30,30 @@ fn main(
 
     var out: FragmentOutput;
     if (instance.kind == 0 || instance.kind == 1) {
+        // Blend equation should be 
+        //     src_factor: BlendFactor::One
+        //     dst_factor: BlendFactor::OneMinusSrc1
+        //     operation: BlendOperation::Add
+        //
+        // The resulting color will be
+        //     1.0 * text_color * atlas_color + (1.0 - text_color.w * atlas_color) * destination
         out.color = text_color * atlas_color;
         out.blend = text_color.w * atlas_color;
     } else {
+        // We cheat a little to get the above blend factor
+        // to work for full color glyphs.
+        //
+        // The resulting color will be
+        //     1.0 * atlas_color + (1.0 - test_color.w * atlas_color.w * 1.0)
+        //
+        // For non transparent parts of the map, this
+        // results in 1.0 * atlas_color + 0.0 or just
+        // atlas_color
+        //
+        // For transparent parts of the map, this results
+        // in 1.0 * atlas_color - 1.0 or just zero.
         out.color = atlas_color;
-        out.blend = vec4(1.0) * atlas_color.w;
+        out.blend = text_color.w * atlas_color.w * vec4(1.0);
     }
 
     out.color.w *= mask_color.w;
