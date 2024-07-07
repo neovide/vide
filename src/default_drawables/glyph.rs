@@ -194,7 +194,7 @@ impl Drawable for GlyphState {
             format,
             blend: Some(BlendState {
                 color: BlendComponent {
-                    src_factor: BlendFactor::Src,
+                    src_factor: BlendFactor::One,
                     dst_factor: BlendFactor::OneMinusSrc1,
                     operation: BlendOperation::Add,
                 },
