@@ -120,9 +120,11 @@ impl<'a> WinitRenderer<'a> {
                 self.window_initializing = start_cause == &StartCause::Init;
             }
             Event::Resumed => {
-                let surface = self.instance.create_surface(window).unwrap();
-                self.update_surface(surface);
-                window.request_redraw();
+                if self.surface.is_none() {
+                    let surface = self.instance.create_surface(window).unwrap();
+                    self.update_surface(surface);
+                    window.request_redraw();
+                }
             }
             Event::Suspended => {
                 self.clear_surface();
