@@ -7,16 +7,16 @@ use winit::{
 
 use crate::{drawable::Drawable, Renderer, Scene};
 
-pub struct WinitRenderer<'a> {
+pub struct WinitRenderer {
     pub instance: Instance,
-    pub surface: Option<Surface<'a>>,
+    pub surface: Option<Surface<'static>>,
     pub surface_config: SurfaceConfiguration,
     window_initializing: bool,
     renderer: Renderer,
-    _window: Arc<Window>,
+    window: Arc<Window>,
 }
 
-impl<'a> WinitRenderer<'a> {
+impl WinitRenderer {
     // Creating some of the wgpu types requires async code
     pub async fn new(window: Arc<Window>) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -67,7 +67,7 @@ impl<'a> WinitRenderer<'a> {
             surface: Some(surface),
             surface_config,
             renderer,
-            _window: window,
+            window,
         }
     }
 
@@ -89,7 +89,7 @@ impl<'a> WinitRenderer<'a> {
         self
     }
 
-    fn update_surface(&mut self, surface: Surface<'a>) {
+    fn update_surface(&mut self, surface: Surface<'static>) {
         let swapchain_capabilities = surface.get_capabilities(&self.renderer.adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
         self.surface_config.format = swapchain_format;
@@ -114,16 +114,16 @@ impl<'a> WinitRenderer<'a> {
         }
     }
 
-    pub fn handle_event<T>(&mut self, window: &'a Window, event: &Event<T>) {
+    pub fn handle_event<T>(&mut self, event: &Event<T>) {
         match event {
             Event::NewEvents(start_cause) => {
                 self.window_initializing = start_cause == &StartCause::Init;
             }
             Event::Resumed => {
                 if self.surface.is_none() {
-                    let surface = self.instance.create_surface(window).unwrap();
+                    let surface = self.instance.create_surface(self.window.clone()).unwrap();
                     self.update_surface(surface);
-                    window.request_redraw();
+                    self.window.request_redraw();
                 }
             }
             Event::Suspended => {
@@ -139,7 +139,7 @@ impl<'a> WinitRenderer<'a> {
 
                 self.resize(new_size.width, new_size.height);
 
-                window.request_redraw();
+                self.window.request_redraw();
             }
             _ => {}
         }
