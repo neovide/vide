@@ -15,7 +15,7 @@ use winit::{
 
 use vide::{Quad, Scene, WinitRenderer};
 
-async fn create_renderer(window: Arc<Window>) -> WinitRenderer<'static> {
+async fn create_renderer(window: Arc<Window>) -> WinitRenderer {
     WinitRenderer::new(Arc::clone(&window))
         .await
         .with_default_drawables()
@@ -59,7 +59,7 @@ fn main() {
 
     event_loop
         .run(|event, target| {
-            renderer.handle_event(&window, &event);
+            renderer.handle_event(&event);
 
             match event {
                 Event::WindowEvent {
