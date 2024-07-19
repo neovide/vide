@@ -1,9 +1,6 @@
 use std::sync::Arc;
 use wgpu::*;
-use winit::{
-    event::{Event, StartCause, WindowEvent},
-    window::Window,
-};
+use winit::window::Window;
 
 use crate::{drawable::Drawable, Renderer, Scene};
 
@@ -11,9 +8,8 @@ pub struct WinitRenderer {
     pub instance: Instance,
     pub surface: Option<Surface<'static>>,
     pub surface_config: SurfaceConfiguration,
-    window_initializing: bool,
+    pub window: Arc<Window>,
     renderer: Renderer,
-    window: Arc<Window>,
 }
 
 impl WinitRenderer {
@@ -63,7 +59,6 @@ impl WinitRenderer {
 
         Self {
             instance,
-            window_initializing: false,
             surface: Some(surface),
             surface_config,
             renderer,
@@ -89,20 +84,7 @@ impl WinitRenderer {
         self
     }
 
-    fn update_surface(&mut self, surface: Surface<'static>) {
-        let swapchain_capabilities = surface.get_capabilities(&self.renderer.adapter);
-        let swapchain_format = swapchain_capabilities.formats[0];
-        self.surface_config.format = swapchain_format;
-        self.surface_config.alpha_mode = swapchain_capabilities.alpha_modes[0];
-        surface.configure(&self.renderer.device, &self.surface_config);
-        self.surface = Some(surface);
-    }
-
-    fn clear_surface(&mut self) {
-        self.surface = None;
-    }
-
-    fn resize(&mut self, new_width: u32, new_height: u32) {
+    pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.surface_config.width = new_width;
         self.surface_config.height = new_height;
 
@@ -114,35 +96,16 @@ impl WinitRenderer {
         }
     }
 
-    pub fn handle_event<T>(&mut self, event: &Event<T>) {
-        match event {
-            Event::NewEvents(start_cause) => {
-                self.window_initializing = start_cause == &StartCause::Init;
-            }
-            Event::Resumed => {
-                if self.surface.is_none() {
-                    let surface = self.instance.create_surface(self.window.clone()).unwrap();
-                    self.update_surface(surface);
-                    self.window.request_redraw();
-                }
-            }
-            Event::Suspended => {
-                self.clear_surface();
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(new_size),
-                ..
-            } => {
-                if self.window_initializing {
-                    return;
-                }
-
-                self.resize(new_size.width, new_size.height);
-
-                self.window.request_redraw();
-            }
-            _ => {}
+    pub fn resumed(&mut self) {
+        if self.surface.is_none() {
+            let surface = self.instance.create_surface(self.window.clone()).unwrap();
+            self.update_surface(surface);
+            self.window.request_redraw();
         }
+    }
+
+    pub fn suspended(&mut self) {
+        self.clear_surface();
     }
 
     pub fn draw(&mut self, scene: &Scene) -> bool {
@@ -168,5 +131,18 @@ impl WinitRenderer {
             Err(SurfaceError::OutOfMemory) => false,
             _ => false,
         }
+    }
+
+    fn update_surface(&mut self, surface: Surface<'static>) {
+        let swapchain_capabilities = surface.get_capabilities(&self.renderer.adapter);
+        let swapchain_format = swapchain_capabilities.formats[0];
+        self.surface_config.format = swapchain_format;
+        self.surface_config.alpha_mode = swapchain_capabilities.alpha_modes[0];
+        surface.configure(&self.renderer.device, &self.surface_config);
+        self.surface = Some(surface);
+    }
+
+    fn clear_surface(&mut self) {
+        self.surface = None;
     }
 }

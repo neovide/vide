@@ -7,19 +7,97 @@ use notify::{recommended_watcher, RecursiveMode, Watcher};
 use palette::Srgba;
 use parking_lot::RwLock;
 use winit::{
+    application::ApplicationHandler,
     dpi::PhysicalPosition,
-    event::{Event, WindowEvent},
+    event::WindowEvent,
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
+    window::{Window, WindowAttributes},
 };
 
 use vide::{Quad, Scene, WinitRenderer};
 
 async fn create_renderer(window: Arc<Window>) -> WinitRenderer {
-    WinitRenderer::new(Arc::clone(&window))
+    WinitRenderer::new(window)
         .await
         .with_default_drawables()
         .await
+}
+
+struct App {
+    scene: Arc<RwLock<Scene>>,
+    renderer: Option<WinitRenderer>,
+    mouse_pos: PhysicalPosition<f64>,
+}
+
+impl App {
+    fn new(scene: Arc<RwLock<Scene>>) -> Self {
+        App {
+            scene,
+            renderer: None,
+            mouse_pos: PhysicalPosition::default(),
+        }
+    }
+}
+
+impl ApplicationHandler for App {
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CursorMoved { position, .. } => {
+                self.mouse_pos = position;
+                self.renderer.as_ref().unwrap().window.request_redraw();
+            }
+            WindowEvent::RedrawRequested => {
+                let mut scene = self.scene.read().clone();
+                scene.add_layer(Default::default());
+                scene.background(Srgba::new(0., 0., 0., 0.));
+                scene.add_quad(
+                    Quad::new(
+                        Point2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32),
+                        Size2::new(100., 100.),
+                        Srgba::new(0.5, 0.5, 1., 0.5),
+                    )
+                    .with_blur(5.0),
+                );
+
+                self.renderer.as_mut().unwrap().draw(&scene);
+            }
+            WindowEvent::Resized(new_size) => {
+                self.renderer
+                    .as_mut()
+                    .unwrap()
+                    .resize(new_size.width, new_size.height);
+            }
+            _ => {}
+        }
+    }
+
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        if self.renderer.is_none() {
+            let attributes = WindowAttributes::default();
+            let window = Arc::new(
+                event_loop
+                    .create_window(attributes)
+                    .expect("Failed to create window"),
+            );
+            self.renderer = Some(block_on(create_renderer(window)));
+        } else {
+            self.renderer.as_mut().unwrap().resumed();
+        }
+    }
+
+    fn suspended(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        self.renderer.as_mut().unwrap().suspended();
+    }
+
+    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, _event: ()) {
+        self.renderer.as_ref().unwrap().window.request_redraw();
+    }
 }
 
 fn main() {
@@ -53,48 +131,8 @@ fn main() {
         .watch(&scene_path, RecursiveMode::NonRecursive)
         .unwrap();
 
-    let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
-    let mut renderer = block_on(create_renderer(Arc::clone(&window)));
-    let mut mouse_pos: PhysicalPosition<f64> = Default::default();
-
-    event_loop
-        .run(|event, target| {
-            renderer.handle_event(&event);
-
-            match event {
-                Event::WindowEvent {
-                    ref event,
-                    window_id,
-                } if window_id == window.id() => match event {
-                    WindowEvent::CloseRequested => target.exit(),
-                    WindowEvent::CursorMoved { position, .. } => {
-                        mouse_pos = *position;
-                        window.request_redraw();
-                    }
-                    WindowEvent::RedrawRequested => {
-                        let mut scene = scene.read().clone();
-                        scene.add_layer(Default::default());
-                        scene.background(Srgba::new(0., 0., 0., 0.));
-                        scene.add_quad(
-                            Quad::new(
-                                Point2::new(mouse_pos.x as f32, mouse_pos.y as f32),
-                                Size2::new(100., 100.),
-                                Srgba::new(0.5, 0.5, 1., 0.5),
-                            )
-                            .with_blur(5.0),
-                        );
-
-                        renderer.draw(&scene);
-                    }
-                    _ => {}
-                },
-                Event::UserEvent(()) => {
-                    window.request_redraw();
-                }
-                _ => {}
-            };
-        })
-        .expect("Could not run event loop");
+    let mut app = App::new(scene);
+    event_loop.run_app(&mut app).ok();
 }
 
 fn read_scene(path: &Path, scene: &RwLock<Scene>) {
