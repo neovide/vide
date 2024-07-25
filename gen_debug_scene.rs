@@ -2,7 +2,7 @@
 //! [dependencies]
 //! vide = { path = "./" }
 //! palette = { version = "0.7.6", features = ["serializing"] }
-//! parley = { git = "https://github.com/linebender/parley" }
+//! parley = { git = "https://github.com/linebender/parley", rev="5b60803d1256ab821f79eaa06721a3112de7202a" }
 //! glamour = { version = "0.11.1", features = ["serde"] }
 //! serde = "1.0.196"
 //! serde_derive = "1.0.196"
@@ -65,7 +65,7 @@ fn main() {
         Srgba::new(0., 0., 1., 0.5),
     ];
 
-    for (i, color) in colors.into_iter().enumerate() {
+    for (i, color) in colors.iter().enumerate() {
         scene.add_quad(Quad::new(
             point2!(500., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
             size2!(50., 50.),
