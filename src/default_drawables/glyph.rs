@@ -2,7 +2,7 @@ use glam::*;
 use glamour::{size2, vec2, Point2, Rect, ToRaw};
 use ordered_float::OrderedFloat;
 use palette::Srgba;
-use swash::{
+use parley::swash::{
     scale::{image::Content, Render, ScaleContext, Source, StrikeWith},
     zeno::{Format, Placement, Vector},
     FontRef, GlyphId,
@@ -53,7 +53,7 @@ impl GlyphState {
         queue: &Queue,
         font_id: FontId,
         font_ref: FontRef<'a>,
-        glyph: swash::GlyphId,
+        glyph: GlyphId,
         bottom_left: Point2,
         size: f32,
         color: Srgba,
