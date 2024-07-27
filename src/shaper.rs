@@ -1,7 +1,7 @@
 use palette::Srgba;
 use parley::{
-    context::RangedBuilder, layout::Alignment, style::StyleProperty, FontContext, Layout,
-    LayoutContext,
+    context::RangedBuilder, fontique::Collection, layout::Alignment, style::StyleProperty,
+    FontContext, Layout, LayoutContext,
 };
 
 pub struct Shaper {
@@ -85,6 +85,10 @@ impl Shaper {
 
     pub fn clear_defaults(&mut self) {
         self.default_styles.clear();
+    }
+
+    pub fn font_collection(&mut self) -> &mut Collection {
+        &mut self.font_context.collection
     }
 }
 
