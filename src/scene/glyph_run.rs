@@ -3,9 +3,8 @@ use std::{fmt::Debug, sync::Arc};
 use base64::prelude::*;
 use glamour::{Point2, Vector2};
 use palette::Srgba;
-use parley::Font as ParleyFont;
+use parley::{swash::FontRef, Font as ParleyFont};
 use serde::{Deserialize, Serialize};
-use swash::FontRef;
 
 use crate::Resources;
 
