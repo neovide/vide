@@ -121,7 +121,7 @@ impl DrawablePipeline {
 
         let vertex = VertexState {
             module: shaders.get_vertex(&self.name)?,
-            entry_point: "main",
+            entry_point: "vert",
             buffers: &vertex_buffer_layouts,
             compilation_options: Default::default(),
         };
@@ -129,7 +129,7 @@ impl DrawablePipeline {
         let targets = self.drawable.targets(*format);
         let fragment = Some(FragmentState {
             module: shaders.get_fragment(&self.name)?,
-            entry_point: "main",
+            entry_point: "frag",
             targets: &targets,
             compilation_options: Default::default(),
         });

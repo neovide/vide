@@ -38,6 +38,7 @@ pub struct ShaderConstants {
 
 #[derive(Default)]
 pub struct ShaderModules {
+    shared: HashMap<String, ShaderModule>,
     vertex: HashMap<String, ShaderModule>,
     fragment: HashMap<String, ShaderModule>,
     compute: HashMap<String, ShaderModule>,
@@ -47,18 +48,21 @@ impl ShaderModules {
     pub fn get_vertex(&self, name: &str) -> Result<&ShaderModule, String> {
         self.vertex
             .get(name)
+            .or_else(|| self.shared.get(name))
             .ok_or_else(|| format!("Vertex shader '{}' not found!", name))
     }
 
     pub fn get_fragment(&self, name: &str) -> Result<&ShaderModule, String> {
         self.fragment
             .get(name)
+            .or_else(|| self.shared.get(name))
             .ok_or_else(|| format!("Fragment shader '{}' not found!", name))
     }
 
     pub fn get_compute(&self, name: &str) -> Result<&ShaderModule, String> {
         self.compute
             .get(name)
+            .or_else(|| self.shared.get(name))
             .ok_or_else(|| format!("Compute shader '{}' not found!", name))
     }
 }
@@ -132,22 +136,20 @@ impl ShaderLoader {
                     .unwrap_or_default()
                     .to_str()
                     .unwrap_or_default();
-                let extension_info = match ext {
-                    "vert" => Some((ShaderStage::Vertex, true)),
-                    "wvert" => Some((ShaderStage::Vertex, false)),
-                    "frag" => Some((ShaderStage::Fragment, true)),
-                    "wfrag" => Some((ShaderStage::Fragment, false)),
-                    "comp" => Some((ShaderStage::Compute, true)),
-                    "wcomp" => Some((ShaderStage::Compute, false)),
+                let stage = match ext {
+                    "vert" => Some(Some(ShaderStage::Vertex)),
+                    "frag" => Some(Some(ShaderStage::Fragment)),
+                    "comp" => Some(Some(ShaderStage::Compute)),
+                    "wgsl" => Some(None),
                     _ => None,
                 };
-                if let Some((stage, glsl)) = extension_info {
+                if let Some(stage) = stage {
                     let preprocessor = Preprocessor::new(&file.data, path.to_str().unwrap());
 
                     let label = format!("{}_{}", &name, &ext).to_string();
                     let descriptor = ShaderModuleDescriptor {
                         label: Some(&label),
-                        source: if glsl {
+                        source: if let Some(stage) = stage {
                             ShaderSource::Glsl {
                                 shader: Cow::from(&preprocessor.content),
                                 stage,
@@ -162,12 +164,15 @@ impl ShaderLoader {
                         error.log_errors(&preprocessor);
                     } else {
                         match stage {
-                            ShaderStage::Vertex => modules.vertex.insert(name.to_string(), module),
-                            ShaderStage::Fragment => {
+                            Some(ShaderStage::Vertex) => modules.vertex.insert(name.to_string(), module),
+                            Some(ShaderStage::Fragment) => {
                                 modules.fragment.insert(name.to_string(), module)
                             }
-                            ShaderStage::Compute => {
+                            Some(ShaderStage::Compute) => {
                                 modules.compute.insert(name.to_string(), module)
+                            }
+                            None => {
+                                modules.shared.insert(name.to_string(), module)
                             }
                         };
                     }

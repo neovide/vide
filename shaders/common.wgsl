@@ -1,3 +1,6 @@
+const PI = 3.1415926535897932384626433832795;
+const FRAC_2_SQRT_PI = 1.12837916709551257389615890312154517;
+
 struct ShaderConstants {
     surface_size: vec2<f32>,
     atlas_size: vec2<f32>,
