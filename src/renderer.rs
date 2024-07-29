@@ -24,7 +24,6 @@ pub struct Renderer {
     pub height: u32,
 
     pub offscreen_texture: ViewedTexture,
-    pub multisampled_texture: ViewedTexture,
     pub mask_texture: ViewedTexture,
     pub blank_texture: ViewedTexture,
 
@@ -64,8 +63,6 @@ impl Renderer {
         let shaders = shader_loader.load(&device);
 
         let offscreen_texture = ViewedTexture::new(&device, width, height, format, 1, "Offscreen");
-        let multisampled_texture =
-            ViewedTexture::new(&device, width, height, format, 4, "Multisampled");
         let mask_texture = ViewedTexture::new(&device, width, height, format, 1, "Mask");
         let blank_texture = ViewedTexture::new(&device, 1, 1, format, 1, "Blank");
         queue.write_texture(
@@ -167,7 +164,6 @@ impl Renderer {
             height,
 
             offscreen_texture,
-            multisampled_texture,
             mask_texture,
             blank_texture,
 
@@ -224,14 +220,6 @@ impl Renderer {
                 self.format,
                 1,
                 "Offscreen",
-            );
-            self.multisampled_texture = ViewedTexture::new(
-                &self.device,
-                new_width,
-                new_height,
-                self.format,
-                4,
-                "Multisampled",
             );
             self.mask_texture =
                 ViewedTexture::new(&self.device, new_width, new_height, self.format, 1, "Mask");
@@ -499,8 +487,8 @@ impl Renderer {
                 RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &self.multisampled_texture.view,
-                        resolve_target: Some(frame_view),
+                        view: frame_view,
+                        resolve_target: None,
                         ops: attachment_op,
                     })],
                     depth_stencil_attachment: None,
