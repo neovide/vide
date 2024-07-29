@@ -2,12 +2,14 @@ use std::{env::temp_dir, fs::create_dir_all, path::PathBuf, thread};
 
 use git2::Repository;
 use glamour::{point2, size2, vec2, Rect};
-use image::io::Reader as ImageReader;
+use image::ImageReader;
 use lazy_static::lazy_static;
 use palette::Srgba;
-use parley::style::{FontFamily, FontSettings, FontStack, FontWeight, StyleProperty};
+use parley::{
+    style::{FontFamily, FontSettings, FontStack, FontWeight, StyleProperty},
+    swash::Setting,
+};
 use rust_embed::RustEmbed;
-use swash::Setting;
 
 use crate::{
     offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite, Texture,
