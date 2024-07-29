@@ -121,7 +121,13 @@ impl WinitRenderer {
                     profiling::scope!("present");
                     frame.present();
                 }
-                profiling::finish_frame!();
+
+                self.renderer.profiler.end_frame().unwrap();
+
+                self.renderer
+                    .profiler
+                    .process_finished_frame(self.renderer.queue.get_timestamp_period());
+
                 true
             }
             Err(SurfaceError::Lost) => {
