@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Quad {
-    top_left: Point2,
-    size: Size2,
-    color: Srgba,
+    pub top_left: Point2,
+    pub size: Size2,
+    pub color: Srgba,
     #[serde(default)]
-    corner_radius: f32,
+    pub corner_radius: f32,
     #[serde(default)]
-    blur: f32,
+    pub blur: f32,
 }
 
 impl Quad {
