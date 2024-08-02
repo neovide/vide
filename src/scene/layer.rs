@@ -147,6 +147,7 @@ impl Layer {
                 let font_id = resources.store_font(font);
                 let style = glyph_run.style();
                 let color = style.brush;
+                let synthesis = glyph_run.run().synthesis().into();
 
                 let font_index = font.index as usize;
                 let size = run.font_size();
@@ -169,6 +170,7 @@ impl Layer {
                     size,
                     normalized_coords,
                     glyphs,
+                    synthesis,
                 });
             }
         }

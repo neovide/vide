@@ -1,10 +1,9 @@
 use glam::*;
 use glamour::{size2, vec2, Point2, Rect, ToRaw};
 use ordered_float::OrderedFloat;
-use palette::Srgba;
 use parley::swash::{
     scale::{image::Content, Render, ScaleContext, Source, StrikeWith},
-    zeno::{Format, Placement, Vector},
+    zeno::{Angle, Format, Placement, Transform, Vector},
     FontRef, GlyphId,
 };
 use wgpu::*;
@@ -15,7 +14,7 @@ use crate::{
     renderer::Renderer,
     scene::GlyphRun,
     shader::ShaderConstants,
-    FontId, LayerContents, Resources,
+    FontId, Glyph, LayerContents, Resources, Synthesis,
 };
 
 #[derive(Copy, Clone, Default)]
@@ -53,16 +52,36 @@ impl GlyphState {
         queue: &Queue,
         font_id: FontId,
         font_ref: FontRef<'a>,
-        glyph: GlyphId,
-        bottom_left: Point2,
-        size: f32,
-        color: Srgba,
-        normalized_coords: &[i16],
+        glyph: &Glyph,
+        glyph_run: &GlyphRun,
     ) -> Option<InstancedGlyph> {
         profiling::scope!("Preparing glyph");
         // Create a font scaler for the given font and size
 
-        let glyph_key = GlyphKey::new(font_id, glyph, size, bottom_left);
+        let bottom_left = glyph_run.position + glyph.offset;
+
+        let glyph_key = GlyphKey::new(
+            font_id,
+            glyph.id,
+            glyph_run.size,
+            bottom_left,
+            glyph_run.synthesis.clone(),
+        );
+
+        let transform = if glyph_run.synthesis.skew != 0.0 {
+            Some(Transform::skew(
+                Angle::from_degrees(*glyph_run.synthesis.skew),
+                Angle::from_degrees(0.0),
+            ))
+        } else {
+            None
+        };
+
+        let embolden = if glyph_run.synthesis.embolden {
+            1.0
+        } else {
+            0.0
+        };
 
         // Get or find atlas allocation
         let ((placement, content), glyph_location) =
@@ -72,9 +91,10 @@ impl GlyphState {
                     profiling::scope!("Creating font scaler");
                     self.scale_context
                         .builder(font_ref)
-                        .size(size)
+                        .size(glyph_run.size)
                         .hint(true)
-                        .normalized_coords(normalized_coords)
+                        .variations(&glyph_run.synthesis.vars)
+                        .normalized_coords(&glyph_run.normalized_coords)
                         .build()
                 };
                 let image = Render::new(&[
@@ -86,8 +106,10 @@ impl GlyphState {
                 .format(Format::Subpixel)
                 // Apply the fractional offset
                 .offset(glyph_key.quantized_offset())
+                .transform(transform)
+                .embolden(embolden)
                 // Render the image
-                .render(&mut scaler, glyph)
+                .render(&mut scaler, glyph.id)
                 .expect("Could not render glyph into an image");
 
                 if image.placement.width == 0 || image.placement.height == 0 {
@@ -118,7 +140,7 @@ impl GlyphState {
                 Content::Color => GlyphKind::Color as i32,
             },
             _padding: Default::default(),
-            color: Vec4::from_array(color.into_linear().into()),
+            color: Vec4::from_array(glyph_run.color.into_linear().into()),
         })
     }
 
@@ -132,16 +154,7 @@ impl GlyphState {
             .glyphs
             .iter()
             .filter_map(|glyph| {
-                self.prepare_glyph(
-                    queue,
-                    glyph_run.font_id,
-                    font_ref,
-                    glyph.id,
-                    glyph_run.position + glyph.offset,
-                    glyph_run.size,
-                    glyph_run.color,
-                    &glyph_run.normalized_coords,
-                )
+                self.prepare_glyph(queue, glyph_run.font_id, font_ref, glyph, glyph_run)
             })
             .collect()
     }
@@ -244,10 +257,17 @@ struct GlyphKey {
     font_id: FontId,
     size: OrderedFloat<f32>,
     x_offset: SubpixelOffset,
+    synthesis: Synthesis,
 }
 
 impl GlyphKey {
-    fn new(font_id: FontId, glyph: GlyphId, size: f32, offset: Point2) -> Self {
+    fn new(
+        font_id: FontId,
+        glyph: GlyphId,
+        size: f32,
+        offset: Point2,
+        synthesis: Synthesis,
+    ) -> Self {
         let size = size.into();
         let x_offset = SubpixelOffset::quantize(offset.x);
         Self {
@@ -255,6 +275,7 @@ impl GlyphKey {
             font_id,
             size,
             x_offset,
+            synthesis,
         }
     }
 

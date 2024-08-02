@@ -84,7 +84,7 @@ notify-debouncer-full = "0.3.1"
 # Rust doesn't implement ord for floats which makes deriving
 # hashes hard. This wraps floats and provides a consistent
 # ord implementation
-ordered-float = "4.2.0"
+ordered-float = {version = "4.2.0", features = ["serde"]}
 palette = { workspace = true }
 # Font layout and shaping crate. Handles font fallback
 parley = { git = "https://github.com/linebender/parley", rev="5b60803d1256ab821f79eaa06721a3112de7202a" }
