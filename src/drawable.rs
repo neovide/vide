@@ -149,7 +149,7 @@ impl DrawablePipeline {
                 primitive,
                 depth_stencil: None,
                 multisample: MultisampleState {
-                    count: 4,
+                    count: 1,
                     ..Default::default()
                 },
                 multiview: None,
