@@ -20,7 +20,7 @@ fn vert(
     out.color = color;
     out.position = vec4<f32>(
         vec2<f32>(0.0, 2.0) + position / constants.surface_size * vec2<f32>(1.0, -1.0) * 2.0 - 1.0,
-        0.0, 0.0);
+        0.0, 1.0);
     return out;
 }
 
