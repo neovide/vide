@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use glamour::Rect;
 use wgpu::*;
 
 use crate::{
     drawable_reference::DrawableReference, LayerContents, Renderer, Resources, ShaderConstants,
-    ShaderModules,
 };
 
 pub trait Drawable {
@@ -18,6 +19,13 @@ pub trait Drawable {
     }
     fn start_frame(&mut self);
     fn has_work(&self, contents: &LayerContents) -> bool;
+    fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {
+        vec![Some(ColorTargetState {
+            format,
+            blend: Some(BlendState::ALPHA_BLENDING),
+            write_mask: ColorWrites::ALL,
+        })]
+    }
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
@@ -92,7 +100,7 @@ impl DrawablePipeline {
     fn try_create_pipelines(
         &mut self,
         device: &Device,
-        shaders: &ShaderModules,
+        shaders: &HashMap<String, ShaderModule>,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     ) -> Result<(), String> {
@@ -111,22 +119,19 @@ impl DrawablePipeline {
             .iter()
             .filter_map(|reference| reference.vertex())
             .collect::<Vec<_>>();
+        let shader_module = shaders.get(&self.name).ok_or_else(|| format!("Shader module not found for {}", &self.name))?;
 
         let vertex = VertexState {
-            module: shaders.get_vertex(&self.name)?,
-            entry_point: "main",
+            module: shader_module,
+            entry_point: "vert",
             buffers: &vertex_buffer_layouts,
             compilation_options: Default::default(),
         };
 
-        let targets = [Some(ColorTargetState {
-            format: *format,
-            blend: Some(BlendState::ALPHA_BLENDING),
-            write_mask: ColorWrites::ALL,
-        })];
+        let targets = self.drawable.targets(*format);
         let fragment = Some(FragmentState {
-            module: shaders.get_fragment(&self.name)?,
-            entry_point: "main",
+            module: shader_module,
+            entry_point: "frag",
             targets: &targets,
             compilation_options: Default::default(),
         });
@@ -176,7 +181,7 @@ impl DrawablePipeline {
     pub async fn create_pipeline(
         &mut self,
         device: &Device,
-        shaders: &ShaderModules,
+        shaders: &HashMap<String, ShaderModule>,
         format: &TextureFormat,
         universal_bind_group_layout: &BindGroupLayout,
     ) {

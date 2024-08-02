@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use futures::executor::block_on;
 use glam::*;
 use glamour::{AsRaw, Rect};
@@ -8,7 +10,7 @@ use crate::{
     default_drawables::{GlyphState, PathState, QuadState, SpriteState},
     drawable::{Drawable, DrawablePipeline},
     drawable_reference::ATLAS_SIZE,
-    shader::{ShaderConstants, ShaderLoader, ShaderModules},
+    shader::{ShaderConstants, ShaderLoader},
     LayerContents, Resources, Scene,
 };
 
@@ -16,7 +18,7 @@ pub struct Renderer {
     pub adapter: Adapter,
     pub device: Device,
     pub queue: Queue,
-    pub shaders: ShaderModules,
+    pub shaders: HashMap<String, ShaderModule>,
     pub profiler: GpuProfiler,
 
     pub format: TextureFormat,
@@ -46,6 +48,7 @@ impl Renderer {
                         | Features::SPIRV_SHADER_PASSTHROUGH
                         | Features::VERTEX_WRITABLE_STORAGE
                         | Features::CLEAR_TEXTURE
+                        | Features::DUAL_SOURCE_BLENDING
                         | GpuProfiler::ALL_WGPU_TIMER_FEATURES,
                     required_limits: Limits {
                         max_push_constant_size: 256,

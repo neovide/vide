@@ -7,13 +7,15 @@ use codespan_reporting::{
 use log::error;
 use std::error::Error;
 use std::ops::Range;
-use wgpu::naga::{front::glsl::ParseError, WithSpan};
+use wgpu::naga::{
+    front::glsl::ParseError as GlslParseError, front::wgsl::ParseError as WgslParseError, WithSpan,
+};
 
 trait ToDiagnostic {
     fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>>;
 }
 
-impl ToDiagnostic for ParseError {
+impl ToDiagnostic for GlslParseError {
     fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>> {
         self.errors
             .iter()
@@ -28,6 +30,25 @@ impl ToDiagnostic for ParseError {
                 diagnostic
             })
             .collect::<Vec<_>>()
+    }
+}
+
+impl ToDiagnostic for WgslParseError {
+    fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>> {
+        let diagnostic = Diagnostic::error()
+            .with_message(self.message().to_string())
+            .with_labels(
+                self.labels()
+                    .filter_map(|label| {
+                        label.0.to_range().map(|range| {
+                            let (fileid, start) = preprocessor.get_file_and_start(range.start);
+                            let range = start..range.end;
+                            Label::primary(fileid, range)
+                        })
+                    })
+                    .collect(),
+            );
+        vec![diagnostic]
     }
 }
 
@@ -93,6 +114,9 @@ impl ErrorLogger for wgpu::Error {
                 .source()
                 .and_then(|s| s.downcast_ref::<wgpu::core::pipeline::CreateShaderModuleError>())
             {
+                Some(wgpu::core::pipeline::CreateShaderModuleError::Parsing(error)) => {
+                    return error.log_errors(preprocessor)
+                }
                 Some(wgpu::core::pipeline::CreateShaderModuleError::ParsingGlsl(error)) => {
                     return error.log_errors(preprocessor)
                 }
