@@ -1,7 +1,8 @@
+use glamour::Rect;
 use std::collections::HashMap;
 use wgpu::*;
 
-use crate::{drawable::Drawable, LayerContents, Renderer};
+use crate::{drawable::Drawable, LayerContents, Renderer, Resources, ShaderConstants};
 
 pub(crate) struct DrawablePipeline {
     drawable: Box<dyn Drawable>,
