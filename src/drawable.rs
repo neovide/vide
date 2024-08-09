@@ -153,6 +153,7 @@ impl DrawablePipeline {
                     ..Default::default()
                 },
                 multiview: None,
+                cache: None,
             }));
 
         self.render_mask_pipeline =
@@ -168,6 +169,7 @@ impl DrawablePipeline {
                     ..Default::default()
                 },
                 multiview: None,
+                cache: None,
             }));
 
         Ok(())
