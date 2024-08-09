@@ -134,8 +134,8 @@ fn simple_path() {
         Path::new(point2!(20., 20.))
             .with_fill(Srgba::new(0., 1., 0., 1.))
             .with_stroke(5., Srgba::new(0., 0., 0., 1.))
-            .line_to(point2!(180., 20.))
-            .quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
+            .with_line_to(point2!(180., 20.))
+            .with_quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
     );
 
     assert_no_regressions(200, 200, scene);
@@ -801,8 +801,8 @@ fn multiple_path_layers() {
         Path::new(point2!(20., 20.))
             .with_fill(Srgba::new(0., 1., 0., 1.))
             .with_stroke(5., Srgba::new(0., 0., 0., 1.))
-            .line_to(point2!(180., 20.))
-            .quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
+            .with_line_to(point2!(180., 20.))
+            .with_quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
     );
 
     scene.add_layer(Layer::new().with_background(Srgba::new(0., 0., 0., 0.)));
@@ -811,9 +811,23 @@ fn multiple_path_layers() {
         Path::new(point2!(20., 20.))
             .with_fill(Srgba::new(1., 0., 0., 1.))
             .with_stroke(5., Srgba::new(0., 0., 0., 1.))
-            .quadratic_bezier_to(point2!(180., 20.), point2!(180., 180.))
-            .line_to(point2!(20., 180.)),
+            .with_quadratic_bezier_to(point2!(180., 20.), point2!(180., 180.))
+            .with_line_to(point2!(20., 180.)),
     );
+
+    assert_no_regressions(200, 200, scene);
+}
+
+#[test]
+fn open_paths() {
+    let mut scene = Scene::new();
+
+    for i in 0..10 {
+        scene.add_path(
+            Path::new_open_stroke(5., Srgba::new(0., 0., 0., 1.), point2!(20., 20.))
+                .with_quadratic_bezier_to(point2!(20. + i as f32 * 30., 100.), point2!(20., 180.)),
+        );
+    }
 
     assert_no_regressions(200, 200, scene);
 }
