@@ -52,6 +52,7 @@ impl Renderer {
                         ..Default::default()
                     },
                     label: None,
+                    ..Default::default()
                 },
                 None,
             )

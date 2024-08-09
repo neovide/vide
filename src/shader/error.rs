@@ -7,13 +7,13 @@ use codespan_reporting::{
 use log::error;
 use std::error::Error;
 use std::ops::Range;
-use wgpu::naga::{front::glsl::ParseError, WithSpan};
+use wgpu::naga::{error::ShaderError, front::glsl::ParseErrors, WithSpan};
 
 trait ToDiagnostic {
     fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>>;
 }
 
-impl ToDiagnostic for ParseError {
+impl ToDiagnostic for ParseErrors {
     fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>> {
         self.errors
             .iter()
@@ -65,7 +65,7 @@ pub(crate) trait ErrorLogger {
     fn log_errors(&self, preprocessor: &Preprocessor);
 }
 
-impl<T> ErrorLogger for wgpu::core::pipeline::ShaderError<T>
+impl<T> ErrorLogger for ShaderError<T>
 where
     T: ToDiagnostic,
 {

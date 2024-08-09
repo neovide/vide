@@ -43,7 +43,7 @@ winit = "0.30.3"
 # Cross platform graphics api based on webgpu. This way we
 # can write our graphics code once and run it everywhere
 [workspace.dependencies.wgpu]
-version = "0.20.1"
+version = "22.1.0"
 features = ["vulkan-portability"]
 
 [package]
@@ -103,7 +103,7 @@ thread_local = "1.1.7"
 # Used to make the error output for shader recompilation easier to read
 termcolor = "1.4.1"
 wgpu = { workspace = true, features = ["glsl"] }
-wgpu-profiler = { git = "https://github.com/wumpf/wgpu-profiler", features = ["tracy"] }
+wgpu-profiler = { version = "0.18.0", features = ["tracy"] }
 winit = { workspace = true }
 
 [dev-dependencies]
