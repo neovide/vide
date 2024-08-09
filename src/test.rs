@@ -792,3 +792,28 @@ fn complex_mask_clips_properly() {
 
     assert_no_regressions(210, 210, scene);
 }
+
+#[test]
+fn multiple_path_layers() {
+    let mut scene = Scene::new();
+
+    scene.add_path(
+        Path::new(point2!(20., 20.))
+            .with_fill(Srgba::new(0., 1., 0., 1.))
+            .with_stroke(5., Srgba::new(0., 0., 0., 1.))
+            .line_to(point2!(180., 20.))
+            .quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
+    );
+
+    scene.add_layer(Layer::new().with_background(Srgba::new(0., 0., 0., 0.)));
+
+    scene.add_path(
+        Path::new(point2!(20., 20.))
+            .with_fill(Srgba::new(1., 0., 0., 1.))
+            .with_stroke(5., Srgba::new(0., 0., 0., 1.))
+            .quadratic_bezier_to(point2!(180., 20.), point2!(180., 180.))
+            .line_to(point2!(20., 180.)),
+    );
+
+    assert_no_regressions(200, 200, scene);
+}
