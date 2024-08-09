@@ -8,7 +8,8 @@ use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 
 use crate::{
     default_drawables::{GlyphState, PathState, QuadState, SpriteState},
-    drawable::{Drawable, DrawablePipeline},
+    drawable::Drawable,
+    drawable_pipeline::DrawablePipeline,
     drawable_reference::ATLAS_SIZE,
     shader::{ShaderConstants, ShaderLoader},
     LayerContents, Resources, Scene,

@@ -1,5 +1,6 @@
 mod default_drawables;
 mod drawable;
+mod drawable_pipeline;
 mod drawable_reference;
 mod offscreen_renderer;
 mod renderer;
