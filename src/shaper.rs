@@ -1,6 +1,6 @@
 use palette::Srgba;
 use parley::{
-    context::RangedBuilder, fontique::Collection, layout::Alignment, style::StyleProperty,
+    context::RangedBuilder, fontique::Collection, style::StyleProperty,
     FontContext, Layout, LayoutContext,
 };
 
@@ -30,7 +30,7 @@ impl Shaper {
 
         let mut layout = builder.build();
 
-        layout.break_all_lines(None, Alignment::Start);
+        layout.break_all_lines(None);
 
         layout
     }
@@ -47,7 +47,7 @@ impl Shaper {
 
         let mut layout = builder.build();
 
-        layout.break_all_lines(Some(max_advance), Alignment::Start);
+        layout.break_all_lines(Some(max_advance));
 
         layout
     }
@@ -55,14 +55,14 @@ impl Shaper {
     pub fn layout(&mut self, text: &str) -> Layout<Srgba> {
         let mut builder = self.layout_builder(text);
         let mut layout = builder.build();
-        layout.break_all_lines(None, Alignment::Start);
+        layout.break_all_lines(None);
         layout
     }
 
     pub fn layout_within(&mut self, text: &str, max_advance: f32) -> Layout<Srgba> {
         let mut builder = self.layout_builder(text);
         let mut layout = builder.build();
-        layout.break_all_lines(Some(max_advance), Alignment::Start);
+        layout.break_all_lines(Some(max_advance));
         layout
     }
 

@@ -1,6 +1,6 @@
 use glamour::{vec2, Point2, Rect};
 use palette::Srgba;
-use parley::Layout;
+use parley::{Layout, layout::PositionedLayoutItem};
 use serde::{Deserialize, Serialize};
 
 use super::{Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
@@ -141,7 +141,10 @@ impl Layer {
         position: Point2,
     ) {
         for line in layout.lines() {
-            for glyph_run in line.glyph_runs() {
+            for item in line.items() {
+                let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
+                    continue;
+                };
                 let run = glyph_run.run();
                 let font = run.font();
                 let font_id = resources.store_font(font);
