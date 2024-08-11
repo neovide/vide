@@ -73,7 +73,7 @@ fn frag(
     let mask_color = textureSample(mask, texture_sampler, vertex_output.position.xy / constants.surface_size);
 
     let distance = quad_distance(instance, vertex_output.position.xy);
-    var result = instance.color;
+    var result = vec4(0.0);
     if (instance.blur > 0.0) {
         let min_edge = min(instance.size.x, instance.size.y);
         let inverse_blur = 1.0 / instance.blur;
