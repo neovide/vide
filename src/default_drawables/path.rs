@@ -106,7 +106,8 @@ impl Drawable for PathState {
                     }
                 }
             }
-            builder.close();
+
+            builder.end(!scene_path.open);
             let path = builder.build();
 
             if let Some(fill) = scene_path.fill {

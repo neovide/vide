@@ -27,6 +27,8 @@ pub struct Path {
     pub stroke: Option<(f32, Srgba)>,
     pub start: Point2,
     pub commands: Vec<PathCommand>,
+    #[serde(default)]
+    pub open: bool,
 }
 
 impl Path {
@@ -36,15 +38,27 @@ impl Path {
             stroke: None,
             start,
             commands: Vec::new(),
+            open: false,
         }
     }
 
-    pub fn new_stroke(stroke: (f32, Srgba), start: Point2) -> Self {
+    pub fn new_stroke(width: f32, color: Srgba, start: Point2) -> Self {
         Self {
             fill: None,
-            stroke: Some(stroke),
+            stroke: Some((width, color)),
             start,
             commands: Vec::new(),
+            open: false,
+        }
+    }
+
+    pub fn new_open_stroke(width: f32, color: Srgba, start: Point2) -> Self {
+        Self {
+            fill: None,
+            stroke: Some((width, color)),
+            start,
+            commands: Vec::new(),
+            open: true,
         }
     }
 
@@ -54,36 +68,58 @@ impl Path {
             stroke: None,
             start,
             commands: Vec::new(),
+            open: false,
         }
     }
 
-    pub fn with_fill(mut self, fill: Srgba) -> Self {
+    pub fn set_fill(&mut self, fill: Srgba) {
         self.fill = Some(fill);
+        assert!(!self.open);
+    }
+
+    pub fn with_fill(mut self, fill: Srgba) -> Self {
+        self.set_fill(fill);
         self
+    }
+
+    pub fn set_stroke(&mut self, width: f32, color: Srgba) {
+        self.stroke = Some((width, color));
     }
 
     pub fn with_stroke(mut self, width: f32, color: Srgba) -> Self {
-        self.stroke = Some((width, color));
+        self.set_stroke(width, color);
         self
     }
 
-    pub fn cubic_bezier_to(mut self, control1: Point2, control2: Point2, to: Point2) -> Self {
+    pub fn add_cubic_bezier_to(&mut self, control1: Point2, control2: Point2, to: Point2) {
         self.commands.push(PathCommand::CubicBezierTo {
             control1,
             control2,
             to,
         });
+    }
+
+    pub fn with_cubic_bezier_to(mut self, control1: Point2, control2: Point2, to: Point2) -> Self {
+        self.add_cubic_bezier_to(control1, control2, to);
         self
     }
 
-    pub fn quadratic_bezier_to(mut self, control: Point2, to: Point2) -> Self {
+    pub fn add_quadratic_bezier_to(&mut self, control: Point2, to: Point2) {
         self.commands
             .push(PathCommand::QuadraticBezierTo { control, to });
+    }
+
+    pub fn with_quadratic_bezier_to(mut self, control: Point2, to: Point2) -> Self {
+        self.add_quadratic_bezier_to(control, to);
         self
     }
 
-    pub fn line_to(mut self, to: Point2) -> Self {
+    pub fn add_line_to(&mut self, to: Point2) {
         self.commands.push(PathCommand::LineTo { to });
+    }
+
+    pub fn with_line_to(mut self, to: Point2) -> Self {
+        self.add_line_to(to);
         self
     }
 }
