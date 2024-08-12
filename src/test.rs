@@ -828,6 +828,34 @@ fn open_paths() {
                 .with_quadratic_bezier_to(point2!(20. + i as f32 * 30., 100.), point2!(20., 180.)),
         );
     }
+    assert_no_regressions(200, 200, scene);
+}
+
+#[test]
+fn simple_mask() {
+    let mut scene = Scene::new();
+
+    let mut shaper = Shaper::new();
+    shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
+    shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
+
+    for i in 0..20 {
+        let bottom = 15. * i as f32;
+        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+            builder.push_default(&StyleProperty::FontSize(15.));
+        });
+        scene.add_text_layout(layout, point2!(0., bottom));
+    }
+
+    // Triangle path to mask
+    let mut mask_layer = Layer::new();
+    mask_layer.add_path(
+        Path::new(point2!(100., 10.))
+            .with_fill(Srgba::new(0., 0., 0., 1.))
+            .with_line_to(point2!(190., 190.))
+            .with_line_to(point2!(10., 190.)),
+    );
+    scene.set_mask(mask_layer);
 
     assert_no_regressions(200, 200, scene);
 }

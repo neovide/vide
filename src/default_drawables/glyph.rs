@@ -181,16 +181,27 @@ impl Drawable for GlyphState {
         vec![&self.glyph_buffer, &self.atlas]
     }
 
-    fn needs_offscreen_copy(&self) -> bool {
-        true
-    }
-
     fn start_frame(&mut self) {
         self.glyph_buffer.start_frame();
     }
 
     fn has_work(&self, contents: &LayerContents) -> bool {
         !contents.glyph_runs.is_empty()
+    }
+
+    fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {
+        vec![Some(ColorTargetState {
+            format,
+            blend: Some(BlendState {
+                color: BlendComponent {
+                    src_factor: BlendFactor::One,
+                    dst_factor: BlendFactor::OneMinusSrc1,
+                    operation: BlendOperation::Add,
+                },
+                alpha: BlendComponent::OVER,
+            }),
+            write_mask: ColorWrites::ALL,
+        })]
     }
 
     fn draw<'b, 'a: 'b>(

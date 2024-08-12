@@ -7,27 +7,28 @@ use codespan_reporting::{
 use log::error;
 use std::error::Error;
 use std::ops::Range;
-use wgpu::naga::{error::ShaderError, front::glsl::ParseErrors, WithSpan};
+use wgpu::naga::{error::ShaderError, front::wgsl::ParseError, WithSpan};
 
 trait ToDiagnostic {
     fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>>;
 }
 
-impl ToDiagnostic for ParseErrors {
+impl ToDiagnostic for ParseError {
     fn to_diagnostic(&self, preprocessor: &Preprocessor) -> Vec<Diagnostic<usize>> {
-        self.errors
-            .iter()
-            .map(|err| {
-                let mut diagnostic = Diagnostic::error().with_message(err.kind.to_string());
-
-                if let Some(range) = err.meta.to_range() {
-                    let (fileid, start) = preprocessor.get_file_and_start(range.start);
-                    let range = start..range.end;
-                    diagnostic = diagnostic.with_labels(vec![Label::primary(fileid, range)]);
-                }
-                diagnostic
-            })
-            .collect::<Vec<_>>()
+        let diagnostic = Diagnostic::error()
+            .with_message(self.message().to_string())
+            .with_labels(
+                self.labels()
+                    .filter_map(|label| {
+                        label.0.to_range().map(|range| {
+                            let (fileid, start) = preprocessor.get_file_and_start(range.start);
+                            let range = start..range.end;
+                            Label::primary(fileid, range)
+                        })
+                    })
+                    .collect(),
+            );
+        vec![diagnostic]
     }
 }
 
@@ -93,7 +94,7 @@ impl ErrorLogger for wgpu::Error {
                 .source()
                 .and_then(|s| s.downcast_ref::<wgpu::core::pipeline::CreateShaderModuleError>())
             {
-                Some(wgpu::core::pipeline::CreateShaderModuleError::ParsingGlsl(error)) => {
+                Some(wgpu::core::pipeline::CreateShaderModuleError::Parsing(error)) => {
                     return error.log_errors(preprocessor)
                 }
                 Some(wgpu::core::pipeline::CreateShaderModuleError::Validation(error)) => {

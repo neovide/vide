@@ -25,7 +25,6 @@ use notify_debouncer_full::{
 };
 use rust_embed::*;
 use wgpu::{
-    naga::{FastHashMap, ShaderStage},
     Device, ErrorFilter, ShaderModule, ShaderModuleDescriptor, ShaderSource,
 };
 
@@ -36,35 +35,8 @@ pub struct ShaderConstants {
     pub atlas_size: Vec2,
 }
 
-#[derive(Default)]
-pub struct ShaderModules {
-    vertex: HashMap<String, ShaderModule>,
-    fragment: HashMap<String, ShaderModule>,
-    compute: HashMap<String, ShaderModule>,
-}
-
-impl ShaderModules {
-    pub fn get_vertex(&self, name: &str) -> Result<&ShaderModule, String> {
-        self.vertex
-            .get(name)
-            .ok_or_else(|| format!("Vertex shader '{}' not found!", name))
-    }
-
-    pub fn get_fragment(&self, name: &str) -> Result<&ShaderModule, String> {
-        self.fragment
-            .get(name)
-            .ok_or_else(|| format!("Fragment shader '{}' not found!", name))
-    }
-
-    pub fn get_compute(&self, name: &str) -> Result<&ShaderModule, String> {
-        self.compute
-            .get(name)
-            .ok_or_else(|| format!("Compute shader '{}' not found!", name))
-    }
-}
-
 #[derive(RustEmbed)]
-#[folder = "glsl/"]
+#[folder = "shaders/"]
 struct Shader;
 
 pub struct ShaderLoader {
@@ -115,8 +87,8 @@ impl ShaderLoader {
         self.watcher = watcher;
     }
 
-    pub async fn load(&self, device: &Device) -> ShaderModules {
-        let mut modules = ShaderModules::default();
+    pub async fn load(&self, device: &Device) -> HashMap<String, ShaderModule> {
+        let mut modules = HashMap::new();
         for path in Shader::iter() {
             if let Some(file) = Shader::get(&path) {
                 device.push_error_scope(ErrorFilter::Validation);
@@ -132,45 +104,26 @@ impl ShaderLoader {
                     .unwrap_or_default()
                     .to_str()
                     .unwrap_or_default();
-                let stage = match ext {
-                    "vert" => Some(ShaderStage::Vertex),
-                    "frag" => Some(ShaderStage::Fragment),
-                    "comp" => Some(ShaderStage::Compute),
-                    _ => None,
-                };
-                if let Some(stage) = stage {
-                    let preprocessor = Preprocessor::new(&file.data, path.to_str().unwrap());
 
-                    let label = format!("{}_{}", &name, &ext).to_string();
-                    let descriptor = ShaderModuleDescriptor {
-                        label: Some(&label),
-                        source: ShaderSource::Glsl {
-                            shader: Cow::from(&preprocessor.content),
-                            stage,
-                            defines: FastHashMap::default(),
-                        },
-                    };
-                    let module = device.create_shader_module(descriptor);
-                    if let Some(error) = device.pop_error_scope().await {
-                        error.log_errors(&preprocessor);
-                    } else {
-                        match stage {
-                            ShaderStage::Vertex => modules.vertex.insert(name.to_string(), module),
-                            ShaderStage::Fragment => {
-                                modules.fragment.insert(name.to_string(), module)
-                            }
-                            ShaderStage::Compute => {
-                                modules.compute.insert(name.to_string(), module)
-                            }
-                        };
-                    }
+                let preprocessor = Preprocessor::new(&file.data, path.to_str().unwrap());
+
+                let label = format!("{}_{}", &name, &ext).to_string();
+                let descriptor = ShaderModuleDescriptor {
+                    label: Some(&label),
+                    source: ShaderSource::Wgsl(Cow::from(&preprocessor.content))
                 };
+                let module = device.create_shader_module(descriptor);
+                if let Some(error) = device.pop_error_scope().await {
+                    error.log_errors(&preprocessor);
+                } else {
+                    modules.insert(name.to_string(), module);
+                }
             }
         }
         modules
     }
 
-    pub fn try_reload(&mut self, device: &Device) -> Option<ShaderModules> {
+    pub fn try_reload(&mut self, device: &Device) -> Option<HashMap<String, ShaderModule>> {
         if !self.changed.load(Ordering::SeqCst) {
             return None;
         }
