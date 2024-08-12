@@ -55,7 +55,6 @@ impl GlyphState {
         glyph: &Glyph,
         glyph_run: &GlyphRun,
     ) -> Option<InstancedGlyph> {
-        profiling::scope!("Preparing glyph");
         // Create a font scaler for the given font and size
 
         let bottom_left = glyph_run.position + glyph.offset;
@@ -86,7 +85,6 @@ impl GlyphState {
         // Get or find atlas allocation
         let ((placement, content), glyph_location) =
             self.atlas.lookup_or_upload(queue, glyph_key.clone(), || {
-                profiling::scope!("Rasterizing glyph");
                 let mut scaler = {
                     profiling::scope!("Creating font scaler");
                     self.scale_context
@@ -213,6 +211,7 @@ impl Drawable for GlyphState {
         _clip: Option<Rect<u32>>,
         layer: &LayerContents,
     ) {
+        profiling::scope!("Glyph::draw");
         let glyphs: Vec<_> = layer
             .glyph_runs
             .iter()
