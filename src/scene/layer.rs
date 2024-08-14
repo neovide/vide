@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use glamour::{vec2, Point2, Rect};
 use palette::Srgba;
-use parley::{Layout, layout::PositionedLayoutItem};
+use parley::{layout::PositionedLayoutItem, Layout};
 use serde::{Deserialize, Serialize};
 
 use super::{Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
@@ -16,45 +18,6 @@ pub struct Layer {
     #[serde(default)]
     #[serde(flatten)]
     pub contents: LayerContents,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct LayerContents {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "is_zero")]
-    pub background_blur_radius: f32,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub background_color: Option<Srgba>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub quads: Vec<Quad>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub glyph_runs: Vec<GlyphRun>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub paths: Vec<Path>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub sprites: Vec<Sprite<TextureId>>,
-}
-
-impl Default for LayerContents {
-    fn default() -> Self {
-        Self {
-            background_blur_radius: 0.0,
-            background_color: None,
-            quads: Vec::new(),
-            glyph_runs: Vec::new(),
-            paths: Vec::new(),
-            sprites: Vec::new(),
-        }
-    }
-}
-
-fn is_zero(value: &f32) -> bool {
-    *value == 0.0
 }
 
 impl Layer {
@@ -187,5 +150,153 @@ impl Layer {
     ) -> Self {
         self.add_text_layout(resources, layout, position);
         self
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LayerContents {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "is_zero")]
+    pub background_blur_radius: f32,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_color: Option<Srgba>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub primitives: Vec<PrimitiveBatch>,
+}
+
+impl LayerContents {
+    pub fn add_quad(&mut self, quad: Quad) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Quads(quads))) => {
+                quads.push(quad);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Quads(vec![
+                        quad,
+                    ])));
+            }
+        }
+    }
+
+    pub fn add_quads(&mut self, quads: Arc<Vec<Quad>>) {
+        self.primitives
+            .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Quads(quads)));
+    }
+
+    pub fn add_glyph_run(&mut self, glyph_run: GlyphRun) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::GlyphRuns(glyph_runs))) => {
+                glyph_runs.push(glyph_run);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::GlyphRuns(
+                        vec![glyph_run],
+                    )));
+            }
+        }
+    }
+
+    pub fn add_path(&mut self, path: Path) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Paths(paths))) => {
+                paths.push(path);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Paths(vec![
+                        path,
+                    ])));
+            }
+        }
+    }
+
+    pub fn add_sprite(&mut self, sprite: Sprite<TextureId>) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Sprites(sprites))) => {
+                sprites.push(sprite);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Sprites(
+                        vec![sprite],
+                    )));
+            }
+        }
+    }
+}
+
+impl Default for LayerContents {
+    fn default() -> Self {
+        Self {
+            background_blur_radius: 0.0,
+            background_color: None,
+
+            primitives: Vec::new(),
+        }
+    }
+}
+
+fn is_zero(value: &f32) -> bool {
+    *value == 0.0
+}
+
+#[derive(Clone, Debug)]
+pub enum PrimitiveBatch {
+    Mutable(MutablePrimitiveBatch),
+    Shared(SharedPrimitiveBatch),
+}
+
+impl Serialize for PrimitiveBatch {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Mutable(batch) => batch.serialize(serializer),
+            Self::Shared(batch) => batch.to_mutable().serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PrimitiveBatch {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Self::Mutable(MutablePrimitiveBatch::deserialize(
+            deserializer,
+        )?))
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum MutablePrimitiveBatch {
+    Quads(Vec<Quad>),
+    GlyphRuns(Vec<GlyphRun>),
+    Paths(Vec<Path>),
+    Sprites(Vec<Sprite<TextureId>>),
+}
+
+#[derive(Clone, Debug)]
+pub enum SharedPrimitiveBatch {
+    Quads(Arc<Vec<Quad>>),
+    GlyphRuns(Arc<Vec<GlyphRun>>),
+    Paths(Arc<Vec<Path>>),
+    Sprites(Arc<Vec<Sprite<TextureId>>>),
+}
+
+impl SharedPrimitiveBatch {
+    pub fn to_mutable(&self) -> MutablePrimitiveBatch {
+        match self {
+            Self::Quads(quads) => MutablePrimitiveBatch::Quads(quads.to_vec()),
+            Self::GlyphRuns(glyph_runs) => MutablePrimitiveBatch::GlyphRuns(glyph_runs.to_vec()),
+            Self::Paths(paths) => MutablePrimitiveBatch::Paths(paths.to_vec()),
+            Self::Sprites(sprites) => MutablePrimitiveBatch::Sprites(sprites.to_vec()),
+        }
     }
 }
