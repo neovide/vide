@@ -344,48 +344,54 @@ impl Renderer {
     ) {
         let mut mask_scope = self.profiler.scope("mask", encoder, &self.device);
         if let Some(mask_contents) = mask_contents {
-            let mut render_pass = mask_scope.scoped_render_pass(
-                "Mask",
-                &self.device,
-                RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &self.mask_texture.view,
-                        resolve_target: None,
-                        ops: Operations::<Color> {
-                            load: LoadOp::<_>::Clear(Color::TRANSPARENT),
-                            store: StoreOp::Store,
+            for batch in mask_contents.primitives.iter() {
+                for drawable in self.drawables.iter_mut() {
+                    let mut render_pass = mask_scope.scoped_render_pass(
+                        "Mask",
+                        &self.device,
+                        RenderPassDescriptor {
+                            label: Some("Render Pass"),
+                            color_attachments: &[Some(RenderPassColorAttachment {
+                                view: &self.mask_texture.view,
+                                resolve_target: None,
+                                ops: Operations::<Color> {
+                                    load: LoadOp::<_>::Clear(Color::TRANSPARENT),
+                                    store: StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            ..Default::default()
                         },
-                    })],
-                    depth_stencil_attachment: None,
-                    ..Default::default()
-                },
-            );
+                    );
 
-            for drawable in self.drawables.iter_mut() {
-                profiling::scope!("drawable", &drawable.name);
-                let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
-                if !drawable.ready() {
-                    continue;
+                    if !drawable.has_work(batch) {
+                        continue;
+                    }
+
+                    profiling::scope!("drawable", &drawable.name);
+                    let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
+                    if !drawable.ready() {
+                        continue;
+                    }
+
+                    if let Some(clip) = clip {
+                        let x = clip.origin.x.min(self.width);
+                        let y = clip.origin.y.min(self.height);
+                        let w = clip.width().min(self.width - x);
+                        let h = clip.height().min(self.height - y);
+                        drawable_scope.set_scissor_rect(x, y, w, h);
+                    }
+
+                    drawable.draw_mask(
+                        &self.queue,
+                        &mut drawable_scope,
+                        constants,
+                        &self.universal_mask_bind_group,
+                        resources,
+                        clip,
+                        batch,
+                    );
                 }
-
-                if let Some(clip) = clip {
-                    let x = clip.origin.x.min(self.width);
-                    let y = clip.origin.y.min(self.height);
-                    let w = clip.width().min(self.width - x);
-                    let h = clip.height().min(self.height - y);
-                    drawable_scope.set_scissor_rect(x, y, w, h);
-                }
-
-                drawable.draw_mask(
-                    &self.queue,
-                    &mut drawable_scope,
-                    constants,
-                    &self.universal_mask_bind_group,
-                    resources,
-                    clip,
-                    mask_contents,
-                );
             }
         } else {
             mask_scope.scoped_render_pass(
@@ -425,107 +431,108 @@ impl Renderer {
     ) {
         let mut content_scope = self.profiler.scope("content", encoder, &self.device);
 
-        for drawable in self.drawables.iter_mut() {
-            if !drawable.has_work(contents) {
-                continue;
-            }
-
-            // Either clear the offscreen texture or copy the previous layer to it
-            if *first {
-                content_scope.scoped_render_pass(
-                    "Clear Offscreen Texture",
-                    &self.device,
-                    RenderPassDescriptor {
-                        label: Some("Clear Offscreen Texture Pass"),
-                        color_attachments: &[Some(RenderPassColorAttachment {
-                            view: &self.offscreen_texture.view,
-                            resolve_target: None,
-                            ops: Operations {
-                                load: LoadOp::Clear(Color::WHITE),
-                                store: StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        occlusion_query_set: None,
-                        timestamp_writes: None,
-                    },
-                );
-            } else if drawable.needs_offscreen_copy() {
-                let mut copy_scope = content_scope.scope("Copy Frame to Offscreen", &self.device);
-                copy_scope.copy_texture_to_texture(
-                    ImageCopyTexture {
-                        texture: frame,
-                        mip_level: 0,
-                        origin: Origin3d::ZERO,
-                        aspect: Default::default(),
-                    },
-                    ImageCopyTexture {
-                        texture: &self.offscreen_texture.texture,
-                        mip_level: 0,
-                        origin: Origin3d::ZERO,
-                        aspect: Default::default(),
-                    },
-                    Extent3d {
-                        width: self.width,
-                        height: self.height,
-                        depth_or_array_layers: 1,
-                    },
-                );
-            }
-
-            // The first drawable should clear the output texture
-            let attachment_op = if *first {
-                Operations::<Color> {
-                    load: LoadOp::<_>::Clear(Color::WHITE),
-                    store: StoreOp::Store,
-                }
-            } else {
-                Operations::<Color> {
-                    load: LoadOp::<_>::Load,
-                    store: StoreOp::Store,
-                }
-            };
-
-            let mut render_pass = content_scope.scoped_render_pass(
-                "Layer Render Pass",
+        if *first {
+            content_scope.scoped_render_pass(
+                "Clear Offscreen Texture",
                 &self.device,
                 RenderPassDescriptor {
-                    label: Some("Render Pass"),
+                    label: Some("Clear Offscreen Texture Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: frame_view,
+                        view: &self.offscreen_texture.view,
                         resolve_target: None,
-                        ops: attachment_op,
+                        ops: Operations {
+                            load: LoadOp::Clear(Color::WHITE),
+                            store: StoreOp::Store,
+                        },
                     })],
                     depth_stencil_attachment: None,
-                    ..Default::default()
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
                 },
             );
-
-            profiling::scope!("drawable", &drawable.name);
-            let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
-            if !drawable.ready() {
-                continue;
-            }
-
-            if let Some(clip) = clip {
-                let x = clip.origin.x.min(self.width);
-                let y = clip.origin.y.min(self.height);
-                let w = clip.width().min(self.width - x);
-                let h = clip.height().min(self.height - y);
-                drawable_scope.set_scissor_rect(x, y, w, h);
-            }
-
-            drawable.draw_content(
-                &self.queue,
-                &mut drawable_scope,
-                constants,
-                &self.universal_content_bind_group,
-                resources,
-                clip,
-                contents,
+        } else {
+            let mut copy_scope = content_scope.scope("Copy Frame to Offscreen", &self.device);
+            copy_scope.copy_texture_to_texture(
+                ImageCopyTexture {
+                    texture: frame,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                    aspect: Default::default(),
+                },
+                ImageCopyTexture {
+                    texture: &self.offscreen_texture.texture,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                    aspect: Default::default(),
+                },
+                Extent3d {
+                    width: self.width,
+                    height: self.height,
+                    depth_or_array_layers: 1,
+                },
             );
+        }
 
-            *first = false;
+        for batch in contents.primitives.iter() {
+            for drawable in self.drawables.iter_mut() {
+                if !drawable.has_work(batch) {
+                    continue;
+                }
+
+                // The first drawable should clear the output texture
+                let attachment_op = if *first {
+                    Operations::<Color> {
+                        load: LoadOp::<_>::Clear(Color::WHITE),
+                        store: StoreOp::Store,
+                    }
+                } else {
+                    Operations::<Color> {
+                        load: LoadOp::<_>::Load,
+                        store: StoreOp::Store,
+                    }
+                };
+
+                let mut render_pass = content_scope.scoped_render_pass(
+                    "Layer Render Pass",
+                    &self.device,
+                    RenderPassDescriptor {
+                        label: Some("Render Pass"),
+                        color_attachments: &[Some(RenderPassColorAttachment {
+                            view: frame_view,
+                            resolve_target: None,
+                            ops: attachment_op,
+                        })],
+                        depth_stencil_attachment: None,
+                        ..Default::default()
+                    },
+                );
+
+                profiling::scope!("drawable", &drawable.name);
+                let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
+                if !drawable.ready() {
+                    continue;
+                }
+
+                if let Some(clip) = clip {
+                    let x = clip.origin.x.min(self.width);
+                    let y = clip.origin.y.min(self.height);
+                    let w = clip.width().min(self.width - x);
+                    let h = clip.height().min(self.height - y);
+                    drawable_scope.set_scissor_rect(x, y, w, h);
+                }
+
+                drawable.draw_content(
+                    &self.queue,
+                    &mut drawable_scope,
+                    constants,
+                    &self.universal_content_bind_group,
+                    resources,
+                    clip,
+                    batch,
+                );
+
+                *first = false;
+            }
         }
     }
 

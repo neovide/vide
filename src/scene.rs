@@ -29,7 +29,6 @@ impl Scene {
             resources: Default::default(),
             layers: vec![Default::default()],
         }
-        .with_background(Srgba::new(1., 1., 1., 1.))
     }
 
     pub fn add_layer(&mut self, layer: Layer) {
@@ -69,17 +68,12 @@ impl Scene {
         self.layer_mut().set_mask(mask_layer);
     }
 
-    pub fn with_blur(mut self, radius: f32) -> Self {
-        self.layer_mut().set_blur(radius);
-        self
+    pub fn add_clear(&mut self, color: Srgba) {
+        self.layer_mut().add_clear(color);
     }
 
-    pub fn background(&mut self, color: Srgba) {
-        self.layer_mut().set_background(color);
-    }
-
-    pub fn with_background(mut self, color: Srgba) -> Self {
-        self.background(color);
+    pub fn with_clear(mut self, color: Srgba) -> Self {
+        self.add_clear(color);
         self
     }
 

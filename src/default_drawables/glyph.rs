@@ -14,7 +14,7 @@ use crate::{
     renderer::Renderer,
     scene::GlyphRun,
     shader::ShaderConstants,
-    FontId, Glyph, LayerContents, Resources, Synthesis,
+    FontId, Glyph, PrimitiveBatch, Resources, Synthesis,
 };
 
 #[derive(Copy, Clone, Default)]
@@ -185,8 +185,8 @@ impl Drawable for GlyphState {
         self.glyph_buffer.start_frame();
     }
 
-    fn has_work(&self, contents: &LayerContents) -> bool {
-        !contents.glyph_runs.is_empty()
+    fn has_work(&self, batch: &PrimitiveBatch) -> bool {
+        batch.is_glyph_runs()
     }
 
     fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {
@@ -211,20 +211,21 @@ impl Drawable for GlyphState {
         _constants: ShaderConstants,
         resources: &Resources,
         _clip: Option<Rect<u32>>,
-        layer: &LayerContents,
+        batch: &PrimitiveBatch,
     ) {
-        let glyphs: Vec<_> = layer
-            .glyph_runs
-            .iter()
-            .flat_map(|glyph_run| {
-                let font = resources.fonts.get(&glyph_run.font_id).unwrap();
-                let font_ref = font.as_swash_font_ref(glyph_run.font_index).unwrap();
-                self.rasterize_glyph_run(queue, font_ref, glyph_run)
-                    .into_iter()
-            })
-            .collect();
-        self.glyph_buffer.upload(glyphs, queue);
-        self.glyph_buffer.draw(render_pass);
+        if let Some(glyphs) = batch.as_glyph_run_vec() {
+            let glyphs: Vec<_> = glyphs
+                .iter()
+                .flat_map(|glyph_run| {
+                    let font = resources.fonts.get(&glyph_run.font_id).unwrap();
+                    let font_ref = font.as_swash_font_ref(glyph_run.font_index).unwrap();
+                    self.rasterize_glyph_run(queue, font_ref, glyph_run)
+                        .into_iter()
+                })
+                .collect();
+            self.glyph_buffer.upload(glyphs, queue);
+            self.glyph_buffer.draw(render_pass);
+        }
     }
 }
 

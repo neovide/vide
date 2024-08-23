@@ -55,7 +55,6 @@ impl ApplicationHandler for App {
             WindowEvent::RedrawRequested => {
                 let mut scene = self.scene.read().clone();
                 scene.add_layer(Default::default());
-                scene.background(Srgba::new(0., 0., 0., 0.));
                 scene.add_quad(
                     Quad::new(
                         Point2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32),

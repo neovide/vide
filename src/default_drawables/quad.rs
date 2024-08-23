@@ -1,13 +1,12 @@
 use glam::*;
-use glamour::{Point2, Rect, Size2};
-use palette::Srgba;
+use glamour::Rect;
 use wgpu::*;
 
 use crate::{
     drawable::Drawable,
     drawable_reference::{DrawableReference, InstanceBuffer},
     shader::ShaderConstants,
-    LayerContents, Quad, Renderer, Resources,
+    PrimitiveBatch, Renderer, Resources,
 };
 
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
@@ -45,51 +44,47 @@ impl Drawable for QuadState {
         vec![&self.quad_buffer]
     }
 
-    fn needs_offscreen_copy(&self) -> bool {
-        true
-    }
-
     fn start_frame(&mut self) {
         self.quad_buffer.start_frame();
     }
 
-    fn has_work(&self, contents: &LayerContents) -> bool {
-        !contents.quads.is_empty()
-            || contents.background_color.is_some()
-            || contents.background_blur_radius != 0.0
+    fn has_work(&self, batch: &PrimitiveBatch) -> bool {
+        batch.is_quads()
     }
 
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
         render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
+        _constants: ShaderConstants,
         _resources: &Resources,
-        clip: Option<Rect<u32>>,
-        layer: &LayerContents,
+        _clip: Option<Rect<u32>>,
+        batch: &PrimitiveBatch,
     ) {
-        let mut quads = Vec::new();
-        if layer.background_color.is_some() || layer.background_blur_radius != 0.0 {
-            quads.push(
-                Quad::new(
-                    clip.map(|clip| clip.origin)
-                        .unwrap_or(Point2::<u32>::ZERO)
-                        .try_cast()
-                        .unwrap(),
-                    clip.map(|clip| clip.size.try_cast().unwrap())
-                        .unwrap_or(Size2::new(
-                            constants.surface_size.x,
-                            constants.surface_size.y,
-                        )),
-                    layer.background_color.unwrap_or(Srgba::new(1., 1., 1., 1.)),
-                )
-                .with_background_blur(layer.background_blur_radius)
-                .to_instanced(),
+        if let Some(quads) = batch.as_quad_vec() {
+            // if layer.background_color.is_some() || layer.background_blur_radius != 0.0 {
+            //     quads.push(
+            //         Quad::new(
+            //             clip.map(|clip| clip.origin)
+            //                 .unwrap_or(Point2::<u32>::ZERO)
+            //                 .try_cast()
+            //                 .unwrap(),
+            //             clip.map(|clip| clip.size.try_cast().unwrap())
+            //                 .unwrap_or(Size2::new(
+            //                     constants.surface_size.x,
+            //                     constants.surface_size.y,
+            //                 )),
+            //             layer.background_color.unwrap_or(Srgba::new(1., 1., 1., 1.)),
+            //         )
+            //         .with_background_blur(layer.background_blur_radius)
+            //         .to_instanced(),
+            //     );
+            // }
+            self.quad_buffer.upload(
+                quads.iter().map(|quad| quad.to_instanced()).collect(),
+                queue,
             );
+            self.quad_buffer.draw(render_pass);
         }
-
-        quads.extend(layer.quads.iter().map(|quad| quad.to_instanced()));
-        self.quad_buffer.upload(quads, queue);
-        self.quad_buffer.draw(render_pass);
     }
 }
