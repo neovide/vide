@@ -2,7 +2,9 @@ use glamour::Rect;
 use std::collections::HashMap;
 use wgpu::*;
 
-use crate::{drawable::Drawable, LayerContents, Renderer, Resources, ShaderConstants};
+use crate::{
+    drawable::Drawable, LayerContents, PrimitiveBatch, Renderer, Resources, ShaderConstants,
+};
 
 pub(crate) struct DrawablePipeline {
     drawable: Box<dyn Drawable>,
@@ -170,16 +172,12 @@ impl DrawablePipeline {
         self.render_content_pipeline.is_some() && self.render_mask_pipeline.is_some()
     }
 
-    pub fn needs_offscreen_copy(&self) -> bool {
-        self.drawable.needs_offscreen_copy()
-    }
-
     pub fn start_frame(&mut self) {
         self.drawable.start_frame();
     }
 
-    pub fn has_work(&self, contents: &LayerContents) -> bool {
-        self.drawable.has_work(contents)
+    pub fn has_work(&self, batch: &PrimitiveBatch) -> bool {
+        self.drawable.has_work(batch)
     }
 
     pub fn draw_content<'b, 'a: 'b>(
@@ -190,7 +188,7 @@ impl DrawablePipeline {
         universal_bind_group: &'a BindGroup,
         resources: &Resources,
         clip: Option<Rect<u32>>,
-        layer_contents: &LayerContents,
+        batch: &PrimitiveBatch,
     ) {
         render_pass.set_pipeline(self.render_content_pipeline.as_ref().unwrap());
 
@@ -199,14 +197,8 @@ impl DrawablePipeline {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, universal_bind_group, &[]);
 
-        self.drawable.draw(
-            queue,
-            render_pass,
-            constants,
-            resources,
-            clip,
-            layer_contents,
-        );
+        self.drawable
+            .draw(queue, render_pass, constants, resources, clip, batch);
     }
 
     pub fn draw_mask<'b, 'a: 'b>(
@@ -217,7 +209,7 @@ impl DrawablePipeline {
         universal_bind_group: &'a BindGroup,
         resources: &Resources,
         clip: Option<Rect<u32>>,
-        layer_contents: &LayerContents,
+        batch: &PrimitiveBatch,
     ) {
         render_pass.set_pipeline(self.render_mask_pipeline.as_ref().unwrap());
 
@@ -226,13 +218,7 @@ impl DrawablePipeline {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, universal_bind_group, &[]);
 
-        self.drawable.draw(
-            queue,
-            render_pass,
-            constants,
-            resources,
-            clip,
-            layer_contents,
-        );
+        self.drawable
+            .draw(queue, render_pass, constants, resources, clip, batch);
     }
 }

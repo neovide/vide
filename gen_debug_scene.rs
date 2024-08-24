@@ -1,23 +1,16 @@
 //! ```cargo
 //! [dependencies]
 //! vide = { path = "./" }
-//! palette = { version = "0.7.6", features = ["serializing"] }
-//! parley = { git = "https://github.com/linebender/parley", rev="5b60803d1256ab821f79eaa06721a3112de7202a" }
-//! glamour = { version = "0.11.1", features = ["serde"] }
 //! serde = "1.0.196"
 //! serde_derive = "1.0.196"
 //! serde_json = "1.0.113"
 //! ```
-extern crate glamour;
-extern crate palette;
-extern crate parley;
 extern crate serde_json;
 extern crate vide;
 
-use glamour::{point2, size2, vec2, Rect};
-use palette::Srgba;
-use parley::style::{FontStack, StyleProperty};
-
+use vide::glamour::{point2, size2, vec2, Rect};
+use vide::palette::Srgba;
+use vide::parley::style::{FontStack, StyleProperty};
 use vide::*;
 
 fn main() {
@@ -39,14 +32,13 @@ fn main() {
     scene.add_layer(
         Layer::new()
             .with_clip(Rect::new(point2!(0, 0), size2!(200, 200)))
-            .with_blur(3.0)
-            .with_background(Srgba::new(0.0, 0.0, 0.0, 0.0))
+            .with_blurred_clear(Srgba::new(0.0, 0.0, 0.0, 0.5), 3.)
             .with_path(
                 Path::new(point2!(20., 20.))
                     .with_fill(Srgba::new(0., 1., 0., 1.))
                     .with_stroke(5., Srgba::new(0., 0., 0., 1.))
-                    .line_to(point2!(180., 20.))
-                    .quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
+                    .with_line_to(point2!(180., 20.))
+                    .with_quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
             )
             .with_quad(Quad::new(
                 point2!(150., 100.),
@@ -91,4 +83,6 @@ fn main() {
     // Serialize the scene to a json string and write the string to ./scene.json
     let scene_json = serde_json::to_string_pretty(&scene).unwrap();
     std::fs::write("scene.json", scene_json).unwrap();
+
+    println!("Debug scene written to scene.json");
 }

@@ -43,7 +43,8 @@ fn vert(
     let vertex_pixel_pos =
         (instance.top_left - blur_extension) + unit_vertex_pos * (instance.size + blur_extension * 2.0);
     let final_position =
-        vec2(0.0, 2.0) + vertex_pixel_pos / constants.surface_size * vec2(1., -1.) * 2.0 - 1.0;
+        vec2(0.0, 2.0) + min(vertex_pixel_pos, constants.surface_size) 
+        / constants.surface_size * vec2(1., -1.) * 2.0 - 1.0;
 
     var out: VertexOutput;
     out.instance_index = instance_index;

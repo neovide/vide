@@ -9,7 +9,7 @@ use crate::{
     drawable_reference::{Atlas, ConstructResult, DrawableReference, InstanceBuffer},
     scene::Sprite,
     shader::ShaderConstants,
-    LayerContents, Renderer,
+    PrimitiveBatch, Renderer,
 };
 use crate::{Resources, TextureId};
 
@@ -79,8 +79,8 @@ impl Drawable for SpriteState {
         self.sprite_buffer.start_frame();
     }
 
-    fn has_work(&self, contents: &LayerContents) -> bool {
-        !contents.sprites.is_empty()
+    fn has_work(&self, batch: &PrimitiveBatch) -> bool {
+        batch.is_sprites()
     }
 
     fn draw<'b, 'a: 'b>(
@@ -90,15 +90,16 @@ impl Drawable for SpriteState {
         _constants: ShaderConstants,
         resources: &Resources,
         _clip: Option<Rect<u32>>,
-        layer: &LayerContents,
+        batch: &PrimitiveBatch,
     ) {
-        let sprites: Vec<_> = layer
-            .sprites
-            .iter()
-            .map(|sprite| self.upload_sprite(resources, queue, sprite))
-            .collect();
+        if let Some(sprites) = batch.as_sprite_vec() {
+            let sprites: Vec<_> = sprites
+                .iter()
+                .map(|sprite| self.upload_sprite(resources, queue, sprite))
+                .collect();
 
-        self.sprite_buffer.upload(sprites, queue);
-        self.sprite_buffer.draw(render_pass);
+            self.sprite_buffer.upload(sprites, queue);
+            self.sprite_buffer.draw(render_pass);
+        }
     }
 }

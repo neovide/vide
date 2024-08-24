@@ -1,6 +1,8 @@
-use glamour::{vec2, Point2, Rect};
+use std::sync::Arc;
+
+use glamour::{point2, size2, vec2, Point2, Rect};
 use palette::Srgba;
-use parley::{Layout, layout::PositionedLayoutItem};
+use parley::{layout::PositionedLayoutItem, Layout};
 use serde::{Deserialize, Serialize};
 
 use super::{Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
@@ -16,45 +18,6 @@ pub struct Layer {
     #[serde(default)]
     #[serde(flatten)]
     pub contents: LayerContents,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct LayerContents {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "is_zero")]
-    pub background_blur_radius: f32,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub background_color: Option<Srgba>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub quads: Vec<Quad>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub glyph_runs: Vec<GlyphRun>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub paths: Vec<Path>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub sprites: Vec<Sprite<TextureId>>,
-}
-
-impl Default for LayerContents {
-    fn default() -> Self {
-        Self {
-            background_blur_radius: 0.0,
-            background_color: None,
-            quads: Vec::new(),
-            glyph_runs: Vec::new(),
-            paths: Vec::new(),
-            sprites: Vec::new(),
-        }
-    }
-}
-
-fn is_zero(value: &f32) -> bool {
-    *value == 0.0
 }
 
 impl Layer {
@@ -80,26 +43,12 @@ impl Layer {
         self.mask = Some(mask_layer.contents);
     }
 
-    pub fn with_blur(mut self, radius: f32) -> Self {
-        self.set_blur(radius);
-        self
-    }
-
-    pub fn set_blur(&mut self, radius: f32) {
-        self.contents.background_blur_radius = radius;
-    }
-
-    pub fn with_background(mut self, color: Srgba) -> Self {
-        self.set_background(color);
-        self
-    }
-
-    pub fn set_background(&mut self, color: Srgba) {
-        self.contents.background_color = Some(color);
-    }
-
     pub fn add_quad(&mut self, quad: Quad) {
-        self.contents.quads.push(quad);
+        self.contents.add_quad(quad);
+    }
+
+    pub fn add_quads(&mut self, quads: Arc<Vec<Quad>>) {
+        self.contents.add_quads(quads);
     }
 
     pub fn with_quad(mut self, quad: Quad) -> Self {
@@ -107,8 +56,46 @@ impl Layer {
         self
     }
 
+    pub fn with_quads(mut self, quads: Arc<Vec<Quad>>) -> Self {
+        self.add_quads(quads);
+        self
+    }
+
+    pub fn add_clear(&mut self, color: Srgba) {
+        self.add_quad(Quad::new(
+            point2!(0.0, 0.0),
+            size2!(f32::MAX / 2., f32::MAX / 2.),
+            color,
+        ));
+    }
+
+    pub fn with_clear(mut self, color: Srgba) -> Self {
+        self.add_clear(color);
+        self
+    }
+
+    pub fn add_blurred_clear(&mut self, color: Srgba, blur: f32) {
+        self.add_quad(
+            Quad::new(
+                point2!(0.0, 0.0),
+                size2!(f32::MAX / 2., f32::MAX / 2.),
+                color,
+            )
+            .with_background_blur(blur),
+        );
+    }
+
+    pub fn with_blurred_clear(mut self, color: Srgba, blur: f32) -> Self {
+        self.add_blurred_clear(color, blur);
+        self
+    }
+
     pub fn add_glyph_run(&mut self, glyph_run: GlyphRun) {
-        self.contents.glyph_runs.push(glyph_run);
+        self.contents.add_glyph_run(glyph_run);
+    }
+
+    pub fn add_glyph_runs(&mut self, glyph_runs: Arc<Vec<GlyphRun>>) {
+        self.contents.add_glyph_runs(glyph_runs);
     }
 
     pub fn with_glyph_run(mut self, glyph_run: GlyphRun) -> Self {
@@ -116,8 +103,17 @@ impl Layer {
         self
     }
 
+    pub fn with_glyph_runs(mut self, glyph_runs: Arc<Vec<GlyphRun>>) -> Self {
+        self.add_glyph_runs(glyph_runs);
+        self
+    }
+
     pub fn add_path(&mut self, path: Path) {
-        self.contents.paths.push(path);
+        self.contents.add_path(path);
+    }
+
+    pub fn add_paths(&mut self, paths: Arc<Vec<Path>>) {
+        self.contents.add_paths(paths);
     }
 
     pub fn with_path(mut self, path: Path) -> Self {
@@ -125,12 +121,26 @@ impl Layer {
         self
     }
 
+    pub fn with_paths(mut self, paths: Arc<Vec<Path>>) -> Self {
+        self.add_paths(paths);
+        self
+    }
+
     pub fn add_sprite(&mut self, sprite: Sprite<TextureId>) {
-        self.contents.sprites.push(sprite);
+        self.contents.add_sprite(sprite);
+    }
+
+    pub fn add_sprites(&mut self, sprites: Arc<Vec<Sprite<TextureId>>>) {
+        self.contents.add_sprites(sprites);
     }
 
     pub fn with_sprite(mut self, sprite: Sprite<TextureId>) -> Self {
         self.add_sprite(sprite);
+        self
+    }
+
+    pub fn with_sprites(mut self, sprites: Arc<Vec<Sprite<TextureId>>>) -> Self {
+        self.add_sprites(sprites);
         self
     }
 
@@ -187,5 +197,224 @@ impl Layer {
     ) -> Self {
         self.add_text_layout(resources, layout, position);
         self
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LayerContents {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub primitives: Vec<PrimitiveBatch>,
+}
+
+impl LayerContents {
+    pub fn add_quad(&mut self, quad: Quad) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Quads(quads))) => {
+                quads.push(quad);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Quads(vec![
+                        quad,
+                    ])));
+            }
+        }
+    }
+
+    pub fn add_quads(&mut self, quads: Arc<Vec<Quad>>) {
+        self.primitives
+            .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Quads(quads)));
+    }
+
+    pub fn add_glyph_run(&mut self, glyph_run: GlyphRun) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::GlyphRuns(glyph_runs))) => {
+                glyph_runs.push(glyph_run);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::GlyphRuns(
+                        vec![glyph_run],
+                    )));
+            }
+        }
+    }
+
+    pub fn add_glyph_runs(&mut self, glyph_runs: Arc<Vec<GlyphRun>>) {
+        self.primitives
+            .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::GlyphRuns(
+                glyph_runs,
+            )));
+    }
+
+    pub fn add_path(&mut self, path: Path) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Paths(paths))) => {
+                paths.push(path);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Paths(vec![
+                        path,
+                    ])));
+            }
+        }
+    }
+
+    pub fn add_paths(&mut self, paths: Arc<Vec<Path>>) {
+        self.primitives
+            .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Paths(paths)));
+    }
+
+    pub fn add_sprite(&mut self, sprite: Sprite<TextureId>) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Sprites(sprites))) => {
+                sprites.push(sprite);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Sprites(
+                        vec![sprite],
+                    )));
+            }
+        }
+    }
+
+    pub fn add_sprites(&mut self, sprites: Arc<Vec<Sprite<TextureId>>>) {
+        self.primitives
+            .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Sprites(
+                sprites,
+            )));
+    }
+}
+
+impl Default for LayerContents {
+    fn default() -> Self {
+        Self {
+            primitives: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum PrimitiveBatch {
+    Mutable(MutablePrimitiveBatch),
+    Shared(SharedPrimitiveBatch),
+}
+
+impl PrimitiveBatch {
+    pub fn is_quads(&self) -> bool {
+        matches!(
+            self,
+            Self::Mutable(MutablePrimitiveBatch::Quads(_))
+                | Self::Shared(SharedPrimitiveBatch::Quads(_))
+        )
+    }
+
+    pub fn as_quad_vec(&self) -> Option<&Vec<Quad>> {
+        match self {
+            Self::Mutable(MutablePrimitiveBatch::Quads(quads)) => Some(quads),
+            Self::Shared(SharedPrimitiveBatch::Quads(quads)) => Some(quads),
+            _ => None,
+        }
+    }
+
+    pub fn is_glyph_runs(&self) -> bool {
+        matches!(
+            self,
+            Self::Mutable(MutablePrimitiveBatch::GlyphRuns(_))
+                | Self::Shared(SharedPrimitiveBatch::GlyphRuns(_))
+        )
+    }
+
+    pub fn as_glyph_run_vec(&self) -> Option<&Vec<GlyphRun>> {
+        match self {
+            Self::Mutable(MutablePrimitiveBatch::GlyphRuns(glyph_runs)) => Some(glyph_runs),
+            Self::Shared(SharedPrimitiveBatch::GlyphRuns(glyph_runs)) => Some(glyph_runs),
+            _ => None,
+        }
+    }
+
+    pub fn is_paths(&self) -> bool {
+        matches!(
+            self,
+            Self::Mutable(MutablePrimitiveBatch::Paths(_))
+                | Self::Shared(SharedPrimitiveBatch::Paths(_))
+        )
+    }
+
+    pub fn as_path_vec(&self) -> Option<&Vec<Path>> {
+        match self {
+            Self::Mutable(MutablePrimitiveBatch::Paths(paths)) => Some(paths),
+            Self::Shared(SharedPrimitiveBatch::Paths(paths)) => Some(paths),
+            _ => None,
+        }
+    }
+
+    pub fn is_sprites(&self) -> bool {
+        matches!(
+            self,
+            Self::Mutable(MutablePrimitiveBatch::Sprites(_))
+                | Self::Shared(SharedPrimitiveBatch::Sprites(_))
+        )
+    }
+
+    pub fn as_sprite_vec(&self) -> Option<&Vec<Sprite<TextureId>>> {
+        match self {
+            Self::Mutable(MutablePrimitiveBatch::Sprites(sprites)) => Some(sprites),
+            Self::Shared(SharedPrimitiveBatch::Sprites(sprites)) => Some(sprites),
+            _ => None,
+        }
+    }
+}
+
+impl Serialize for PrimitiveBatch {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Mutable(batch) => batch.serialize(serializer),
+            Self::Shared(batch) => batch.to_mutable().serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PrimitiveBatch {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Self::Mutable(MutablePrimitiveBatch::deserialize(
+            deserializer,
+        )?))
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum MutablePrimitiveBatch {
+    Quads(Vec<Quad>),
+    GlyphRuns(Vec<GlyphRun>),
+    Paths(Vec<Path>),
+    Sprites(Vec<Sprite<TextureId>>),
+}
+
+#[derive(Clone, Debug)]
+pub enum SharedPrimitiveBatch {
+    Quads(Arc<Vec<Quad>>),
+    GlyphRuns(Arc<Vec<GlyphRun>>),
+    Paths(Arc<Vec<Path>>),
+    Sprites(Arc<Vec<Sprite<TextureId>>>),
+}
+
+impl SharedPrimitiveBatch {
+    pub fn to_mutable(&self) -> MutablePrimitiveBatch {
+        match self {
+            Self::Quads(quads) => MutablePrimitiveBatch::Quads(quads.to_vec()),
+            Self::GlyphRuns(glyph_runs) => MutablePrimitiveBatch::GlyphRuns(glyph_runs.to_vec()),
+            Self::Paths(paths) => MutablePrimitiveBatch::Paths(paths.to_vec()),
+            Self::Sprites(sprites) => MutablePrimitiveBatch::Sprites(sprites.to_vec()),
+        }
     }
 }

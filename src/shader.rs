@@ -24,11 +24,9 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
 use rust_embed::*;
-use wgpu::{
-    Device, ErrorFilter, ShaderModule, ShaderModuleDescriptor, ShaderSource,
-};
+use wgpu::{Device, ErrorFilter, ShaderModule, ShaderModuleDescriptor, ShaderSource};
 
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 pub struct ShaderConstants {
     pub surface_size: Vec2,
@@ -110,7 +108,7 @@ impl ShaderLoader {
                 let label = format!("{}_{}", &name, &ext).to_string();
                 let descriptor = ShaderModuleDescriptor {
                     label: Some(&label),
-                    source: ShaderSource::Wgsl(Cow::from(&preprocessor.content))
+                    source: ShaderSource::Wgsl(Cow::from(&preprocessor.content)),
                 };
                 let module = device.create_shader_module(descriptor);
                 if let Some(error) = device.pop_error_scope().await {

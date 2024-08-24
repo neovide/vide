@@ -96,7 +96,7 @@ fn simple_quad() {
         70,
         70,
         Scene::new()
-            .with_background(Srgba::new(1., 0., 0.5, 1.))
+            .with_clear(Srgba::new(1., 0., 0.5, 1.))
             .with_quad(Quad::new(
                 point2!(10., 10.),
                 size2!(50., 50.),
@@ -107,7 +107,7 @@ fn simple_quad() {
 
 #[test]
 fn simple_text() {
-    let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
+    let mut scene = Scene::new().with_clear(Srgba::new(1., 1., 1., 1.));
     let mut shaper = Shaper::new();
     shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
     shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
@@ -172,11 +172,10 @@ fn simple_blur() {
         for y in 0..3 {
             scene.add_layer(
                 Layer::new()
-                    .with_blur(2.)
                     .with_clip(
                         Rect::new(point2!(15, 15), size2!(50, 50)).translate(vec2!(x * 60, y * 60)),
                     )
-                    .with_background(Srgba::new(0., 1., 0., 0.1)),
+                    .with_blurred_clear(Srgba::new(0., 1., 0., 0.1), 2.),
             );
         }
     }
@@ -196,7 +195,7 @@ fn simple_blurred_quad() {
                     Srgba::new(x as f32 / 5., y as f32 / 5., 1., 1.),
                 )
                 .with_corner_radius(x as f32 * 2.)
-                .with_blur(y as f32),
+                .with_edge_blur(y as f32),
             )
         }
     }
@@ -254,7 +253,7 @@ fn swash_modern_ligatures() {
 
 #[test]
 fn text_layout_bounds() {
-    let mut scene = Scene::new().with_background(Srgba::new(1., 1., 1., 1.));
+    let mut scene = Scene::new().with_clear(Srgba::new(1., 1., 1., 1.));
     let mut shaper = Shaper::new();
 
     let layout = shaper.layout_with("Sphinx of black quartz judge my vow.", |builder| {
@@ -729,9 +728,26 @@ fn font_styles() {
     scene.add_text_layout(layout, point2!(padding, padding));
 
     let current_layer = scene.layer();
-    assert_eq!(current_layer.contents.glyph_runs.len(), lines.len());
+    assert_eq!(
+        current_layer
+            .contents
+            .primitives
+            .last()
+            .unwrap()
+            .as_glyph_run_vec()
+            .unwrap()
+            .len(),
+        lines.len()
+    );
     for (index, line) in lines.iter().enumerate() {
-        let glyph_run = &current_layer.contents.glyph_runs[index];
+        let glyph_runs = current_layer
+            .contents
+            .primitives
+            .last()
+            .unwrap()
+            .as_glyph_run_vec()
+            .unwrap();
+        let glyph_run = &glyph_runs[index];
         let font = scene.resources.fonts.get(&glyph_run.font_id).unwrap();
         let font_ref = font.as_swash_font_ref(glyph_run.font_index).unwrap();
         let fullname = font_ref
@@ -805,7 +821,7 @@ fn multiple_path_layers() {
             .with_quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
     );
 
-    scene.add_layer(Layer::new().with_background(Srgba::new(0., 0., 0., 0.)));
+    scene.add_layer(Layer::new().with_clear(Srgba::new(0., 0., 0., 0.)));
 
     scene.add_path(
         Path::new(point2!(20., 20.))
@@ -858,4 +874,19 @@ fn simple_mask() {
     scene.set_mask(mask_layer);
 
     assert_no_regressions(200, 200, scene);
+}
+
+#[test]
+fn clipped_clears() {
+    assert_no_regressions(
+        80,
+        80,
+        Scene::new()
+            .with_clear(Srgba::new(0., 1., 0., 1.))
+            .with_layer(
+                Layer::new()
+                    .with_clip(Rect::new(point2!(15, 15), size2!(50, 50)))
+                    .with_clear(Srgba::new(0., 0., 1., 1.)),
+            ),
+    );
 }

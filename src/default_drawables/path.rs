@@ -11,14 +11,13 @@ use lyon::{
 };
 use wgpu::*;
 
-use crate::LayerContents;
 use crate::{
     drawable::Drawable,
     drawable_reference::{DrawableReference, GeometryBuffer, GeometryVertex},
     renderer::Renderer,
     scene::PathCommand,
     shader::ShaderConstants,
-    Resources,
+    LayerContents, PrimitiveBatch, Resources,
 };
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
@@ -61,8 +60,8 @@ impl Drawable for PathState {
         self.geometry_buffer.start_frame();
     }
 
-    fn has_work(&self, contents: &LayerContents) -> bool {
-        !contents.paths.is_empty()
+    fn has_work(&self, batch: &PrimitiveBatch) -> bool {
+        batch.is_paths()
     }
 
     fn draw<'b, 'a: 'b>(
@@ -72,80 +71,87 @@ impl Drawable for PathState {
         _constants: ShaderConstants,
         _resources: &Resources,
         _clip: Option<Rect<u32>>,
-        layer: &LayerContents,
+        batch: &PrimitiveBatch,
     ) {
-        let mut geometry: VertexBuffers<PathVertex, u32> = VertexBuffers::new();
-        let mut fill_tesselator = FillTessellator::new();
-        let mut stroke_tesselator = StrokeTessellator::new();
+        if let Some(paths) = batch.as_path_vec() {
+            if paths.is_empty() {
+                return;
+            }
 
-        if layer.paths.is_empty() {
-            return;
-        }
+            let mut geometry: VertexBuffers<PathVertex, u32> = VertexBuffers::new();
+            let mut fill_tesselator = FillTessellator::new();
+            let mut stroke_tesselator = StrokeTessellator::new();
 
-        for scene_path in layer.paths.iter() {
-            let mut builder = Path::builder();
-            builder.begin(point(scene_path.start.x, scene_path.start.y));
-            for path_command in scene_path.commands.iter() {
-                match path_command {
-                    PathCommand::LineTo { to } => {
-                        builder.line_to(point(to.x, to.y));
+            for scene_path in paths.iter() {
+                let mut builder = Path::builder();
+                builder.begin(point(scene_path.start.x, scene_path.start.y));
+                for path_command in scene_path.commands.iter() {
+                    match path_command {
+                        PathCommand::LineTo { to } => {
+                            builder.line_to(point(to.x, to.y));
+                        }
+                        PathCommand::QuadraticBezierTo { control, to } => {
+                            builder.quadratic_bezier_to(
+                                point(control.x, control.y),
+                                point(to.x, to.y),
+                            );
+                        }
+                        PathCommand::CubicBezierTo {
+                            control1,
+                            control2,
+                            to,
+                        } => {
+                            builder.cubic_bezier_to(
+                                point(control1.x, control1.y),
+                                point(control2.x, control2.y),
+                                point(to.x, to.y),
+                            );
+                        }
                     }
-                    PathCommand::QuadraticBezierTo { control, to } => {
-                        builder.quadratic_bezier_to(point(control.x, control.y), point(to.x, to.y));
-                    }
-                    PathCommand::CubicBezierTo {
-                        control1,
-                        control2,
-                        to,
-                    } => {
-                        builder.cubic_bezier_to(
-                            point(control1.x, control1.y),
-                            point(control2.x, control2.y),
-                            point(to.x, to.y),
-                        );
-                    }
+                }
+
+                builder.end(!scene_path.open);
+                let path = builder.build();
+
+                if let Some(fill) = scene_path.fill {
+                    let fill = Vec4::from_array(fill.into_linear().into());
+                    fill_tesselator
+                        .tessellate_path(
+                            &path,
+                            &FillOptions::default(),
+                            &mut BuffersBuilder::new(&mut geometry, |vertex: FillVertex| {
+                                PathVertex {
+                                    color: fill,
+                                    position: vec2(vertex.position().x, vertex.position().y),
+                                    ..Default::default()
+                                }
+                            }),
+                        )
+                        .expect("Could not tesselate path");
+                }
+
+                if let Some((width, stroke)) = scene_path.stroke {
+                    let stroke = Vec4::from_array(stroke.into_linear().into());
+                    stroke_tesselator
+                        .tessellate_path(
+                            &path,
+                            &StrokeOptions::default().with_line_width(width),
+                            &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| {
+                                PathVertex {
+                                    color: stroke,
+                                    position: vec2(vertex.position().x, vertex.position().y),
+                                    ..Default::default()
+                                }
+                            }),
+                        )
+                        .expect("Could not tesselate path");
                 }
             }
 
-            builder.end(!scene_path.open);
-            let path = builder.build();
+            self.geometry_buffer
+                .upload(&geometry.vertices, &geometry.indices, queue);
 
-            if let Some(fill) = scene_path.fill {
-                let fill = Vec4::from_array(fill.into_linear().into());
-                fill_tesselator
-                    .tessellate_path(
-                        &path,
-                        &FillOptions::default(),
-                        &mut BuffersBuilder::new(&mut geometry, |vertex: FillVertex| PathVertex {
-                            color: fill,
-                            position: vec2(vertex.position().x, vertex.position().y),
-                            ..Default::default()
-                        }),
-                    )
-                    .expect("Could not tesselate path");
-            }
-
-            if let Some((width, stroke)) = scene_path.stroke {
-                let stroke = Vec4::from_array(stroke.into_linear().into());
-                stroke_tesselator
-                    .tessellate_path(
-                        &path,
-                        &StrokeOptions::default().with_line_width(width),
-                        &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| {
-                            PathVertex {
-                                color: stroke,
-                                position: vec2(vertex.position().x, vertex.position().y),
-                                ..Default::default()
-                            }
-                        }),
-                    )
-                    .expect("Could not tesselate path");
-            }
+            self.geometry_buffer.draw(render_pass);
         }
-
-        self.geometry_buffer
-            .upload(&geometry.vertices, &geometry.indices, queue);
-
-        self.geometry_buffer.draw(render_pass);
     }
 }

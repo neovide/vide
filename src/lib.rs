@@ -12,6 +12,8 @@ mod winit_renderer;
 #[cfg(test)]
 mod test;
 
+pub use glamour;
+pub use palette;
 pub use parley;
 
 pub use offscreen_renderer::OffscreenRenderer;
