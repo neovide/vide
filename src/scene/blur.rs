@@ -31,12 +31,7 @@ impl Blur {
         self
     }
 
-    pub fn with_background_blur(mut self, blur: f32) -> Self {
-        self.blur = -blur;
-        self
-    }
-
-    pub fn with_edge_blur(mut self, blur: f32) -> Self {
+    pub fn with_blur(mut self, blur: f32) -> Self {
         self.blur = blur;
         self
     }

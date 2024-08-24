@@ -72,9 +72,9 @@ fn frag(
         // Blur the quad background by sampling surrounding pixels
         // and averaging them using a dumb box blur.
         var blurred_background = vec4(0.0);
-        let blur = i32(-instance.blur);
-        let kernel_radius = abs(blur) - 1;
-        let weight = 1.0 / pow((abs(f32(kernel_radius)) * 2.0 + 1.0), 2.0);
+        let blur = i32(abs(instance.blur));
+        let kernel_radius = blur - 1;
+        let weight = 1.0 / pow((f32(kernel_radius) * 2.0 + 1.0), 2.0);
         for (var y=-kernel_radius;y<=kernel_radius;y++) {
             for (var x=-kernel_radius;x<=kernel_radius;x++) {
                 let offset = vec2(f32(x), f32(y));
