@@ -81,7 +81,7 @@ impl Layer {
                 size2!(f32::MAX / 2., f32::MAX / 2.),
                 color,
             )
-            .with_blur(blur),
+            .with_background_blur(blur),
         );
     }
 

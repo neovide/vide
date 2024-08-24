@@ -13,9 +13,6 @@ pub trait Drawable {
 
     fn name(&self) -> &str;
     fn references(&self) -> Vec<&dyn DrawableReference>;
-    fn needs_offscreen_copy(&self) -> bool {
-        false
-    }
     fn start_frame(&mut self);
     fn has_work(&self, batch: &PrimitiveBatch) -> bool;
     fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {

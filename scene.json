@@ -5528,8 +5528,8 @@
                 "y": 0.0
               },
               "size": {
-                "width": 500,
-                "height": 500
+                "width": 1.7014117e38,
+                "height": 1.7014117e38
               },
               "color": {
                 "red": 0.0,
@@ -5538,7 +5538,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": 3.0
+              "blur": -3.0
             }
           ]
         },

@@ -1,3 +1,3 @@
 scene_viewer: cargo run -p scene_viewer
 test: cargo test
-gen_debug_scene: cargo script ./gen_debug_scene.rs
+gen_debug_scene: cargo script gen_debug_scene.rs

@@ -83,4 +83,6 @@ fn main() {
     // Serialize the scene to a json string and write the string to ./scene.json
     let scene_json = serde_json::to_string_pretty(&scene).unwrap();
     std::fs::write("scene.json", scene_json).unwrap();
+
+    println!("Debug scene written to scene.json");
 }

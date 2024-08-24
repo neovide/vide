@@ -195,7 +195,7 @@ fn simple_blurred_quad() {
                     Srgba::new(x as f32 / 5., y as f32 / 5., 1., 1.),
                 )
                 .with_corner_radius(x as f32 * 2.)
-                .with_blur(y as f32),
+                .with_edge_blur(y as f32),
             )
         }
     }

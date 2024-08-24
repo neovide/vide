@@ -172,10 +172,6 @@ impl DrawablePipeline {
         self.render_content_pipeline.is_some() && self.render_mask_pipeline.is_some()
     }
 
-    pub fn needs_offscreen_copy(&self) -> bool {
-        self.drawable.needs_offscreen_copy()
-    }
-
     pub fn start_frame(&mut self) {
         self.drawable.start_frame();
     }

@@ -61,7 +61,7 @@ impl ApplicationHandler for App {
                         Size2::new(100., 100.),
                         Srgba::new(0.5, 0.5, 1., 0.5),
                     )
-                    .with_blur(5.0),
+                    .with_edge_blur(5.0),
                 );
 
                 self.renderer.as_mut().unwrap().draw(&scene);
