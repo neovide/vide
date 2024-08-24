@@ -728,7 +728,17 @@ fn font_styles() {
     scene.add_text_layout(layout, point2!(padding, padding));
 
     let current_layer = scene.layer();
-    assert_eq!(current_layer.contents.primitives.len(), lines.len());
+    assert_eq!(
+        current_layer
+            .contents
+            .primitives
+            .last()
+            .unwrap()
+            .as_glyph_run_vec()
+            .unwrap()
+            .len(),
+        lines.len()
+    );
     for (index, line) in lines.iter().enumerate() {
         let glyph_runs = current_layer
             .contents
