@@ -2,8 +2,7 @@ use glamour::Rect;
 use wgpu::*;
 
 use crate::{
-    drawable_reference::DrawableReference, LayerContents, PrimitiveBatch, Renderer, Resources,
-    ShaderConstants,
+    drawable_reference::DrawableReference, PrimitiveBatch, Renderer, Resources, ShaderConstants,
 };
 
 pub trait Drawable {
@@ -15,6 +14,9 @@ pub trait Drawable {
     fn references(&self) -> Vec<&dyn DrawableReference>;
     fn start_frame(&mut self);
     fn has_work(&self, batch: &PrimitiveBatch) -> bool;
+    fn requires_offscreen_copy(&self) -> bool {
+        false
+    }
     fn targets(&self, format: TextureFormat) -> Vec<Option<ColorTargetState>> {
         vec![Some(ColorTargetState {
             format,

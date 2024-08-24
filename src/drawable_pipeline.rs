@@ -2,9 +2,7 @@ use glamour::Rect;
 use std::collections::HashMap;
 use wgpu::*;
 
-use crate::{
-    drawable::Drawable, LayerContents, PrimitiveBatch, Renderer, Resources, ShaderConstants,
-};
+use crate::{drawable::Drawable, PrimitiveBatch, Renderer, Resources, ShaderConstants};
 
 pub(crate) struct DrawablePipeline {
     drawable: Box<dyn Drawable>,
@@ -178,6 +176,10 @@ impl DrawablePipeline {
 
     pub fn has_work(&self, batch: &PrimitiveBatch) -> bool {
         self.drawable.has_work(batch)
+    }
+
+    pub fn requires_offscreen_copy(&self) -> bool {
+        self.drawable.requires_offscreen_copy()
     }
 
     pub fn draw_content<'b, 'a: 'b>(

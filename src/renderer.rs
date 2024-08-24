@@ -452,26 +452,36 @@ impl Renderer {
                 },
             );
         } else {
-            let mut copy_scope = content_scope.scope("Copy Frame to Offscreen", &self.device);
-            copy_scope.copy_texture_to_texture(
-                ImageCopyTexture {
-                    texture: frame,
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: Default::default(),
-                },
-                ImageCopyTexture {
-                    texture: &self.offscreen_texture.texture,
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: Default::default(),
-                },
-                Extent3d {
-                    width: self.width,
-                    height: self.height,
-                    depth_or_array_layers: 1,
-                },
-            );
+            'offscreen_copy: for batch in contents.primitives.iter() {
+                for drawable in self.drawables.iter() {
+                    if drawable.has_work(batch) {
+                        if drawable.requires_offscreen_copy() {
+                            let mut copy_scope =
+                                content_scope.scope("Copy Frame to Offscreen", &self.device);
+                            copy_scope.copy_texture_to_texture(
+                                ImageCopyTexture {
+                                    texture: frame,
+                                    mip_level: 0,
+                                    origin: Origin3d::ZERO,
+                                    aspect: Default::default(),
+                                },
+                                ImageCopyTexture {
+                                    texture: &self.offscreen_texture.texture,
+                                    mip_level: 0,
+                                    origin: Origin3d::ZERO,
+                                    aspect: Default::default(),
+                                },
+                                Extent3d {
+                                    width: self.width,
+                                    height: self.height,
+                                    depth_or_array_layers: 1,
+                                },
+                            );
+                            break 'offscreen_copy;
+                        }
+                    }
+                }
+            }
         }
 
         for batch in contents.primitives.iter() {

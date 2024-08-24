@@ -48,6 +48,10 @@ impl Drawable for BlurState {
         batch.is_blurs()
     }
 
+    fn requires_offscreen_copy(&self) -> bool {
+        true
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,
