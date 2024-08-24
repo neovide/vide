@@ -11,42 +11,41 @@ use crate::{
 
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
 #[repr(C, align(64))]
-// An axis aligned quad supporting positioning, scaling, corner radius, and optionally an internal blur with
-// the previous layer or an external blur for use with shadows.
-pub struct InstancedQuad {
+// An axis aligned background blur supporting positioning, scaling, corner radius.
+pub struct InstancedBlur {
     pub color: Vec4,
     pub _padding: Vec4,
     pub top_left: Vec2,
     pub size: Vec2,
     pub __padding: Vec2,
     pub corner_radius: f32,
-    pub edge_blur: f32,
+    pub blur: f32,
 }
 
-pub struct QuadState {
-    quad_buffer: InstanceBuffer<InstancedQuad>,
+pub struct BlurState {
+    blur_buffer: InstanceBuffer<InstancedBlur>,
 }
 
-impl Drawable for QuadState {
+impl Drawable for BlurState {
     fn new(renderer: &Renderer) -> Self {
-        let quad_buffer = InstanceBuffer::new(renderer, "quad");
-        Self { quad_buffer }
+        let blur_buffer = InstanceBuffer::new(renderer, "blur");
+        Self { blur_buffer }
     }
 
     fn name(&self) -> &str {
-        "quad"
+        "blur"
     }
 
     fn references(&self) -> Vec<&dyn DrawableReference> {
-        vec![&self.quad_buffer]
+        vec![&self.blur_buffer]
     }
 
     fn start_frame(&mut self) {
-        self.quad_buffer.start_frame();
+        self.blur_buffer.start_frame();
     }
 
     fn has_work(&self, batch: &PrimitiveBatch) -> bool {
-        batch.is_quads()
+        batch.is_blurs()
     }
 
     fn draw<'b, 'a: 'b>(
@@ -58,12 +57,12 @@ impl Drawable for QuadState {
         _clip: Option<Rect<u32>>,
         batch: &PrimitiveBatch,
     ) {
-        if let Some(quads) = batch.as_quad_vec() {
-            self.quad_buffer.upload(
-                quads.iter().map(|quad| quad.to_instanced()).collect(),
+        if let Some(blurs) = batch.as_blur_vec() {
+            self.blur_buffer.upload(
+                blurs.iter().map(|blur| blur.to_instanced()).collect(),
                 queue,
             );
-            self.quad_buffer.draw(render_pass);
+            self.blur_buffer.draw(render_pass);
         }
     }
 }

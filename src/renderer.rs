@@ -7,7 +7,7 @@ use wgpu::*;
 use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 
 use crate::{
-    default_drawables::{GlyphState, PathState, QuadState, SpriteState},
+    default_drawables::{BlurState, GlyphState, PathState, QuadState, SpriteState},
     drawable::Drawable,
     drawable_pipeline::DrawablePipeline,
     drawable_reference::ATLAS_SIZE,
@@ -203,9 +203,10 @@ impl Renderer {
     }
 
     pub async fn add_default_drawables(&mut self) {
-        self.add_drawable::<QuadState>().await;
+        self.add_drawable::<BlurState>().await;
         self.add_drawable::<GlyphState>().await;
         self.add_drawable::<PathState>().await;
+        self.add_drawable::<QuadState>().await;
         self.add_drawable::<SpriteState>().await;
     }
 
