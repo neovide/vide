@@ -5521,6 +5521,28 @@
       },
       "primitives": [
         {
+          "Quads": [
+            {
+              "top_left": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "size": {
+                "width": 500,
+                "height": 500
+              },
+              "color": {
+                "red": 0.0,
+                "green": 0.0,
+                "blue": 0.0,
+                "alpha": 0.5
+              },
+              "corner_radius": 0.0,
+              "blur": 3.0
+            }
+          ]
+        },
+        {
           "Paths": [
             {
               "fill": {

@@ -52,6 +52,10 @@ impl Drawable for QuadState {
         batch.is_quads()
     }
 
+    fn needs_offscreen_copy(&self) -> bool {
+        true
+    }
+
     fn draw<'b, 'a: 'b>(
         &'a mut self,
         queue: &Queue,

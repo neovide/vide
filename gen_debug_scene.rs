@@ -32,8 +32,7 @@ fn main() {
     scene.add_layer(
         Layer::new()
             .with_clip(Rect::new(point2!(0, 0), size2!(200, 200)))
-            // .with_blur(3.0)
-            // .with_background(Srgba::new(0.0, 0.0, 0.0, 0.0))
+            .with_blurred_clear(Srgba::new(0.0, 0.0, 0.0, 0.5), 3.)
             .with_path(
                 Path::new(point2!(20., 20.))
                     .with_fill(Srgba::new(0., 1., 0., 1.))

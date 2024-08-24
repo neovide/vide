@@ -64,13 +64,29 @@ impl Layer {
     pub fn add_clear(&mut self, color: Srgba) {
         self.add_quad(Quad::new(
             point2!(0.0, 0.0),
-            size2!(f32::INFINITY, f32::INFINITY),
+            size2!(f32::MAX / 2., f32::MAX / 2.),
             color,
         ));
     }
 
     pub fn with_clear(mut self, color: Srgba) -> Self {
         self.add_clear(color);
+        self
+    }
+
+    pub fn add_blurred_clear(&mut self, color: Srgba, blur: f32) {
+        self.add_quad(
+            Quad::new(
+                point2!(0.0, 0.0),
+                size2!(f32::MAX / 2., f32::MAX / 2.),
+                color,
+            )
+            .with_blur(blur),
+        );
+    }
+
+    pub fn with_blurred_clear(mut self, color: Srgba, blur: f32) -> Self {
+        self.add_blurred_clear(color, blur);
         self
     }
 
@@ -400,43 +416,5 @@ impl SharedPrimitiveBatch {
             Self::Paths(paths) => MutablePrimitiveBatch::Paths(paths.to_vec()),
             Self::Sprites(sprites) => MutablePrimitiveBatch::Sprites(sprites.to_vec()),
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use glamour::prelude::*;
-
-    #[test]
-    fn basic_layer_serialization() {
-        use super::*;
-
-        let layer = Layer::new()
-            .with_clip(Rect::new(point2!(0, 0), size2!(100, 100)))
-            .with_quad(Quad::new(
-                point2!(0.0, 0.0),
-                size2!(100.0, 100.0),
-                Srgba::new(0.5, 0.5, 1., 0.5),
-            ))
-            .with_quad(Quad::new(
-                point2!(100.0, 0.0),
-                size2!(100.0, 100.0),
-                Srgba::new(0.5, 0.5, 1., 0.5),
-            ))
-            .with_path(
-                Path::new(point2!(100., 10.))
-                    .with_fill(Srgba::new(0., 0., 0., 1.))
-                    .with_line_to(point2!(190., 190.))
-                    .with_line_to(point2!(10., 190.)),
-            )
-            .with_quad(Quad::new(
-                point2!(100.0, 0.0),
-                size2!(100.0, 100.0),
-                Srgba::new(0.5, 0.5, 1., 0.5),
-            ));
-
-        let serialized = serde_json::to_string(&layer).unwrap();
-
-        assert_eq!("", serialized);
     }
 }
