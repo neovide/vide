@@ -5,7 +5,7 @@ use palette::Srgba;
 use parley::{layout::PositionedLayoutItem, Layout};
 use serde::{Deserialize, Serialize};
 
-use super::{Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
+use super::{Blur, Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct Layer {
@@ -74,15 +74,31 @@ impl Layer {
         self
     }
 
+    pub fn add_blur(&mut self, blur: Blur) {
+        self.contents.add_blur(blur);
+    }
+
+    pub fn with_blur(mut self, blur: Blur) -> Self {
+        self.add_blur(blur);
+        self
+    }
+
+    pub fn add_blurs(&mut self, blurs: Arc<Vec<Blur>>) {
+        self.contents.add_blurs(blurs);
+    }
+
+    pub fn with_blurs(mut self, blurs: Arc<Vec<Blur>>) -> Self {
+        self.add_blurs(blurs);
+        self
+    }
+
     pub fn add_blurred_clear(&mut self, color: Srgba, blur: f32) {
-        self.add_quad(
-            Quad::new(
-                point2!(0.0, 0.0),
-                size2!(f32::MAX / 2., f32::MAX / 2.),
-                color,
-            )
-            .with_background_blur(blur),
-        );
+        self.add_blur(Blur::new(
+            point2!(0.0, 0.0),
+            size2!(f32::MAX / 2., f32::MAX / 2.),
+            color,
+            blur,
+        ));
     }
 
     pub fn with_blurred_clear(mut self, color: Srgba, blur: f32) -> Self {
@@ -227,6 +243,25 @@ impl LayerContents {
             .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Quads(quads)));
     }
 
+    pub fn add_blur(&mut self, blur: Blur) {
+        match self.primitives.last_mut() {
+            Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Blurs(blurs))) => {
+                blurs.push(blur);
+            }
+            _ => {
+                self.primitives
+                    .push(PrimitiveBatch::Mutable(MutablePrimitiveBatch::Blurs(vec![
+                        blur,
+                    ])));
+            }
+        }
+    }
+
+    pub fn add_blurs(&mut self, blurs: Arc<Vec<Blur>>) {
+        self.primitives
+            .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Blurs(blurs)));
+    }
+
     pub fn add_glyph_run(&mut self, glyph_run: GlyphRun) {
         match self.primitives.last_mut() {
             Some(PrimitiveBatch::Mutable(MutablePrimitiveBatch::GlyphRuns(glyph_runs))) => {
@@ -304,6 +339,22 @@ pub enum PrimitiveBatch {
 }
 
 impl PrimitiveBatch {
+    pub fn is_blurs(&self) -> bool {
+        matches!(
+            self,
+            Self::Mutable(MutablePrimitiveBatch::Blurs(_))
+                | Self::Shared(SharedPrimitiveBatch::Blurs(_))
+        )
+    }
+
+    pub fn as_blur_vec(&self) -> Option<&Vec<Blur>> {
+        match self {
+            Self::Mutable(MutablePrimitiveBatch::Blurs(blurs)) => Some(blurs),
+            Self::Shared(SharedPrimitiveBatch::Blurs(blurs)) => Some(blurs),
+            _ => None,
+        }
+    }
+
     pub fn is_quads(&self) -> bool {
         matches!(
             self,
@@ -394,6 +445,7 @@ impl<'de> Deserialize<'de> for PrimitiveBatch {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum MutablePrimitiveBatch {
+    Blurs(Vec<Blur>),
     Quads(Vec<Quad>),
     GlyphRuns(Vec<GlyphRun>),
     Paths(Vec<Path>),
@@ -402,6 +454,7 @@ pub enum MutablePrimitiveBatch {
 
 #[derive(Clone, Debug)]
 pub enum SharedPrimitiveBatch {
+    Blurs(Arc<Vec<Blur>>),
     Quads(Arc<Vec<Quad>>),
     GlyphRuns(Arc<Vec<GlyphRun>>),
     Paths(Arc<Vec<Path>>),
@@ -411,6 +464,7 @@ pub enum SharedPrimitiveBatch {
 impl SharedPrimitiveBatch {
     pub fn to_mutable(&self) -> MutablePrimitiveBatch {
         match self {
+            Self::Blurs(blurs) => MutablePrimitiveBatch::Blurs(blurs.to_vec()),
             Self::Quads(quads) => MutablePrimitiveBatch::Quads(quads.to_vec()),
             Self::GlyphRuns(glyph_runs) => MutablePrimitiveBatch::GlyphRuns(glyph_runs.to_vec()),
             Self::Paths(paths) => MutablePrimitiveBatch::Paths(paths.to_vec()),

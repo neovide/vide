@@ -17,7 +17,7 @@ use crate::{
     renderer::Renderer,
     scene::PathCommand,
     shader::ShaderConstants,
-    LayerContents, PrimitiveBatch, Resources,
+    PrimitiveBatch, Resources,
 };
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]

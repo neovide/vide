@@ -5521,7 +5521,7 @@
       },
       "primitives": [
         {
-          "Quads": [
+          "Blurs": [
             {
               "top_left": {
                 "x": 0.0,
@@ -5538,7 +5538,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": -3.0
+              "blur": 3.0
             }
           ]
         },
@@ -5604,7 +5604,7 @@
                 "alpha": 1.0
               },
               "corner_radius": 0.0,
-              "blur": 0.0
+              "edge_blur": 0.0
             }
           ]
         }
@@ -10578,7 +10578,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": 0.0
+              "edge_blur": 0.0
             },
             {
               "top_left": {
@@ -10596,7 +10596,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": 0.0
+              "edge_blur": 0.0
             },
             {
               "top_left": {
@@ -10614,7 +10614,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": 0.0
+              "edge_blur": 0.0
             },
             {
               "top_left": {
@@ -10632,7 +10632,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": 0.0
+              "edge_blur": 0.0
             },
             {
               "top_left": {
@@ -10650,7 +10650,7 @@
                 "alpha": 0.5
               },
               "corner_radius": 0.0,
-              "blur": 0.0
+              "edge_blur": 0.0
             }
           ]
         }

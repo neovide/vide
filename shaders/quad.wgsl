@@ -7,7 +7,7 @@ struct InstancedQuad {
     size: vec2<f32>,
     _padding2: vec2<f32>,
     corner_radius: f32,
-    blur: f32,
+    edge_blur: f32,
 }
 
 var<push_constant> constants: ShaderConstants;
@@ -39,7 +39,7 @@ fn vert(
     let unit_vertex_pos = UNIT_QUAD_VERTICES[vertex_index];
     let instance = quads[instance_index];
 
-    let blur_extension = vec2(max(instance.blur, 0.0) * 3.0);
+    let blur_extension = vec2(max(instance.edge_blur, 0.0) * 3.0);
     let vertex_pixel_pos =
         (instance.top_left - blur_extension) + unit_vertex_pos * (instance.size + blur_extension * 2.0);
     let final_position =
@@ -75,12 +75,12 @@ fn frag(
 
     let distance = quad_distance(instance, vertex_output.position.xy);
     var result = vec4(0.0);
-    if (instance.blur > 0.0) {
+    if (instance.edge_blur > 0.0) {
         let min_edge = min(instance.size.x, instance.size.y);
-        let inverse_blur = 1.0 / instance.blur;
+        let inverse_blur = 1.0 / instance.edge_blur;
 
         let scale = 0.5
-            * compute_erf7(instance.blur * 0.5 * (max(instance.size.x, instance.size.y) - 0.5 * instance.corner_radius));
+            * compute_erf7(instance.edge_blur * 0.5 * (max(instance.size.x, instance.size.y) - 0.5 * instance.corner_radius));
 
         let alpha = scale
             * (compute_erf7(inverse_blur * (min_edge + distance))
@@ -89,30 +89,7 @@ fn frag(
         result = instance.color;
         result.w *= alpha;
     } else if (distance <= 0.0) {
-        if (instance.blur < 0.0) {
-            // Internal box blur sampled from background
-            // Blur the quad background by sampling surrounding pixels
-            // and averaging them using a dumb box blur.
-            var blurred_background = vec4(0.0);
-            let blur = i32(-instance.blur);
-            let kernel_radius = abs(blur) - 1;
-            let weight = 1.0 / pow((abs(f32(kernel_radius)) * 2.0 + 1.0), 2.0);
-            for (var y=-kernel_radius;y<=kernel_radius;y++) {
-                for (var x=-kernel_radius;x<=kernel_radius;x++) {
-                    let offset = vec2(f32(x), f32(y));
-                    let sample_pos = (vertex_output.position.xy + offset) / constants.surface_size;
-
-                    let sampled = textureSample(surface, texture_sampler, sample_pos);
-                    blurred_background += sampled * weight;
-                }
-            }
-
-            let alpha = instance.color.w;
-            result =
-                blurred_background * (1.0 - alpha) + vec4(instance.color.xyz * alpha, alpha);
-        } else {
-            result = instance.color;
-        }
+        result = instance.color;
     }
 
     result.w *= mask_color.w;

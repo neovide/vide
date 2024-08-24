@@ -1,3 +1,4 @@
+mod blur;
 mod glyph_run;
 mod layer;
 mod path;
@@ -11,6 +12,7 @@ use palette::Srgba;
 use parley::Layout;
 use serde::{Deserialize, Serialize};
 
+pub use blur::*;
 pub use glyph_run::*;
 pub use layer::*;
 pub use path::*;
