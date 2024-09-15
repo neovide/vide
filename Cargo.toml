@@ -44,7 +44,7 @@ winit = "0.30.3"
 # can write our graphics code once and run it everywhere
 [workspace.dependencies.wgpu]
 version = "22.1.0"
-features = ["vulkan-portability"]
+features = ["vulkan-portability", "metal"]
 
 [package]
 name = "vide"

@@ -45,12 +45,7 @@ impl Renderer {
         let (device, queue) = adapter
             .request_device(
                 &DeviceDescriptor {
-                    required_features: Features::PUSH_CONSTANTS
-                        | Features::SPIRV_SHADER_PASSTHROUGH
-                        | Features::VERTEX_WRITABLE_STORAGE
-                        | Features::CLEAR_TEXTURE
-                        | Features::DUAL_SOURCE_BLENDING
-                        | GpuProfiler::ALL_WGPU_TIMER_FEATURES,
+                    required_features: Self::add_default_required_features(),
                     required_limits: Limits {
                         max_push_constant_size: 256,
                         ..Default::default()
@@ -215,6 +210,28 @@ impl Renderer {
         self
     }
 
+    pub fn add_default_required_features() -> Features {
+        #[cfg(target_os = "macos")]
+        {
+            Features::PUSH_CONSTANTS
+                | Features::VERTEX_WRITABLE_STORAGE
+                | Features::CLEAR_TEXTURE
+                | Features::DUAL_SOURCE_BLENDING
+                | Features::TIMESTAMP_QUERY
+                | Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            Features::PUSH_CONSTANTS
+                | Features::SPIRV_SHADER_PASSTHROUGH
+                | Features::VERTEX_WRITABLE_STORAGE
+                | Features::CLEAR_TEXTURE
+                | Features::DUAL_SOURCE_BLENDING
+                | GpuProfiler::ALL_WGPU_TIMER_FEATURES
+        }
+    }
+
     pub fn resize(&mut self, new_width: u32, new_height: u32) {
         if new_width != 0 && new_height != 0 {
             self.width = new_width;
@@ -343,10 +360,16 @@ impl Renderer {
         constants: ShaderConstants,
         resources: &Resources,
     ) {
+        #[cfg(not(target_os = "macos"))]
         let mut mask_scope = self.profiler.scope("mask", encoder, &self.device);
+
+        #[cfg(target_os = "macos")]
+        let mask_scope: &mut CommandEncoder = encoder;
+
         if let Some(mask_contents) = mask_contents {
             for batch in mask_contents.primitives.iter() {
                 for drawable in self.drawables.iter_mut() {
+                    #[cfg(not(target_os = "macos"))]
                     let mut render_pass = mask_scope.scoped_render_pass(
                         "Mask",
                         &self.device,
@@ -365,12 +388,33 @@ impl Renderer {
                         },
                     );
 
+                    #[cfg(target_os = "macos")]
+                    let render_pass = mask_scope.begin_render_pass(&RenderPassDescriptor {
+                        label: Some("Render Pass"),
+                        color_attachments: &[Some(RenderPassColorAttachment {
+                            view: &self.mask_texture.view,
+                            resolve_target: None,
+                            ops: Operations::<Color> {
+                                load: LoadOp::<_>::Clear(Color::TRANSPARENT),
+                                store: StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        ..Default::default()
+                    });
+
                     if !drawable.has_work(batch) {
                         continue;
                     }
 
                     profiling::scope!("drawable", &drawable.name);
+
+                    #[cfg(not(target_os = "macos"))]
                     let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
+
+                    #[cfg(target_os = "macos")]
+                    let mut drawable_scope = render_pass;
+
                     if !drawable.ready() {
                         continue;
                     }
@@ -395,6 +439,7 @@ impl Renderer {
                 }
             }
         } else {
+            #[cfg(not(target_os = "macos"))]
             mask_scope.scoped_render_pass(
                 "Clear Mask Texture",
                 &self.device,
@@ -416,6 +461,25 @@ impl Renderer {
                     timestamp_writes: None,
                 },
             );
+
+            #[cfg(target_os = "macos")]
+            mask_scope.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Clear Mask Texture"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &self.mask_texture.view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color {
+                            a: 1.,
+                            ..Default::default()
+                        }),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
         }
     }
 

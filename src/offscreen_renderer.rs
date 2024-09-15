@@ -1,6 +1,6 @@
 use futures_intrusive::channel::shared::oneshot_channel;
 use image::{imageops::crop_imm, ImageBuffer, Rgba};
-use wgpu::{Instance, PowerPreference, RequestAdapterOptions};
+use wgpu::{Backends, Instance, PowerPreference, RequestAdapterOptions};
 
 use crate::{drawable::Drawable, Renderer, Scene};
 
@@ -13,7 +13,7 @@ impl OffscreenRenderer {
     // Creating some of the wgpu types requires async code
     pub async fn new(width: u32, height: u32) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN,
+            backends: Self::instance_backends(),
             ..Default::default()
         });
 
@@ -52,6 +52,18 @@ impl OffscreenRenderer {
     pub async fn with_default_drawables(mut self) -> Self {
         self.add_default_drawables().await;
         self
+    }
+
+    fn instance_backends() -> Backends {
+        #[cfg(target_os = "macos")]
+        {
+            wgpu::Backends::METAL
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            wgpu::Backends::VULKAN
+        }
     }
 
     pub async fn draw(&mut self, scene: &Scene) -> ImageBuffer<Rgba<u8>, Vec<u8>> {

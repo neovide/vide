@@ -16,7 +16,7 @@ impl WinitRenderer {
     // Creating some of the wgpu types requires async code
     pub async fn new(window: Arc<Window>) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN,
+            backends: Self::instance_backends(),
             ..Default::default()
         });
 
@@ -56,6 +56,9 @@ impl WinitRenderer {
         let mut renderer = Renderer::new(size.width, size.height, adapter, swapchain_format).await;
         renderer.watch_shaders(shaders_reloaded);
         surface.configure(&renderer.device, &surface_config);
+
+        #[cfg(target_os = "macos")]
+        window.request_redraw();
 
         Self {
             instance,
@@ -144,5 +147,17 @@ impl WinitRenderer {
 
     fn clear_surface(&mut self) {
         self.surface = None;
+    }
+
+    pub fn instance_backends() -> Backends {
+        #[cfg(target_os = "macos")]
+        {
+            wgpu::Backends::METAL
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            wgpu::Backends::VULKAN
+        }
     }
 }
