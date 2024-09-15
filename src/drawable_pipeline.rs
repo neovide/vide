@@ -74,7 +74,7 @@ impl DrawablePipeline {
             label: Some(&format!("{} Pipeline Layout", self.name)),
             bind_group_layouts: &[&self.bind_group_layout, universal_bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::all(),
+                stages: ShaderStages::VERTEX_FRAGMENT,
                 range: 0..std::mem::size_of::<ShaderConstants>() as u32,
             }],
         });
@@ -194,7 +194,11 @@ impl DrawablePipeline {
     ) {
         render_pass.set_pipeline(self.render_content_pipeline.as_ref().unwrap());
 
-        render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
+        render_pass.set_push_constants(
+            ShaderStages::VERTEX_FRAGMENT,
+            0,
+            bytemuck::cast_slice(&[constants]),
+        );
 
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, universal_bind_group, &[]);
@@ -215,7 +219,11 @@ impl DrawablePipeline {
     ) {
         render_pass.set_pipeline(self.render_mask_pipeline.as_ref().unwrap());
 
-        render_pass.set_push_constants(ShaderStages::all(), 0, bytemuck::cast_slice(&[constants]));
+        render_pass.set_push_constants(
+            ShaderStages::VERTEX_FRAGMENT,
+            0,
+            bytemuck::cast_slice(&[constants]),
+        );
 
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, universal_bind_group, &[]);
