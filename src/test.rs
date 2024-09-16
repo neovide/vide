@@ -282,9 +282,10 @@ fn parley_line_breaking_and_font_fallback() {
         "Some text here. Let's make it a bit longer so that line wrapping kicks in 😊. And also some اللغة العربية arabic text.",
         400.,
         |builder| {
-            builder.push_default(&StyleProperty::FontStack(FontStack::Source("serif")));
+            builder.push_default(&StyleProperty::FontStack(FontStack::Source("DejaVu Serif")));
             builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
             builder.push_default(&StyleProperty::FontSize(24.));
+            builder.push_default(&StyleProperty::FontWeight(FontWeight::LIGHT));
 
             builder.push(&StyleProperty::FontWeight(FontWeight::new(600.)), 0..4);
         });
@@ -314,15 +315,13 @@ fn font_styles() {
     }
     let lines = vec![
         (
-            "FiraCode Normal (Buggy)",
+            "FiraCode Normal",
             vec![StyleProperty::FontStack(FontStack::Source(
                 "FiraCode Nerd Font",
             ))],
             Expected {
-                // FIXME: There's a bug in fontique, the retina style is loaded instead of the regular one
-                // See: https://github.com/linebender/parley/issues/92
-                fullname: "FiraCode Nerd Font Ret".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight(450), Style::Normal),
+                fullname: "FiraCode Nerd Font Reg".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
@@ -347,16 +346,14 @@ fn font_styles() {
             },
         ),
         (
-            "FiraCode (Faux) Italic (Buggy)",
+            "FiraCode (Faux) Italic",
             vec![
                 StyleProperty::FontStack(FontStack::Source("FiraCode Nerd Font")),
                 StyleProperty::FontStyle(FontStyle::Italic),
             ],
             Expected {
-                // FIXME: There's a bug in fontique, the retina style is loaded instead of the regular one
-                // See: https://github.com/linebender/parley/issues/92
-                fullname: "FiraCode Nerd Font Ret".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight(450), Style::Normal),
+                fullname: "FiraCode Nerd Font Reg".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
@@ -365,16 +362,14 @@ fn font_styles() {
             },
         ),
         (
-            "FiraCode Oblique 5 degrees (Buggy)",
+            "FiraCode Oblique 5 degrees",
             vec![
                 StyleProperty::FontStack(FontStack::Source("FiraCode Nerd Font")),
                 StyleProperty::FontStyle(FontStyle::Oblique(Some(5.0))),
             ],
             Expected {
-                // FIXME: There's a bug in fontique, the retina style is loaded instead of the regular one
-                // See: https://github.com/linebender/parley/issues/92
-                fullname: "FiraCode Nerd Font Ret".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight(450), Style::Normal),
+                fullname: "FiraCode Nerd Font Reg".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
@@ -390,8 +385,8 @@ fn font_styles() {
             ],
             Expected {
                 // FIXME: Fontique does not support synthetic stretch
-                fullname: "FiraCode Nerd Font Ret".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight(450), Style::Normal),
+                fullname: "FiraCode Nerd Font Reg".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
@@ -415,7 +410,7 @@ fn font_styles() {
             },
         ),
         (
-            "ProFontWindows Nerd Font (Faux) Bold (Buggy)",
+            "ProFontWindows Nerd Font (Faux) Bold",
             vec![
                 StyleProperty::FontStack(FontStack::Source("ProFontWindows Nerd Font")),
                 StyleProperty::FontWeight(FontWeight::BOLD),
@@ -425,28 +420,23 @@ fn font_styles() {
                 attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
-                    // FIXME: embolden should be set to true, but it is only set for BLACK and EXTRA_BLACK
-                    // See: https://github.com/linebender/parley/issues/93
-                    embolden: false,
+                    embolden: true,
                     skew: 0.0.into(),
                 },
             },
         ),
         (
-            "CaskaydiaCove Nerd Font Italic (Buggy)",
+            "CaskaydiaCove Nerd Font Italic",
             vec![
                 StyleProperty::FontStack(FontStack::Source("CaskaydiaCove Nerd Font")),
                 StyleProperty::FontStyle(FontStyle::Italic),
             ],
             Expected {
-                // FIXME: This should load the regular italic style
-                // See: https://github.com/linebender/parley/issues/95
-                fullname: "CaskaydiaCove NF SemiLight Italic".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight(350), Style::Italic),
+                fullname: "CaskaydiaCove NF Italic".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
                 synthesis: Synthesis {
                     vars: vec![],
-                    // FIXME: Embolden should be false
-                    embolden: true,
+                    embolden: false,
                     skew: 0.0.into(),
                 },
             },
@@ -460,10 +450,7 @@ fn font_styles() {
                 fullname: "Monaspace Xenon Var Regular".into(),
                 attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
-                    vars: vec![crate::Setting {
-                        tag: WGHT,
-                        value: swash::Weight::NORMAL.0.into(),
-                    }],
+                    vars: vec![],
                     embolden: false,
                     skew: 0.0.into(),
                 },
@@ -500,10 +487,6 @@ fn font_styles() {
                 synthesis: Synthesis {
                     vars: vec![
                         crate::Setting {
-                            tag: WGHT,
-                            value: swash::Weight::NORMAL.0.into(),
-                        },
-                        crate::Setting {
                             tag: SLNT,
                             // FIXME: This should be -11
                             // See: https://github.com/linebender/parley/issues/94
@@ -527,10 +510,6 @@ fn font_styles() {
                 synthesis: Synthesis {
                     vars: vec![
                         crate::Setting {
-                            tag: WGHT,
-                            value: swash::Weight::NORMAL.0.into(),
-                        },
-                        crate::Setting {
                             tag: SLNT,
                             value: (-10.0).into(),
                         },
@@ -551,10 +530,6 @@ fn font_styles() {
                 attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![
-                        crate::Setting {
-                            tag: WGHT,
-                            value: swash::Weight::NORMAL.0.into(),
-                        },
                         crate::Setting {
                             tag: SLNT,
                             value: (-5.0).into(),
@@ -597,15 +572,13 @@ fn font_styles() {
             },
         ),
         (
-            "Noto Serif Normal (Buggy)",
+            "Noto Serif Normal",
             vec![StyleProperty::FontStack(FontStack::Source(
                 "NotoSerif Nerd Font",
             ))],
             Expected {
-                // FIXME: There's a bug in fontique, the medium style is loaded instead of the regular one
-                // See: https://github.com/linebender/parley/issues/92
-                fullname: "NotoSerif NF Med".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::MEDIUM, Style::Normal),
+                fullname: "NotoSerif NF Reg".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
@@ -630,16 +603,14 @@ fn font_styles() {
             },
         ),
         (
-            "Noto Serif Condensed (Buggy)",
+            "Noto Serif Condensed",
             vec![
                 StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
                 StyleProperty::FontStretch(FontStretch::CONDENSED),
             ],
             Expected {
-                // FIXME: There's a bug in fontique, the medium style is loaded instead of the regular one
-                // See: https://github.com/linebender/parley/issues/92
-                fullname: "NotoSerif NF Cond Med".into(),
-                attributes: Attributes::new(Stretch::CONDENSED, Weight::MEDIUM, Style::Normal),
+                fullname: "NotoSerif NF Cond Reg".into(),
+                attributes: Attributes::new(Stretch::CONDENSED, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
@@ -665,16 +636,14 @@ fn font_styles() {
             },
         ),
         (
-            "Noto Serif Italic (Buggy)",
+            "Noto Serif Italic",
             vec![
                 StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
                 StyleProperty::FontStyle(FontStyle::Italic),
             ],
             Expected {
-                // FIXME: There's a bug in fontique, the medium style is loaded instead of the regular one
-                // See: https://github.com/linebender/parley/issues/92
-                fullname: "NotoSerif NF Med Italic".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::MEDIUM, Style::Italic),
+                fullname: "NotoSerif NF Italic".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: false,
