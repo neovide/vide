@@ -1,7 +1,7 @@
 use palette::Srgba;
 use parley::{
-    context::RangedBuilder, fontique::Collection, style::StyleProperty,
-    FontContext, Layout, LayoutContext,
+    context::RangedBuilder, fontique::Collection, style::StyleProperty, FontContext, Layout,
+    LayoutContext,
 };
 
 pub struct Shaper {

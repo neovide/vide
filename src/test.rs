@@ -485,14 +485,12 @@ fn font_styles() {
                 fullname: "Monaspace Xenon Var Regular".into(),
                 attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
-                    vars: vec![
-                        crate::Setting {
-                            tag: SLNT,
-                            // FIXME: This should be -11
-                            // See: https://github.com/linebender/parley/issues/94
-                            value: (14.0).into(),
-                        },
-                    ],
+                    vars: vec![crate::Setting {
+                        tag: SLNT,
+                        // FIXME: This should be -11
+                        // See: https://github.com/linebender/parley/issues/94
+                        value: (14.0).into(),
+                    }],
                     embolden: false,
                     skew: 0.0.into(),
                 },
@@ -508,12 +506,10 @@ fn font_styles() {
                 fullname: "Monaspace Xenon Var Regular".into(),
                 attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
-                    vars: vec![
-                        crate::Setting {
-                            tag: SLNT,
-                            value: (-10.0).into(),
-                        },
-                    ],
+                    vars: vec![crate::Setting {
+                        tag: SLNT,
+                        value: (-10.0).into(),
+                    }],
                     embolden: false,
                     skew: 0.0.into(),
                 },
@@ -529,12 +525,10 @@ fn font_styles() {
                 fullname: "Monaspace Xenon Var Regular".into(),
                 attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
                 synthesis: Synthesis {
-                    vars: vec![
-                        crate::Setting {
-                            tag: SLNT,
-                            value: (-5.0).into(),
-                        },
-                    ],
+                    vars: vec![crate::Setting {
+                        tag: SLNT,
+                        value: (-5.0).into(),
+                    }],
                     embolden: false,
                     skew: 0.0.into(),
                 },
