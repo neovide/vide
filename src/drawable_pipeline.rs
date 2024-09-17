@@ -16,6 +16,25 @@ pub(crate) struct DrawablePipeline {
     render_mask_pipeline: Option<RenderPipeline>,
 }
 
+pub(crate) struct DrawableContext<'a> {
+    pub queue: &'a Queue,
+    pub universal_bind_group: &'a BindGroup,
+}
+
+pub(crate) struct RenderContentParams<'a> {
+    pub constants: ShaderConstants,
+    pub resources: &'a Resources,
+    pub clip: Option<Rect<u32>>,
+    pub batch: &'a PrimitiveBatch,
+}
+
+pub(crate) struct RenderDrawableParams<'a> {
+    pub constants: ShaderConstants,
+    pub resources: &'a Resources,
+    pub clip: Option<Rect<u32>>,
+    pub batch: &'a PrimitiveBatch,
+}
+
 impl DrawablePipeline {
     pub fn new<T: Drawable + 'static>(Renderer { device, .. }: &Renderer, drawable: T) -> Self {
         let drawable = Box::new(drawable);
@@ -184,51 +203,55 @@ impl DrawablePipeline {
 
     pub fn draw_content<'b, 'a: 'b>(
         &'a mut self,
-        queue: &Queue,
+        draw_context: &DrawableContext,
         render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
-        resources: &Resources,
-        clip: Option<Rect<u32>>,
-        batch: &PrimitiveBatch,
+        render_params: &RenderContentParams<'a>,
     ) {
         render_pass.set_pipeline(self.render_content_pipeline.as_ref().unwrap());
 
         render_pass.set_push_constants(
             ShaderStages::VERTEX_FRAGMENT,
             0,
-            bytemuck::cast_slice(&[constants]),
+            bytemuck::cast_slice(&[render_params.constants]),
         );
 
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.set_bind_group(1, universal_bind_group, &[]);
+        render_pass.set_bind_group(1, draw_context.universal_bind_group, &[]);
 
-        self.drawable
-            .draw(queue, render_pass, constants, resources, clip, batch);
+        self.drawable.draw(
+            draw_context.queue,
+            render_pass,
+            render_params.constants,
+            render_params.resources,
+            render_params.clip,
+            render_params.batch,
+        );
     }
 
     pub fn draw_mask<'b, 'a: 'b>(
         &'a mut self,
-        queue: &Queue,
+        draw_context: &DrawableContext,
         render_pass: &mut RenderPass<'b>,
-        constants: ShaderConstants,
-        universal_bind_group: &'a BindGroup,
-        resources: &Resources,
-        clip: Option<Rect<u32>>,
-        batch: &PrimitiveBatch,
+        render_params: &RenderDrawableParams<'a>,
     ) {
         render_pass.set_pipeline(self.render_mask_pipeline.as_ref().unwrap());
 
         render_pass.set_push_constants(
             ShaderStages::VERTEX_FRAGMENT,
             0,
-            bytemuck::cast_slice(&[constants]),
+            bytemuck::cast_slice(&[render_params.constants]),
         );
 
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.set_bind_group(1, universal_bind_group, &[]);
+        render_pass.set_bind_group(1, draw_context.universal_bind_group, &[]);
 
-        self.drawable
-            .draw(queue, render_pass, constants, resources, clip, batch);
+        self.drawable.draw(
+            draw_context.queue,
+            render_pass,
+            render_params.constants,
+            render_params.resources,
+            render_params.clip,
+            render_params.batch,
+        );
     }
 }

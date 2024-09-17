@@ -9,11 +9,20 @@ use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 use crate::{
     default_drawables::{BlurState, GlyphState, PathState, QuadState, SpriteState},
     drawable::Drawable,
-    drawable_pipeline::DrawablePipeline,
+    drawable_pipeline::{
+        DrawableContext, DrawablePipeline, RenderContentParams, RenderDrawableParams,
+    },
     drawable_reference::ATLAS_SIZE,
     shader::{ShaderConstants, ShaderLoader},
     LayerContents, Resources, Scene,
 };
+
+pub struct DrawContext<'a> {
+    pub encoder: &'a mut CommandEncoder,
+    pub first: &'a mut bool,
+    pub frame: &'a Texture,
+    pub frame_view: &'a TextureView,
+}
 
 pub struct Renderer {
     pub adapter: Adapter,
@@ -332,12 +341,16 @@ impl Renderer {
                 &scene.resources,
             );
 
+            let draw_context = DrawContext {
+                encoder: &mut encoder,
+                first: &mut first,
+                frame,
+                frame_view: &frame_view,
+            };
+
             self.draw_content(
                 &layer.contents,
-                &mut encoder,
-                &mut first,
-                frame,
-                &frame_view,
+                draw_context,
                 layer.clip,
                 constants,
                 &scene.resources,
@@ -427,15 +440,19 @@ impl Renderer {
                         drawable_scope.set_scissor_rect(x, y, w, h);
                     }
 
-                    drawable.draw_mask(
-                        &self.queue,
-                        &mut drawable_scope,
+                    let draw_context = DrawableContext {
+                        queue: &self.queue,
+                        universal_bind_group: &self.universal_mask_bind_group,
+                    };
+
+                    let render_params = RenderDrawableParams {
                         constants,
-                        &self.universal_mask_bind_group,
                         resources,
                         clip,
                         batch,
-                    );
+                    };
+
+                    drawable.draw_mask(&draw_context, &mut drawable_scope, &render_params);
                 }
             }
         } else {
@@ -486,17 +503,16 @@ impl Renderer {
     pub fn draw_content(
         &mut self,
         contents: &LayerContents,
-        encoder: &mut CommandEncoder,
-        first: &mut bool,
-        frame: &Texture,
-        frame_view: &TextureView,
+        context: DrawContext,
         clip: Option<Rect<u32>>,
         constants: ShaderConstants,
         resources: &Resources,
     ) {
-        let mut content_scope = self.profiler.scope("content", encoder, &self.device);
+        let mut content_scope = self
+            .profiler
+            .scope("content", context.encoder, &self.device);
 
-        if *first {
+        if *context.first {
             content_scope.scoped_render_pass(
                 "Clear Offscreen Texture",
                 &self.device,
@@ -518,31 +534,29 @@ impl Renderer {
         } else {
             'offscreen_copy: for batch in contents.primitives.iter() {
                 for drawable in self.drawables.iter() {
-                    if drawable.has_work(batch) {
-                        if drawable.requires_offscreen_copy() {
-                            let mut copy_scope =
-                                content_scope.scope("Copy Frame to Offscreen", &self.device);
-                            copy_scope.copy_texture_to_texture(
-                                ImageCopyTexture {
-                                    texture: frame,
-                                    mip_level: 0,
-                                    origin: Origin3d::ZERO,
-                                    aspect: Default::default(),
-                                },
-                                ImageCopyTexture {
-                                    texture: &self.offscreen_texture.texture,
-                                    mip_level: 0,
-                                    origin: Origin3d::ZERO,
-                                    aspect: Default::default(),
-                                },
-                                Extent3d {
-                                    width: self.width,
-                                    height: self.height,
-                                    depth_or_array_layers: 1,
-                                },
-                            );
-                            break 'offscreen_copy;
-                        }
+                    if drawable.has_work(batch) && drawable.requires_offscreen_copy() {
+                        let mut copy_scope =
+                            content_scope.scope("Copy Frame to Offscreen", &self.device);
+                        copy_scope.copy_texture_to_texture(
+                            ImageCopyTexture {
+                                texture: context.frame,
+                                mip_level: 0,
+                                origin: Origin3d::ZERO,
+                                aspect: Default::default(),
+                            },
+                            ImageCopyTexture {
+                                texture: &self.offscreen_texture.texture,
+                                mip_level: 0,
+                                origin: Origin3d::ZERO,
+                                aspect: Default::default(),
+                            },
+                            Extent3d {
+                                width: self.width,
+                                height: self.height,
+                                depth_or_array_layers: 1,
+                            },
+                        );
+                        break 'offscreen_copy;
                     }
                 }
             }
@@ -555,7 +569,7 @@ impl Renderer {
                 }
 
                 // The first drawable should clear the output texture
-                let attachment_op = if *first {
+                let attachment_op = if *context.first {
                     Operations::<Color> {
                         load: LoadOp::<_>::Clear(Color::WHITE),
                         store: StoreOp::Store,
@@ -573,7 +587,7 @@ impl Renderer {
                     RenderPassDescriptor {
                         label: Some("Render Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
-                            view: frame_view,
+                            view: context.frame_view,
                             resolve_target: None,
                             ops: attachment_op,
                         })],
@@ -596,17 +610,21 @@ impl Renderer {
                     drawable_scope.set_scissor_rect(x, y, w, h);
                 }
 
-                drawable.draw_content(
-                    &self.queue,
-                    &mut drawable_scope,
+                let draw_context = DrawableContext {
+                    queue: &self.queue,
+                    universal_bind_group: &self.universal_content_bind_group,
+                };
+
+                let render_params = RenderContentParams {
                     constants,
-                    &self.universal_content_bind_group,
                     resources,
                     clip,
                     batch,
-                );
+                };
 
-                *first = false;
+                drawable.draw_content(&draw_context, &mut drawable_scope, &render_params);
+
+                *context.first = false;
             }
         }
     }
