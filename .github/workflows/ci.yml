@@ -90,6 +90,8 @@ jobs:
         run: |
           if [[ $RUNNER_OS == "macOS" ]]; then
             curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
+            brew tap homebrew/cask-fonts
+            brew install font-monaspace
             brew install --cask font-fira-code-nerd-font
             brew install --cask font-profont-nerd-font
             brew install --cask font-caskaydia-cove-nerd-font
