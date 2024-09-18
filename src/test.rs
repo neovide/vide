@@ -29,13 +29,11 @@ struct Assets;
 
 lazy_static! {
     static ref TEMP_DIR: PathBuf = temp_dir();
-    static ref GIT_USER: String = {
-        let repo = Repository::open_from_env().expect("Could not read git repository");
-        let config = repo.config().expect("Could not read config for repo");
-        config
-            .get_string("user.name")
-            .expect("Could not read user name")
-    };
+    static ref TEMP_DIR_ROOT_NAME: String = format!("vide_test_{}", std::process::id());
+}
+
+fn create_temp_dir() -> PathBuf {
+    std::env::temp_dir().join(TEMP_DIR_ROOT_NAME.as_str())
 }
 
 fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
@@ -47,10 +45,10 @@ fn assert_no_regressions(width: u32, height: u32, scene: Scene) {
         .last()
         .unwrap()
         .to_string();
-    let user_test_data_path = format!("./test_data/{}/", *GIT_USER);
+    let user_test_data_path = create_temp_dir();
     create_dir_all(&user_test_data_path).unwrap();
 
-    let expected_path = format!("{}/{}.png", user_test_data_path, test_name);
+    let expected_path = format!("{}/{}.png", user_test_data_path.display(), test_name);
     let expected = ImageReader::open(&expected_path).ok().map(|reader| {
         reader
             .decode()
