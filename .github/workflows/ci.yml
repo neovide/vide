@@ -93,6 +93,7 @@ jobs:
             brew install --cask font-fira-code-nerd-font
             brew install --cask font-profont-nerd-font
             brew install --cask font-caskaydia-cove-nerd-font
+            brew install --cask font-monaspace-nerd-font
           fi
 
       - name: cargo test
