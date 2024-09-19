@@ -111,7 +111,7 @@ jobs:
 
             for font in "${fonts[@]}"; do
               ZIP_FILE="${font}${EXTENSION}"
-              if [[ -f "$font" == "Monaspace" ]]; then
+              if [[ "$font" == "Monaspace" ]]; then
                 DOWNLOAD_URL="https://github.com/githubnext/monaspace/releases/download/v1.101/monaspace-v1.101.zip"
               else
                 DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
