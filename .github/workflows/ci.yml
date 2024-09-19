@@ -96,6 +96,9 @@ jobs:
             brew install font-caskaydia-cove-nerd-font
             brew install font-monaspace-nerd-font
             brew install font-noto-nerd-font
+          elif [[ $RUNNER_OS == "Linux" ]]; then
+            curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
+            brew doctor
           fi
 
       - name: cargo test
