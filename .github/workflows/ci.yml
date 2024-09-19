@@ -86,6 +86,12 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
 
+      - name: install Mesa
+        run: |
+          sudo add-apt-repository ppa:kisak/kisak-mesa
+          sudo apt update
+          sudo apt upgrade
+
       - name: Install Fonts
         run: |
           declare -a fonts=(
