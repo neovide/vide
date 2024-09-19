@@ -187,6 +187,7 @@ jobs:
 
       - name: Set up Scoop
         if: matrix.os == 'windows-2022'
+        shell: powershell
         run: |
           Invoke-Expression (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')
           scoop install git
