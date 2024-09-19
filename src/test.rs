@@ -310,6 +310,7 @@ fn font_styles() {
         attributes: Attributes,
         synthesis: Synthesis,
     }
+
     let lines = vec![
         (
             "FiraCode Normal",
