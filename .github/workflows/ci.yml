@@ -195,6 +195,27 @@ jobs:
           scoop bucket add nerd-fonts 
           scoop install Monaspace-NF FiraCode-NF ProFont-NF Cascadia-Code CascadiaCode-NF CascadiaMono-NF CascadiaCode-NF-Mono CascadiaCode-NF-Propo Noto-NF
 
+      - name: Restart font cache
+        if: matrix.os == 'windows-2022'
+        shell: powershell
+        run: |
+          $fontPaths = @(
+          "$env:SCOOP\apps\nerd-fonts\current\Monaspace-NF\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\FiraCode-NF\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\ProFont-NF\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\Cascadia-Code\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\CascadiaCode-NF\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\CascadiaMono-NF\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\CascadiaCode-NF-Mono\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\CascadiaCode-NF-Propo\*.ttf",
+          "$env:SCOOP\apps\nerd-fonts\current\Noto-NF\*.ttf"
+          )
+          foreach ($path in $fontPaths) {
+            foreach ($font in Get-ChildItem -Path $path) {
+              Add-FontResource -FilePath $font.FullName
+            }
+          }
+
       - name: Install Fonts
         run: |
           declare -a fonts=(
