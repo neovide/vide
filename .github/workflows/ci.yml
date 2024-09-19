@@ -97,16 +97,9 @@ jobs:
             brew install font-monaspace-nerd-font
             brew install font-noto-nerd-font
           elif [[ $RUNNER_OS == "Linux" ]]; then
-            curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh
-            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-            brew update
-            brew upgrade
-            brew install font-monospace-nerd-font
-            brew install font-fira-code-nerd-font
-            brew install font-profont-nerd-font
-            brew install font-caskaydia-cove-nerd-font
-            brew install font-monaspace-nerd-font
-            brew install font-noto-nerd-font
+            wget https://raw.githubusercontent.com/mcarvalho1/Nerd-fonts-Downloader-Script/master/nf_downloader.sh
+            chmod +x nf_downloader.sh
+            ./nf_downloader.sh
           fi
 
       - name: cargo test
