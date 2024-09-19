@@ -4,6 +4,8 @@ use futures::executor::block_on;
 use glam::*;
 use glamour::{AsRaw, Rect};
 use wgpu::*;
+
+#[cfg(not(target_os = "macos"))]
 use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 
 use crate::{
@@ -29,6 +31,8 @@ pub struct Renderer {
     pub device: Device,
     pub queue: Queue,
     pub shaders: HashMap<String, ShaderModule>,
+
+    #[cfg(not(target_os = "macos"))]
     pub profiler: GpuProfiler,
 
     pub format: TextureFormat,
@@ -153,19 +157,33 @@ impl Renderer {
         );
         let shaders = shaders.await;
 
-        let profiler = GpuProfiler::new_with_tracy_client(
-            GpuProfilerSettings::default(),
+        #[cfg(not(target_os = "macos"))]
+        let mut profiler = GpuProfiler::new_with_tracy_client(
+            GpuProfilerSettings {
+                // enable_timer_queries: false,
+                ..Default::default()
+            },
             adapter.get_info().backend,
             &device,
             &queue,
         )
         .expect("Could not create profiler");
 
+        #[cfg(not(target_os = "macos"))]
+        profiler
+            .change_settings(GpuProfilerSettings {
+                enable_timer_queries: false,
+                ..Default::default()
+            })
+            .unwrap();
+
         Self {
             adapter,
             device,
             queue,
             shaders,
+
+            #[cfg(not(target_os = "macos"))]
             profiler,
 
             format,
@@ -226,8 +244,8 @@ impl Renderer {
                 | Features::VERTEX_WRITABLE_STORAGE
                 | Features::CLEAR_TEXTURE
                 | Features::DUAL_SOURCE_BLENDING
-                | Features::TIMESTAMP_QUERY
-                | Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
+            // | Features::TIMESTAMP_QUERY
+            // | Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
         }
 
         #[cfg(not(target_os = "macos"))]
@@ -356,13 +374,18 @@ impl Renderer {
                 &scene.resources,
             );
         }
-        self.profiler.resolve_queries(&mut encoder);
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            self.profiler.resolve_queries(&mut encoder);
+
+            self.profiler.end_frame().unwrap();
+
+            self.profiler
+                .process_finished_frame(self.queue.get_timestamp_period());
+        }
+
         self.queue.submit(Some(encoder.finish()));
-
-        self.profiler.end_frame().unwrap();
-
-        self.profiler
-            .process_finished_frame(self.queue.get_timestamp_period());
     }
 
     pub fn draw_mask(
@@ -508,11 +531,16 @@ impl Renderer {
         constants: ShaderConstants,
         resources: &Resources,
     ) {
+        #[cfg(not(target_os = "macos"))]
         let mut content_scope = self
             .profiler
             .scope("content", context.encoder, &self.device);
 
+        #[cfg(target_os = "macos")]
+        let content_scope = context.encoder;
+
         if *context.first {
+            #[cfg(not(target_os = "macos"))]
             content_scope.scoped_render_pass(
                 "Clear Offscreen Texture",
                 &self.device,
@@ -531,12 +559,33 @@ impl Renderer {
                     timestamp_writes: None,
                 },
             );
+
+            #[cfg(target_os = "macos")]
+            content_scope.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Clear Offscreen Texture"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &self.offscreen_texture.view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color::WHITE),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
         } else {
             'offscreen_copy: for batch in contents.primitives.iter() {
                 for drawable in self.drawables.iter() {
                     if drawable.has_work(batch) && drawable.requires_offscreen_copy() {
+                        #[cfg(not(target_os = "macos"))]
                         let mut copy_scope =
                             content_scope.scope("Copy Frame to Offscreen", &self.device);
+
+                        #[cfg(target_os = "macos")]
+                        let copy_scope = &mut *content_scope;
+
                         copy_scope.copy_texture_to_texture(
                             ImageCopyTexture {
                                 texture: context.frame,
@@ -581,6 +630,7 @@ impl Renderer {
                     }
                 };
 
+                #[cfg(not(target_os = "macos"))]
                 let mut render_pass = content_scope.scoped_render_pass(
                     "Layer Render Pass",
                     &self.device,
@@ -596,8 +646,26 @@ impl Renderer {
                     },
                 );
 
+                #[cfg(target_os = "macos")]
+                let render_pass = content_scope.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: context.frame_view,
+                        resolve_target: None,
+                        ops: attachment_op,
+                    })],
+                    depth_stencil_attachment: None,
+                    ..Default::default()
+                });
+
                 profiling::scope!("drawable", &drawable.name);
+
+                #[cfg(not(target_os = "macos"))]
                 let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
+
+                #[cfg(target_os = "macos")]
+                let mut drawable_scope = render_pass;
+
                 if !drawable.ready() {
                     continue;
                 }
