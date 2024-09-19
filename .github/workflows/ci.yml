@@ -97,9 +97,30 @@ jobs:
             brew install font-monaspace-nerd-font
             brew install font-noto-nerd-font
           elif [[ $RUNNER_OS == "Linux" ]]; then
-            wget https://raw.githubusercontent.com/mcarvalho1/Nerd-fonts-Downloader-Script/master/nf_downloader.sh
-            chmod +x nf_downloader.sh
-            ./nf_downloader.sh
+            declare -a fonts=(
+              "FiraCode"
+              "Hack"
+              "JetBrainsMono"
+              "CascadiaCode"
+              "UbuntuMono"
+            )
+            VERSION="2.1.0"
+            EXTENSION=".zip"
+            FONT_DIR="${HOME}/.local/share/fonts"
+            mkdir -p "$FONT_DIR"
+
+            for font in "${fonts[@]}"; do
+            ZIP_FILE="${font}${EXTENSION}"
+            DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
+            echo "Downloading and installing '$font'..."
+            wget --quiet "$DOWNLOAD_URL" -O "$ZIP_FILE"
+            unzip -q "$ZIP_FILE" -d "$FONT_DIR"
+            rm "$ZIP_FILE"
+            echo "'$font' installed successfully."
+            done
+
+            # Refresh font cache
+            fc-cache -fv
           fi
 
       - name: cargo test
