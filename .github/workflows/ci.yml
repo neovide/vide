@@ -10,6 +10,13 @@ defaults:
     shell: bash
 
 env:
+  # Sourced from https://vulkan.lunarg.com/sdk/home#linux
+  VULKAN_SDK_VERSION: "1.3.268"
+  # Sourced from https://archive.mesa3d.org/. Bumping this requires
+  # updating the mesa build in https://github.com/gfx-rs/ci-build and creating a new release.
+  MESA_VERSION: "23.3.1"
+  # Corresponds to https://github.com/gfx-rs/ci-build/releases
+  CI_BINARY_BUILD: "build18"
   FONTS: "Monaspace FiraCode ProFont CascadiaCode Noto"
   BREW_FONTS: "font-monaspace font-fira-code-nerd-font font-profont-nerd-font font-caskaydia-cove-nerd-font font-monaspace-nerd-font font-noto-nerd-font"
   VERSION: "v3.2.1"
