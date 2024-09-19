@@ -93,7 +93,6 @@ jobs:
             "FiraCode"
             "ProFont"
             "CascadiaCode"
-            "Monaspace"
             "Noto"
           )
           if [[ $RUNNER_OS == "macOS" ]]; then
@@ -112,7 +111,11 @@ jobs:
 
             for font in "${fonts[@]}"; do
               ZIP_FILE="${font}${EXTENSION}"
-              DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
+              if [[ -f "$font" == "Monaspace" ]]; then
+                DOWNLOAD_URL="https://github.com/githubnext/monaspace/releases/download/v1.101/monaspace-v1.101.zip"
+              else
+                DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
+              fi
               echo "Downloading and installing '$font'..."
               wget --quiet "$DOWNLOAD_URL" -O "$ZIP_FILE"
               unzip -oq "$ZIP_FILE" -d "$FONT_DIR"
