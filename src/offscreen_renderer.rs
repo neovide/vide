@@ -20,7 +20,7 @@ impl OffscreenRenderer {
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 power_preference: PowerPreference::default(),
-                force_fallback_adapter: true,
+                force_fallback_adapter: false,
                 compatible_surface: None,
             })
             .await
