@@ -248,7 +248,7 @@ impl Renderer {
             // | Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
         }
 
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        #[cfg(target_os = "windows")]
         {
             Features::PUSH_CONSTANTS
                 | Features::SPIRV_SHADER_PASSTHROUGH
