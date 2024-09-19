@@ -238,7 +238,7 @@ impl Renderer {
     }
 
     pub fn add_default_required_features() -> Features {
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
         {
             Features::PUSH_CONSTANTS
                 | Features::VERTEX_WRITABLE_STORAGE
@@ -399,7 +399,7 @@ impl Renderer {
         #[cfg(not(any(target_os = "macos", target_os = "linux")))]
         let mut mask_scope = self.profiler.scope("mask", encoder, &self.device);
 
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
         let mask_scope: &mut CommandEncoder = encoder;
 
         if let Some(mask_contents) = mask_contents {
@@ -424,7 +424,7 @@ impl Renderer {
                         },
                     );
 
-                    #[cfg(target_os = "macos")]
+                    #[cfg(any(target_os = "macos", target_os = "linux"))]
                     let render_pass = mask_scope.begin_render_pass(&RenderPassDescriptor {
                         label: Some("Render Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
@@ -448,7 +448,7 @@ impl Renderer {
                     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
                     let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
 
-                    #[cfg(target_os = "macos")]
+                    #[cfg(any(target_os = "macos", target_os = "linux"))]
                     let mut drawable_scope = render_pass;
 
                     if !drawable.ready() {
@@ -502,7 +502,7 @@ impl Renderer {
                 },
             );
 
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             mask_scope.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Clear Mask Texture"),
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -536,7 +536,7 @@ impl Renderer {
             .profiler
             .scope("content", context.encoder, &self.device);
 
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
         let content_scope = context.encoder;
 
         if *context.first {
@@ -560,7 +560,7 @@ impl Renderer {
                 },
             );
 
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             content_scope.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Clear Offscreen Texture"),
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -583,7 +583,7 @@ impl Renderer {
                         let mut copy_scope =
                             content_scope.scope("Copy Frame to Offscreen", &self.device);
 
-                        #[cfg(target_os = "macos")]
+                        #[cfg(any(target_os = "macos", target_os = "linux"))]
                         let copy_scope = &mut *content_scope;
 
                         copy_scope.copy_texture_to_texture(
@@ -646,7 +646,7 @@ impl Renderer {
                     },
                 );
 
-                #[cfg(target_os = "macos")]
+                #[cfg(any(target_os = "macos", target_os = "linux"))]
                 let render_pass = content_scope.begin_render_pass(&RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
@@ -663,7 +663,7 @@ impl Renderer {
                 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
                 let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
 
-                #[cfg(target_os = "macos")]
+                #[cfg(any(target_os = "macos", target_os = "linux"))]
                 let mut drawable_scope = render_pass;
 
                 if !drawable.ready() {
