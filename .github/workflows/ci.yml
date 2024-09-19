@@ -128,7 +128,7 @@ jobs:
           fi
 
       - name: cargo test
-        run: cargo test --workspace --locked --all-features
+        run: RUST_BACKTRACE=1 cargo test --workspace --locked --all-features
 
   build:
     name: cargo build
