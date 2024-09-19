@@ -88,6 +88,13 @@ jobs:
 
       - name: Install Fonts
         run: |
+          declare -a fonts=(
+            "FiraCode"
+            "Hack"
+            "JetBrainsMono"
+            "CascadiaCode"
+            "UbuntuMono"
+          )
           if [[ $RUNNER_OS == "macOS" ]]; then
             curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
             brew install font-monaspace
@@ -97,13 +104,6 @@ jobs:
             brew install font-monaspace-nerd-font
             brew install font-noto-nerd-font
           elif [[ $RUNNER_OS == "Linux" ]]; then
-            declare -a fonts=(
-              "FiraCode"
-              "Hack"
-              "JetBrainsMono"
-              "CascadiaCode"
-              "UbuntuMono"
-            )
             VERSION="v3.2.1"
             EXTENSION=".zip"
             FONT_DIR="${HOME}/.local/share/fonts"
@@ -114,7 +114,7 @@ jobs:
               DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
               echo "Downloading and installing '$font'..."
               wget --quiet "$DOWNLOAD_URL" -O "$ZIP_FILE"
-              unzip -q "$ZIP_FILE" -d "$FONT_DIR"
+              unzip -oq "$ZIP_FILE" -d "$FONT_DIR"
               rm "$ZIP_FILE"
               echo "'$font' installed successfully."
             done
