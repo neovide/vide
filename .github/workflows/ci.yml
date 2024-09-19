@@ -99,6 +99,7 @@ jobs:
           elif [[ $RUNNER_OS == "Linux" ]]; then
             curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+            brew update
             brew upgrade
             brew install font-monospace-nerd-font
             brew install font-fira-code-nerd-font
