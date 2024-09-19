@@ -88,9 +88,15 @@ jobs:
 
       - name: install Mesa
         run: |
-          sudo add-apt-repository ppa:kisak/kisak-mesa
-          sudo apt update
-          sudo apt upgrade
+          if [[ $RUNNER_OS == "Linux" ]]; then
+            sudo add-apt-repository ppa:kisak/kisak-mesa
+            sudo apt update
+            sudo apt upgrade
+
+            sudo add-apt-repository ppa:oibaf/graphics-drivers
+            sudo apt update
+            sudo apt upgrade
+          fi
 
       - name: Install Fonts
         run: |
