@@ -199,16 +199,17 @@ jobs:
         if: matrix.os == 'windows-2022'
         shell: powershell
         run: |
+          $scoopDir = "$env:USERPROFILE\scoop\apps\nerd-fonts\current"
           $fontPaths = @(
-          "$env:SCOOP\apps\nerd-fonts\current\Monaspace-NF\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\FiraCode-NF\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\ProFont-NF\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\Cascadia-Code\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\CascadiaCode-NF\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\CascadiaMono-NF\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\CascadiaCode-NF-Mono\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\CascadiaCode-NF-Propo\*.ttf",
-          "$env:SCOOP\apps\nerd-fonts\current\Noto-NF\*.ttf"
+            "$scoopDir\Monaspace-NF\*.ttf",
+            "$scoopDir\FiraCode-NF\*.ttf",
+            "$scoopDir\ProFont-NF\*.ttf",
+            "$scoopDir\Cascadia-Code\*.ttf",
+            "$scoopDir\CascadiaCode-NF\*.ttf",
+            "$scoopDir\CascadiaMono-NF\*.ttf",
+            "$scoopDir\CascadiaCode-NF-Mono\*.ttf",
+            "$scoopDir\CascadiaCode-NF-Propo\*.ttf",
+            "$scoopDir\Noto-NF\*.ttf"
           )
           foreach ($path in $fontPaths) {
             foreach ($font in Get-ChildItem -Path $path) {
