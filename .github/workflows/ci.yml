@@ -193,7 +193,7 @@ jobs:
           scoop install git
           scoop bucket add extras
           scoop bucket add nerd-fonts 
-          scoop install Monaspace-NF FiraCode-NF ProFont-NF Cascadia-Code CascadiaCode-NF CascadiaMono-NF CascadiaCode-NF-Mono CascadiaCode-NF-Propo Noto-NF
+          scoop install Monaspace-NF FiraCode-NF ProFont-NF CascadiaCode-NF Noto-NF
 
       - name: Restart font cache
         if: matrix.os == 'windows-2022'
@@ -208,14 +208,11 @@ jobs:
           }
           "@
           $fontPaths = @(
-          "$env:USERPROFILE\scoop\apps\FiraCode-NF\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\ProFont-NF\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\Cascadia-Code\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\CascadiaCode-NF\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\CascadiaMono-NF\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\CascadiaCode-NF-Mono\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\CascadiaCode-NF-Propo\current\*.ttf",
-          "$env:USERPROFILE\scoop\apps\Noto-NF\current\*.ttf"
+            "$env:USERPROFILE\scoop\apps\Monaspace-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\FiraCode-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\ProFont-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\CascadiaCode-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\Noto-NF\current\*.ttf"
           )
           foreach ($path in $fontPaths) {
             if (Test-Path -Path $path) {
