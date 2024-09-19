@@ -100,7 +100,7 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
             brew upgrade
-            brew install font-monaspace
+            brew install --cask font-meslo-lg-nerd-font
             brew install font-fira-code-nerd-font
             brew install font-profont-nerd-font
             brew install font-caskaydia-cove-nerd-font
