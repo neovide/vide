@@ -199,21 +199,21 @@ jobs:
         if: matrix.os == 'windows-2022'
         shell: powershell
         run: |
-          $scoopDir = "$env:USERPROFILE\scoop\apps\nerd-fonts\current"
           $fontPaths = @(
-            "$scoopDir\Monaspace-NF\*.ttf",
-            "$scoopDir\FiraCode-NF\*.ttf",
-            "$scoopDir\ProFont-NF\*.ttf",
-            "$scoopDir\Cascadia-Code\*.ttf",
-            "$scoopDir\CascadiaCode-NF\*.ttf",
-            "$scoopDir\CascadiaMono-NF\*.ttf",
-            "$scoopDir\CascadiaCode-NF-Mono\*.ttf",
-            "$scoopDir\CascadiaCode-NF-Propo\*.ttf",
-            "$scoopDir\Noto-NF\*.ttf"
+            "$env:USERPROFILE\scoop\apps\FiraCode-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\ProFont-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\Cascadia-Code\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\CascadiaCode-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\CascadiaMono-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\CascadiaCode-NF-Mono\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\CascadiaCode-NF-Propo\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\Noto-NF\current\*.ttf"
           )
           foreach ($path in $fontPaths) {
-            foreach ($font in Get-ChildItem -Path $path) {
-              Add-FontResource -FilePath $font.FullName
+            if (Test-Path -Path $path) {
+              foreach ($font in Get-ChildItem -Path $path) {
+                Add-FontResource -FilePath $font.FullName
+              }
             }
           }
 
