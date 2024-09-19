@@ -17,6 +17,12 @@ env:
   MESA_VERSION: "23.3.1"
   # Corresponds to https://github.com/gfx-rs/ci-build/releases
   CI_BINARY_BUILD: "build18"
+  # Sourced from https://github.com/microsoft/DirectXShaderCompiler/releases
+  #
+  # Must also be changed in shaders.yaml
+  DXC_RELEASE: "v1.7.2308"
+  DXC_FILENAME: "dxc_2023_08_14.zip"
+
   FONTS: "Monaspace FiraCode ProFont CascadiaCode Noto"
   BREW_FONTS: "font-monaspace font-fira-code-nerd-font font-profont-nerd-font font-caskaydia-cove-nerd-font font-monaspace-nerd-font font-noto-nerd-font"
   VERSION: "v3.2.1"
