@@ -1,6 +1,5 @@
 use std::{env::temp_dir, fs::create_dir_all, path::PathBuf, thread};
 
-use git2::Repository;
 use glamour::{point2, size2, vec2, Rect};
 use image::ImageReader;
 use lazy_static::lazy_static;
