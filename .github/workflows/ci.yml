@@ -193,7 +193,7 @@ jobs:
           scoop install git
           scoop bucket add extras
           scoop bucket add nerd-fonts 
-          scoop install Monaspace-NF FiraCode-NF ProFont-NF CascadiaCode-NF Noto-NF
+          scoop install Monaspace-NF FiraCode-NF ProFont-NF Cascadia-Code Noto-NF
 
       - name: Install Fonts
         run: |
