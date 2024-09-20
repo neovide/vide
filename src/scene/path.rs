@@ -52,7 +52,12 @@ impl Path {
         }
     }
 
+    #[deprecated(note = "Use new_line_instead")]
     pub fn new_open_stroke(width: f32, color: Srgba, start: Point2) -> Self {
+        Self::new_line(width, color, start)
+    }
+
+    pub fn new_line(width: f32, color: Srgba, start: Point2) -> Self {
         Self {
             fill: None,
             stroke: Some((width, color)),

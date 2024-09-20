@@ -63,8 +63,7 @@ impl Layer {
 
     pub fn add_clear(&mut self, color: Srgba) {
         self.add_quad(Quad::new(
-            point2!(0.0, 0.0),
-            size2!(f32::MAX / 2., f32::MAX / 2.),
+            Rect::new(point2!(0.0, 0.0), size2!(f32::MAX / 2., f32::MAX / 2.)),
             color,
         ));
     }
@@ -163,7 +162,7 @@ impl Layer {
     pub fn add_text_layout(
         &mut self,
         resources: &mut Resources,
-        layout: Layout<Srgba>,
+        layout: &Layout<Srgba>,
         position: Point2,
     ) {
         for line in layout.lines() {
@@ -208,7 +207,7 @@ impl Layer {
     pub fn with_text_layout(
         mut self,
         resources: &mut Resources,
-        layout: Layout<Srgba>,
+        layout: &Layout<Srgba>,
         position: Point2,
     ) -> Self {
         self.add_text_layout(resources, layout, position);
