@@ -311,7 +311,7 @@ fn font_styles() {
         synthesis: Synthesis,
     }
 
-    let mut lines = vec![
+    let lines = vec![
         (
             "FiraCode Normal",
             vec![StyleProperty::FontStack(FontStack::Source(
@@ -419,6 +419,22 @@ fn font_styles() {
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: true,
+                    skew: 0.0.into(),
+                },
+            },
+        ),
+        (
+            "CaskaydiaCove Nerd Font Italic",
+            vec![
+                StyleProperty::FontStack(FontStack::Source("CaskaydiaCove Nerd Font")),
+                StyleProperty::FontStyle(FontStyle::Italic),
+            ],
+            Expected {
+                fullname: "CaskaydiaCove NF Italic".into(),
+                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
+                synthesis: Synthesis {
+                    vars: vec![],
+                    embolden: false,
                     skew: 0.0.into(),
                 },
             },
@@ -646,25 +662,6 @@ fn font_styles() {
             },
         ),
     ];
-
-    #[cfg(not(target_os = "windows"))]
-    lines.push((
-        "CaskaydiaCove Nerd Font Italic",
-        vec![
-            StyleProperty::FontStack(FontStack::Source("CaskaydiaCove Nerd Font")),
-            StyleProperty::FontStyle(FontStyle::Italic),
-        ],
-        Expected {
-            fullname: "CaskaydiaCove NF Italic".into(),
-            attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
-            synthesis: Synthesis {
-                vars: vec![],
-                embolden: false,
-                skew: 0.0.into(),
-            },
-        },
-    ));
-
     let layout = shaper.layout_within_with(
         &lines
             .iter()
