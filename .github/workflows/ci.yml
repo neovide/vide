@@ -233,13 +233,6 @@ jobs:
 
       - name: Install Fonts
         run: |
-          declare -a fonts=(
-            "Monaspace"
-            "FiraCode"
-            "ProFont"
-            "CascadiaCode"
-            "Noto"
-          )
           if [[ $RUNNER_OS == "macOS" ]]; then
             curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
             brew install ${{ env.BREW_FONTS }}
