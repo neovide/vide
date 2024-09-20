@@ -1,3 +1,5 @@
+mod font_styles;
+
 use std::{env::temp_dir, fs::create_dir_all, path::PathBuf, thread};
 
 use git2::Repository;
@@ -6,22 +8,14 @@ use image::ImageReader;
 use lazy_static::lazy_static;
 use palette::Srgba;
 use parley::{
-    style::{
-        FontFamily, FontSettings, FontStack, FontStretch, FontStyle, FontWeight, StyleProperty,
-    },
-    swash,
-    swash::{tag_from_bytes, Attributes, Setting, Stretch, Style, Tag, Weight},
+    style::{FontFamily, FontSettings, FontStack, FontWeight, StyleProperty},
+    swash::Setting,
 };
 use rust_embed::RustEmbed;
 
 use crate::{
-    offscreen_renderer::OffscreenRenderer, scene::Scene, scene::Synthesis, Layer, Path, Quad,
-    Shaper, Sprite, Texture,
+    offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite, Texture,
 };
-
-const WGHT: Tag = tag_from_bytes(b"wght");
-const WDTH: Tag = tag_from_bytes(b"wdth");
-const SLNT: Tag = tag_from_bytes(b"slnt");
 
 #[derive(RustEmbed)]
 #[folder = "test_data/assets"]

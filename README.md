@@ -22,3 +22,15 @@ effort:
 4. Where possible, features of the renderer should be
    regression tested to ensure that changes do not change
    the quality of the rendering unless explicitly intended.
+
+## Dependencies
+
+The tests require the nerd fonts to be installed. Run the
+following:
+
+### Windows
+```powershell
+scoop bucket add extras
+scoop bucket add nerd-fonts 
+scoop install Monaspace-NF FiraCode-NF ProFont-NF CascadiaCode-NF Noto-NF
+```
