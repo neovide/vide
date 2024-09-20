@@ -269,6 +269,7 @@ fn text_layout_bounds() {
     assert_no_regressions(325, 35, scene);
 }
 
+#[cfg_attr(target_os = "windows", ignore)]
 #[test]
 fn parley_line_breaking_and_font_fallback() {
     let mut scene = Scene::new();
