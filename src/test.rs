@@ -269,7 +269,6 @@ fn text_layout_bounds() {
     assert_no_regressions(325, 35, scene);
 }
 
-#[cfg_attr(target_os = "windows", ignore)]
 #[test]
 fn parley_line_breaking_and_font_fallback() {
     let mut scene = Scene::new();
@@ -312,7 +311,7 @@ fn font_styles() {
         synthesis: Synthesis,
     }
 
-    let lines = vec![
+    let mut lines = vec![
         (
             "FiraCode Normal",
             vec![StyleProperty::FontStack(FontStack::Source(
@@ -420,22 +419,6 @@ fn font_styles() {
                 synthesis: Synthesis {
                     vars: vec![],
                     embolden: true,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "CaskaydiaCove Nerd Font Italic",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("CaskaydiaCove Nerd Font")),
-                StyleProperty::FontStyle(FontStyle::Italic),
-            ],
-            Expected {
-                fullname: "CaskaydiaCove NF Italic".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
                     skew: 0.0.into(),
                 },
             },
@@ -663,6 +646,25 @@ fn font_styles() {
             },
         ),
     ];
+
+    #[cfg(not(target_os = "windows"))]
+    lines.push((
+        "CaskaydiaCove Nerd Font Italic",
+        vec![
+            StyleProperty::FontStack(FontStack::Source("CaskaydiaCove Nerd Font")),
+            StyleProperty::FontStyle(FontStyle::Italic),
+        ],
+        Expected {
+            fullname: "CaskaydiaCove NF Italic".into(),
+            attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
+            synthesis: Synthesis {
+                vars: vec![],
+                embolden: false,
+                skew: 0.0.into(),
+            },
+        },
+    ));
+
     let layout = shaper.layout_within_with(
         &lines
             .iter()
