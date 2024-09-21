@@ -251,7 +251,7 @@ impl Renderer {
         #[cfg(target_os = "windows")]
         {
             Features::PUSH_CONSTANTS
-                | Features::SPIRV_SHADER_PASSTHROUGH
+                // | Features::SPIRV_SHADER_PASSTHROUGH
                 | Features::VERTEX_WRITABLE_STORAGE
                 | Features::CLEAR_TEXTURE
                 | Features::DUAL_SOURCE_BLENDING
