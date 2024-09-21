@@ -5589,13 +5589,15 @@
         {
           "Quads": [
             {
-              "top_left": {
-                "x": 150.0,
-                "y": 100.0
-              },
-              "size": {
-                "width": 100.0,
-                "height": 100.0
+              "region": {
+                "origin": {
+                  "x": 150.0,
+                  "y": 100.0
+                },
+                "size": {
+                  "width": 100.0,
+                  "height": 100.0
+                }
               },
               "color": {
                 "red": 1.0,
@@ -10563,13 +10565,15 @@
         {
           "Quads": [
             {
-              "top_left": {
-                "x": 500.0,
-                "y": 10.0
-              },
-              "size": {
-                "width": 50.0,
-                "height": 50.0
+              "region": {
+                "origin": {
+                  "x": 500.0,
+                  "y": 10.0
+                },
+                "size": {
+                  "width": 50.0,
+                  "height": 50.0
+                }
               },
               "color": {
                 "red": 1.0,
@@ -10581,13 +10585,15 @@
               "edge_blur": 0.0
             },
             {
-              "top_left": {
-                "x": 510.0,
-                "y": 20.0
-              },
-              "size": {
-                "width": 50.0,
-                "height": 50.0
+              "region": {
+                "origin": {
+                  "x": 510.0,
+                  "y": 20.0
+                },
+                "size": {
+                  "width": 50.0,
+                  "height": 50.0
+                }
               },
               "color": {
                 "red": 1.0,
@@ -10599,13 +10605,15 @@
               "edge_blur": 0.0
             },
             {
-              "top_left": {
-                "x": 520.0,
-                "y": 30.0
-              },
-              "size": {
-                "width": 50.0,
-                "height": 50.0
+              "region": {
+                "origin": {
+                  "x": 520.0,
+                  "y": 30.0
+                },
+                "size": {
+                  "width": 50.0,
+                  "height": 50.0
+                }
               },
               "color": {
                 "red": 0.0,
@@ -10617,13 +10625,15 @@
               "edge_blur": 0.0
             },
             {
-              "top_left": {
-                "x": 530.0,
-                "y": 40.0
-              },
-              "size": {
-                "width": 50.0,
-                "height": 50.0
+              "region": {
+                "origin": {
+                  "x": 530.0,
+                  "y": 40.0
+                },
+                "size": {
+                  "width": 50.0,
+                  "height": 50.0
+                }
               },
               "color": {
                 "red": 0.0,
@@ -10635,13 +10645,15 @@
               "edge_blur": 0.0
             },
             {
-              "top_left": {
-                "x": 540.0,
-                "y": 50.0
-              },
-              "size": {
-                "width": 50.0,
-                "height": 50.0
+              "region": {
+                "origin": {
+                  "x": 540.0,
+                  "y": 50.0
+                },
+                "size": {
+                  "width": 50.0,
+                  "height": 50.0
+                }
               },
               "color": {
                 "red": 0.0,

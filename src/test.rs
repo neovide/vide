@@ -1,3 +1,5 @@
+mod font_styles;
+
 use std::{env::temp_dir, fs::create_dir_all, path::PathBuf, thread};
 
 use glamour::{point2, size2, vec2, Rect};
@@ -5,22 +7,14 @@ use image::ImageReader;
 use lazy_static::lazy_static;
 use palette::Srgba;
 use parley::{
-    style::{
-        FontFamily, FontSettings, FontStack, FontStretch, FontStyle, FontWeight, StyleProperty,
-    },
-    swash,
-    swash::{tag_from_bytes, Attributes, Setting, Stretch, Style, Tag, Weight},
+    style::{FontFamily, FontSettings, FontStack, FontWeight, StyleProperty},
+    swash::Setting,
 };
 use rust_embed::RustEmbed;
 
 use crate::{
-    offscreen_renderer::OffscreenRenderer, scene::Scene, scene::Synthesis, Layer, Path, Quad,
-    Shaper, Sprite, Texture,
+    offscreen_renderer::OffscreenRenderer, scene::Scene, Layer, Path, Quad, Shaper, Sprite, Texture,
 };
-
-const WGHT: Tag = tag_from_bytes(b"wght");
-const WDTH: Tag = tag_from_bytes(b"wdth");
-const SLNT: Tag = tag_from_bytes(b"slnt");
 
 #[derive(RustEmbed)]
 #[folder = "test_data/assets"]
@@ -95,8 +89,7 @@ fn simple_quad() {
         Scene::new()
             .with_clear(Srgba::new(1., 0., 0.5, 1.))
             .with_quad(Quad::new(
-                point2!(10., 10.),
-                size2!(50., 50.),
+                Rect::new(point2!(10., 10.), size2!(50., 50.)),
                 Srgba::new(0., 0., 1., 1.),
             )),
     );
@@ -117,7 +110,7 @@ fn simple_text() {
             builder.push_default(&StyleProperty::FontSize(font_size));
         });
 
-        scene.add_text_layout(layout, point2!(0., y));
+        scene.add_text_layout(&layout, point2!(0., y));
     }
 
     assert_eq!(scene.resources.fonts.len(), 1);
@@ -157,12 +150,12 @@ fn simple_blur() {
     shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
     shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
 
+    let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+        builder.push_default(&StyleProperty::FontSize(15.));
+    });
     for i in 0..20 {
         let bottom = 15. * i as f32;
-        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
-            builder.push_default(&StyleProperty::FontSize(15.));
-        });
-        scene.add_text_layout(layout, point2!(0., bottom));
+        scene.add_text_layout(&layout, point2!(0., bottom));
     }
 
     for x in 0..3 {
@@ -187,8 +180,10 @@ fn simple_blurred_quad() {
         for y in 0..5 {
             scene.add_quad(
                 Quad::new(
-                    point2!(15., 15.) + vec2!(x as f32 * 60., y as f32 * 60.),
-                    size2!(50., 50.),
+                    Rect::new(
+                        point2!(15., 15.) + vec2!(x as f32 * 60., y as f32 * 60.),
+                        size2!(50., 50.),
+                    ),
                     Srgba::new(x as f32 / 5., y as f32 / 5., 1., 1.),
                 )
                 .with_corner_radius(x as f32 * 2.)
@@ -213,8 +208,10 @@ fn overlapping_quads() {
 
     for (i, color) in colors.into_iter().enumerate() {
         scene.add_quad(Quad::new(
-            point2!(10., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
-            size2!(50., 50.),
+            Rect::new(
+                point2!(10., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
+                size2!(50., 50.),
+            ),
             color,
         ));
     }
@@ -243,7 +240,7 @@ fn swash_modern_ligatures() {
                 .collect::<Vec<Setting<u16>>>(),
         )));
     });
-    scene.add_text_layout(layout, point2!(5., 5.));
+    scene.add_text_layout(&layout, point2!(5., 5.));
 
     assert_no_regressions(200, 30, scene);
 }
@@ -260,11 +257,10 @@ fn text_layout_bounds() {
     });
 
     scene.add_quad(Quad::new(
-        point2!(10., 10.),
-        size2!(layout.width(), layout.height()),
+        Rect::new(point2!(10., 10.), size2!(layout.width(), layout.height())),
         Srgba::new(0., 1., 0., 0.5),
     ));
-    scene.add_text_layout(layout, point2!(10., 10.));
+    scene.add_text_layout(&layout, point2!(10., 10.));
 
     assert_no_regressions(325, 35, scene);
 }
@@ -289,441 +285,7 @@ fn parley_line_breaking_and_font_fallback() {
 
     let layout_width = layout.width();
     let layout_height = layout.height();
-    scene.add_text_layout(layout, point2!(padding, padding));
-
-    assert_no_regressions(
-        (layout_width + padding * 2.) as u32,
-        (layout_height + padding * 2.) as u32,
-        scene,
-    );
-}
-
-#[test]
-fn font_styles() {
-    let mut scene = Scene::new();
-    let mut shaper = Shaper::new();
-
-    let padding = 10.;
-    #[derive(Debug, PartialEq, Eq)]
-    struct Expected {
-        fullname: String,
-        attributes: Attributes,
-        synthesis: Synthesis,
-    }
-
-    let lines = vec![
-        (
-            "FiraCode Normal",
-            vec![StyleProperty::FontStack(FontStack::Source(
-                "FiraCode Nerd Font",
-            ))],
-            Expected {
-                fullname: "FiraCode Nerd Font Reg".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "FiraCode (Native) Bold",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("FiraCode Nerd Font")),
-                StyleProperty::FontWeight(FontWeight::BOLD),
-            ],
-            Expected {
-                fullname: "FiraCode Nerd Font Bold".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::BOLD, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "FiraCode (Faux) Italic",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("FiraCode Nerd Font")),
-                StyleProperty::FontStyle(FontStyle::Italic),
-            ],
-            Expected {
-                fullname: "FiraCode Nerd Font Reg".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 14.0.into(),
-                },
-            },
-        ),
-        (
-            "FiraCode Oblique 5 degrees",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("FiraCode Nerd Font")),
-                StyleProperty::FontStyle(FontStyle::Oblique(Some(5.0))),
-            ],
-            Expected {
-                fullname: "FiraCode Nerd Font Reg".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 5.0.into(),
-                },
-            },
-        ),
-        (
-            "FiraCode Synthetic Stretch Wide (Buggy)",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("FiraCode Nerd Font")),
-                StyleProperty::FontStretch(FontStretch::EXPANDED),
-            ],
-            Expected {
-                // FIXME: Fontique does not support synthetic stretch
-                fullname: "FiraCode Nerd Font Reg".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "ProFontWindows Nerd Font",
-            vec![StyleProperty::FontStack(FontStack::Source(
-                "ProFontWindows Nerd Font",
-            ))],
-            Expected {
-                fullname: "ProFontWindows Nerd Font".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "ProFontWindows Nerd Font (Faux) Bold",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("ProFontWindows Nerd Font")),
-                StyleProperty::FontWeight(FontWeight::BOLD),
-            ],
-            Expected {
-                fullname: "ProFontWindows Nerd Font".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: true,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "CaskaydiaCove Nerd Font Italic",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("CaskaydiaCove Nerd Font")),
-                StyleProperty::FontStyle(FontStyle::Italic),
-            ],
-            Expected {
-                fullname: "CaskaydiaCove NF Italic".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Monaspace Xenon Var",
-            vec![StyleProperty::FontStack(FontStack::Source(
-                "Monaspace Xenon Var",
-            ))],
-            Expected {
-                fullname: "Monaspace Xenon Var Regular".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Monaspace Xenon Var (Variadic) Bold",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("Monaspace Xenon Var")),
-                StyleProperty::FontWeight(FontWeight::BOLD),
-            ],
-            Expected {
-                fullname: "Monaspace Xenon Var Regular".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![crate::Setting {
-                        tag: WGHT,
-                        value: swash::Weight::BOLD.0.into(),
-                    }],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Monaspace Xenon Var (Variadic) Italic (Buggy)",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("Monaspace Xenon Var")),
-                StyleProperty::FontStyle(FontStyle::Italic),
-            ],
-            Expected {
-                fullname: "Monaspace Xenon Var Regular".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![crate::Setting {
-                        tag: SLNT,
-                        // FIXME: This should be -11
-                        // See: https://github.com/linebender/parley/issues/94
-                        value: (14.0).into(),
-                    }],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Monaspace Xenon Var Oblique -10 degrees",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("Monaspace Xenon Var")),
-                StyleProperty::FontStyle(FontStyle::Oblique(Some(-10.0))),
-            ],
-            Expected {
-                fullname: "Monaspace Xenon Var Regular".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![crate::Setting {
-                        tag: SLNT,
-                        value: (-10.0).into(),
-                    }],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Monaspace Xenon Var Oblique 5 degreees = no italic",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("Monaspace Xenon Var")),
-                StyleProperty::FontStyle(FontStyle::Oblique(Some(-5.0))),
-            ],
-            Expected {
-                fullname: "Monaspace Xenon Var Regular".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![crate::Setting {
-                        tag: SLNT,
-                        value: (-5.0).into(),
-                    }],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Monaspace Xenon Var Stretch=113 Weight = 637, Oblique -8 degrees",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("Monaspace Xenon Var")),
-                StyleProperty::FontWeight(FontWeight::new(637.0)),
-                StyleProperty::FontStyle(FontStyle::Oblique(Some(-8.0))),
-                StyleProperty::FontStretch(FontStretch::from_percentage(113.0)),
-            ],
-            Expected {
-                fullname: "Monaspace Xenon Var Regular".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![
-                        crate::Setting {
-                            tag: WDTH,
-                            value: 113.0.into(),
-                        },
-                        crate::Setting {
-                            tag: WGHT,
-                            value: 637.0.into(),
-                        },
-                        crate::Setting {
-                            tag: SLNT,
-                            value: (-8.0).into(),
-                        },
-                    ],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Noto Serif Normal",
-            vec![StyleProperty::FontStack(FontStack::Source(
-                "NotoSerif Nerd Font",
-            ))],
-            Expected {
-                fullname: "NotoSerif NF Reg".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Noto Serif Bold",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
-                StyleProperty::FontWeight(FontWeight::BOLD),
-            ],
-            Expected {
-                fullname: "NotoSerif NF Bold".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::BOLD, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Noto Serif Condensed",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
-                StyleProperty::FontStretch(FontStretch::CONDENSED),
-            ],
-            Expected {
-                fullname: "NotoSerif NF Cond Reg".into(),
-                attributes: Attributes::new(Stretch::CONDENSED, Weight::NORMAL, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Noto Serif Bold Condensed",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
-                StyleProperty::FontWeight(FontWeight::BOLD),
-                StyleProperty::FontStretch(FontStretch::CONDENSED),
-            ],
-            Expected {
-                fullname: "NotoSerif NF Cond Bold".into(),
-                attributes: Attributes::new(Stretch::CONDENSED, Weight::BOLD, Style::Normal),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Noto Serif Italic",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
-                StyleProperty::FontStyle(FontStyle::Italic),
-            ],
-            Expected {
-                fullname: "NotoSerif NF Italic".into(),
-                attributes: Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-        (
-            "Noto Serif Bold Condensed Italic",
-            vec![
-                StyleProperty::FontStack(FontStack::Source("NotoSerif Nerd Font")),
-                StyleProperty::FontWeight(FontWeight::BOLD),
-                StyleProperty::FontStretch(FontStretch::CONDENSED),
-                StyleProperty::FontStyle(FontStyle::Italic),
-            ],
-            Expected {
-                fullname: "NotoSerif NF Cond Bold Italic".into(),
-                attributes: Attributes::new(Stretch::CONDENSED, Weight::BOLD, Style::Italic),
-                synthesis: Synthesis {
-                    vars: vec![],
-                    embolden: false,
-                    skew: 0.0.into(),
-                },
-            },
-        ),
-    ];
-    let layout = shaper.layout_within_with(
-        &lines
-            .iter()
-            .map(|line| line.0)
-            .collect::<Vec<_>>()
-            .join("\n"),
-        800.,
-        |builder| {
-            builder.push_default(&StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
-            builder.push_default(&StyleProperty::FontSize(16.));
-            let mut start = 0;
-            for line in &lines {
-                let line_len = line.0.len();
-                let range = start..start + line_len;
-                for prop in &line.1 {
-                    builder.push(prop, range.clone());
-                }
-                start += line_len + 1;
-            }
-        },
-    );
-
-    let layout_width = layout.width();
-    let layout_height = layout.height();
-    scene.add_text_layout(layout, point2!(padding, padding));
-
-    let current_layer = scene.layer();
-    assert_eq!(
-        current_layer
-            .contents
-            .primitives
-            .last()
-            .unwrap()
-            .as_glyph_run_vec()
-            .unwrap()
-            .len(),
-        lines.len()
-    );
-    for (index, line) in lines.iter().enumerate() {
-        let glyph_runs = current_layer
-            .contents
-            .primitives
-            .last()
-            .unwrap()
-            .as_glyph_run_vec()
-            .unwrap();
-        let glyph_run = &glyph_runs[index];
-        let font = scene.resources.fonts.get(&glyph_run.font_id).unwrap();
-        let font_ref = font.as_swash_font_ref(glyph_run.font_index).unwrap();
-        let fullname = font_ref
-            .localized_strings()
-            .find_by_id(swash::StringId::Full, None)
-            .map_or("".into(), |str| str.chars().collect::<String>());
-        let attributes = font_ref.attributes();
-        let synthesis = glyph_run.synthesis.clone();
-        let actual = Expected {
-            fullname,
-            attributes,
-            synthesis,
-        };
-        assert_eq!(line.2, actual, "line number {index}");
-    }
+    scene.add_text_layout(&layout, point2!(padding, padding));
 
     assert_no_regressions(
         (layout_width + padding * 2.) as u32,
@@ -746,8 +308,10 @@ fn complex_mask_clips_properly() {
 
     for (i, color) in colors.into_iter().enumerate() {
         scene.add_quad(Quad::new(
-            point2!(10., 10.) + vec2!(i as f32 * 20., i as f32 * 20.),
-            size2!(100., 100.),
+            Rect::new(
+                point2!(10., 10.) + vec2!(i as f32 * 20., i as f32 * 20.),
+                size2!(100., 100.),
+            ),
             color,
         ));
     }
@@ -757,12 +321,12 @@ fn complex_mask_clips_properly() {
     shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
     shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
 
+    let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+        builder.push_default(&StyleProperty::FontSize(20.));
+    });
     for i in 0..20 {
         let bottom = 20. * i as f32;
-        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
-            builder.push_default(&StyleProperty::FontSize(20.));
-        });
-        mask_layer.add_text_layout(&mut scene.resources, layout, point2!(0., bottom));
+        mask_layer.add_text_layout(&mut scene.resources, &layout, point2!(0., bottom));
     }
 
     scene.set_mask(mask_layer);
@@ -801,7 +365,7 @@ fn open_paths() {
 
     for i in 0..10 {
         scene.add_path(
-            Path::new_open_stroke(5., Srgba::new(0., 0., 0., 1.), point2!(20., 20.))
+            Path::new_line(5., Srgba::new(0., 0., 0., 1.), point2!(20., 20.))
                 .with_quadratic_bezier_to(point2!(20. + i as f32 * 30., 100.), point2!(20., 180.)),
         );
     }
@@ -816,12 +380,12 @@ fn simple_mask() {
     shaper.push_default(StyleProperty::FontStack(FontStack::Source("monospace")));
     shaper.push_default(StyleProperty::Brush(Srgba::new(0., 0., 0., 1.)));
 
+    let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
+        builder.push_default(&StyleProperty::FontSize(15.));
+    });
     for i in 0..20 {
         let bottom = 15. * i as f32;
-        let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
-            builder.push_default(&StyleProperty::FontSize(15.));
-        });
-        scene.add_text_layout(layout, point2!(0., bottom));
+        scene.add_text_layout(&layout, point2!(0., bottom));
     }
 
     // Triangle path to mask

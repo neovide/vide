@@ -2,7 +2,7 @@ use std::{fs::File, io::Read, path::Path, sync::Arc};
 
 use futures::executor::block_on;
 
-use glamour::{Point2, Size2};
+use glamour::{Point2, Rect, Size2};
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 use palette::Srgba;
 use parking_lot::RwLock;
@@ -57,8 +57,10 @@ impl ApplicationHandler for App {
                 scene.add_layer(Default::default());
                 scene.add_quad(
                     Quad::new(
-                        Point2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32),
-                        Size2::new(100., 100.),
+                        Rect::new(
+                            Point2::new(self.mouse_pos.x as f32, self.mouse_pos.y as f32),
+                            Size2::new(100., 100.),
+                        ),
                         Srgba::new(0.5, 0.5, 1., 0.5),
                     )
                     .with_edge_blur(5.0),

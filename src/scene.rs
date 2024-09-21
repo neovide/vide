@@ -121,13 +121,13 @@ impl Scene {
         self
     }
 
-    pub fn add_text_layout(&mut self, layout: Layout<Srgba>, top_left: Point2) {
+    pub fn add_text_layout(&mut self, layout: &Layout<Srgba>, top_left: Point2) {
         self.update_layer(|resources, layer| {
             layer.add_text_layout(resources, layout, top_left);
         });
     }
 
-    pub fn with_text_layout(mut self, layout: Layout<Srgba>, top_left: Point2) -> Self {
+    pub fn with_text_layout(mut self, layout: &Layout<Srgba>, top_left: Point2) -> Self {
         self.add_text_layout(layout, top_left);
         self
     }
