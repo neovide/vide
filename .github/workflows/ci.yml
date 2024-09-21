@@ -203,33 +203,33 @@ jobs:
           scoop bucket add nerd-fonts 
           scoop install Monaspace Monaspace-NF FiraCode-NF ProFont-NF CascadiaCode-NF Noto-NF
 
-      - name: Restart font cache
-        if: matrix.os == 'windows-2022'
-        shell: powershell
-        run: |
-          Add-Type -TypeDefinition @"
-          using System;
-          using System.Runtime.InteropServices;
-          public class FontHelper {
-            [DllImport("gdi32.dll")]
-            public static extern int AddFontResource(string lpFileName);
-          }
-          "@
-          $fontPaths = @(
-            "$env:USERPROFILE\scoop\apps\Monaspace-NF\current\*.ttf",
-            "$env:USERPROFILE\scoop\apps\FiraCode-NF\current\*.ttf",
-            "$env:USERPROFILE\scoop\apps\ProFont-NF\current\*.ttf",
-            "$env:USERPROFILE\scoop\apps\CascadiaCode-NF\current\*.ttf",
-            "$env:USERPROFILE\scoop\apps\Noto-NF\current\*.ttf"
-          )
-          foreach ($path in $fontPaths) {
-            if (Test-Path -Path $path) {
-              foreach ($font in Get-ChildItem -Path $path) {
-                [FontHelper]::AddFontResource($font.FullName) | Out-Null
-              }
-            }
-          }
-          Write-Output "Fonts have been registered."
+      # - name: Restart font cache
+      #   if: matrix.os == 'windows-2022'
+      #   shell: powershell
+      #   run: |
+      #     Add-Type -TypeDefinition @"
+      #     using System;
+      #     using System.Runtime.InteropServices;
+      #     public class FontHelper {
+      #       [DllImport("gdi32.dll")]
+      #       public static extern int AddFontResource(string lpFileName);
+      #     }
+      #     "@
+      #     $fontPaths = @(
+      #       "$env:USERPROFILE\scoop\apps\Monaspace-NF\current\*.ttf",
+      #       "$env:USERPROFILE\scoop\apps\FiraCode-NF\current\*.ttf",
+      #       "$env:USERPROFILE\scoop\apps\ProFont-NF\current\*.ttf",
+      #       "$env:USERPROFILE\scoop\apps\CascadiaCode-NF\current\*.ttf",
+      #       "$env:USERPROFILE\scoop\apps\Noto-NF\current\*.ttf"
+      #     )
+      #     foreach ($path in $fontPaths) {
+      #       if (Test-Path -Path $path) {
+      #         foreach ($font in Get-ChildItem -Path $path) {
+      #           [FontHelper]::AddFontResource($font.FullName) | Out-Null
+      #         }
+      #       }
+      #     }
+      #     Write-Output "Fonts have been registered."
 
       - name: Install Fonts
         run: |
@@ -259,7 +259,7 @@ jobs:
           fi
 
       - name: cargo test
-        run: RUST_BACKTRACE=1 cargo test --workspace --locked --all-features
+        run: RUST_BACKTRACE=full cargo test --workspace --locked --all-features
 
   build:
     name: cargo build
