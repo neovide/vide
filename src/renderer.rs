@@ -60,7 +60,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     required_features: Self::add_default_required_features(),
                     required_limits: Limits {
-                        max_push_constant_size: 256,
+                        max_push_constant_size: 128,
                         ..Default::default()
                     },
                     label: None,
