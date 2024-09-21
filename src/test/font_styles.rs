@@ -193,6 +193,7 @@ fn caskaydiacove_nerd_font_italic() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var() {
     assert_attributes(
         vec![StyleProperty::FontStack(FontStack::Source(
@@ -210,6 +211,7 @@ fn monaspace_xenon_var() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_variadic_bold() {
     assert_attributes(
         vec![
@@ -231,6 +233,7 @@ fn monaspace_xenon_var_variadic_bold() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_variadic_italic_buggy() {
     assert_attributes(
         vec![
@@ -254,6 +257,7 @@ fn monaspace_xenon_var_variadic_italic_buggy() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_oblique_minus_10_degrees() {
     assert_attributes(
         vec![
@@ -275,6 +279,7 @@ fn monaspace_xenon_var_oblique_minus_10_degrees() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_oblique_5_degrees_no_italic() {
     assert_attributes(
         vec![
@@ -296,6 +301,7 @@ fn monaspace_xenon_var_oblique_5_degrees_no_italic() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_stretch_113_weight_637_oblique_minus_8_degrees() {
     assert_attributes(
         vec![
