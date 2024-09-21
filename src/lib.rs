@@ -3,6 +3,7 @@ mod drawable;
 mod drawable_pipeline;
 mod drawable_reference;
 mod offscreen_renderer;
+pub mod prelude;
 mod renderer;
 mod scene;
 mod shader;
@@ -15,6 +16,7 @@ mod test;
 pub use glamour;
 pub use palette;
 pub use parley;
+pub use winit;
 
 pub use offscreen_renderer::OffscreenRenderer;
 pub use renderer::Renderer;
