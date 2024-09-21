@@ -197,7 +197,7 @@ jobs:
           echo "VK_DRIVER_FILES=`cygpath --windows $PWD/mesa/lvp_icd.x86_64.json`" >> "$GITHUB_ENV"
           echo "GALLIUM_DRIVER=llvmpipe" >> "$GITHUB_ENV"
 
-      - name: Set up Scoop
+      - name: (windows) Install Fonts
         if: matrix.os == 'windows-2022'
         shell: powershell
         run: |
@@ -235,32 +235,33 @@ jobs:
           }
           Write-Output "Fonts have been registered."
 
-      - name: Install Fonts
+      - name: (macos) Install Fonts
+        if: matrix.os == 'macos-latest'
         run: |
-          if [[ $RUNNER_OS == "macOS" ]]; then
-            curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
-            brew install ${{ env.BREW_FONTS }}
-          elif [[ $RUNNER_OS == "Linux" ]]; then
-            FONT_DIR="${HOME}/.local/share/fonts"
-            mkdir -p "$FONT_DIR"
+          curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
+          brew install ${{ env.BREW_FONTS }}
 
-            for font in ${{ env.FONTS }}; do
-              ZIP_FILE="${font}${EXTENSION}"
-              if [[ "$font" == "Monaspace" ]]; then
-                DOWNLOAD_URL="https://github.com/githubnext/monaspace/releases/download/v1.101/monaspace-v1.101.zip"
-              else
-                DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
-              fi
-              echo "Downloading and installing '$font'..."
-              wget --quiet "$DOWNLOAD_URL" -O "$ZIP_FILE"
-              unzip -oq "$ZIP_FILE" -d "$FONT_DIR"
-              rm "$ZIP_FILE"
-              echo "'$font' installed successfully."
-            done
+      - name: (linux) Install Fonts
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          FONT_DIR="${HOME}/.local/share/fonts"
+          mkdir -p "$FONT_DIR"
+          for font in ${{ env.FONTS }}; do
+            ZIP_FILE="${font}${EXTENSION}"
+            if [[ "$font" == "Monaspace" ]]; then
+              DOWNLOAD_URL="https://github.com/githubnext/monaspace/releases/download/v1.101/monaspace-v1.101.zip"
+            else
+              DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
+            fi
+            echo "Downloading and installing '$font'..."
+            wget --quiet "$DOWNLOAD_URL" -O "$ZIP_FILE"
+            unzip -oq "$ZIP_FILE" -d "$FONT_DIR"
+            rm "$ZIP_FILE"
+            echo "'$font' installed successfully."
+          done
 
-            # Refresh font cache
-            fc-cache -fv
-          fi
+          # Refresh font cache
+          fc-cache -fv
 
       - name: cargo test
         run: RUST_BACKTRACE=full cargo test --workspace --locked --all-features
