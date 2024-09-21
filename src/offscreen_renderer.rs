@@ -60,9 +60,14 @@ impl OffscreenRenderer {
             wgpu::Backends::METAL
         }
 
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "linux")]
         {
             wgpu::Backends::VULKAN
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            wgpu::Backends::all()
         }
     }
 
