@@ -5,7 +5,7 @@ use glam::*;
 use glamour::{AsRaw, Rect};
 use wgpu::*;
 
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+#[cfg(not(target_os = "macos"))]
 use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 
 use crate::{
@@ -32,7 +32,7 @@ pub struct Renderer {
     pub queue: Queue,
     pub shaders: HashMap<String, ShaderModule>,
 
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    #[cfg(not(target_os = "macos"))]
     pub profiler: GpuProfiler,
 
     pub format: TextureFormat,
@@ -157,25 +157,26 @@ impl Renderer {
         );
         let shaders = shaders.await;
 
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-        let mut profiler = GpuProfiler::new_with_tracy_client(
-            GpuProfilerSettings {
-                // enable_timer_queries: false,
-                ..Default::default()
-            },
-            adapter.get_info().backend,
-            &device,
-            &queue,
-        )
-        .expect("Could not create profiler");
+        #[cfg(not(target_os = "macos"))]
+        {
+            let mut profiler = GpuProfiler::new_with_tracy_client(
+                GpuProfilerSettings {
+                    // enable_timer_queries: false,
+                    ..Default::default()
+                },
+                adapter.get_info().backend,
+                &device,
+                &queue,
+            )
+            .expect("Could not create profiler");
 
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-        profiler
-            .change_settings(GpuProfilerSettings {
-                enable_timer_queries: false,
-                ..Default::default()
-            })
-            .unwrap();
+            profiler
+                .change_settings(GpuProfilerSettings {
+                    enable_timer_queries: false,
+                    ..Default::default()
+                })
+                .unwrap();
+        }
 
         Self {
             adapter,
@@ -183,7 +184,7 @@ impl Renderer {
             queue,
             shaders,
 
-            #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+            #[cfg(not(target_os = "macos"))]
             profiler,
 
             format,
@@ -238,12 +239,21 @@ impl Renderer {
     }
 
     pub fn add_default_required_features() -> Features {
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        #[cfg(target_os = "macos")]
         {
             Features::PUSH_CONSTANTS
                 | Features::VERTEX_WRITABLE_STORAGE
                 | Features::CLEAR_TEXTURE
                 | Features::DUAL_SOURCE_BLENDING
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            Features::PUSH_CONSTANTS
+                | Features::VERTEX_WRITABLE_STORAGE
+                | Features::CLEAR_TEXTURE
+                | Features::DUAL_SOURCE_BLENDING
+                | GpuProfiler::ALL_WGPU_TIMER_FEATURES
         }
 
         #[cfg(target_os = "windows")]
@@ -372,7 +382,7 @@ impl Renderer {
             );
         }
 
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        #[cfg(not(target_os = "macos"))]
         {
             self.profiler.resolve_queries(&mut encoder);
 
@@ -393,16 +403,16 @@ impl Renderer {
         constants: ShaderConstants,
         resources: &Resources,
     ) {
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        #[cfg(not(target_os = "macos"))]
         let mut mask_scope = self.profiler.scope("mask", encoder, &self.device);
 
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        #[cfg(target_os = "macos")]
         let mask_scope: &mut CommandEncoder = encoder;
 
         if let Some(mask_contents) = mask_contents {
             for batch in mask_contents.primitives.iter() {
                 for drawable in self.drawables.iter_mut() {
-                    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                    #[cfg(not(target_os = "macos"))]
                     let mut render_pass = mask_scope.scoped_render_pass(
                         "Mask",
                         &self.device,
@@ -421,7 +431,7 @@ impl Renderer {
                         },
                     );
 
-                    #[cfg(any(target_os = "macos", target_os = "linux"))]
+                    #[cfg(target_os = "macos")]
                     let render_pass = mask_scope.begin_render_pass(&RenderPassDescriptor {
                         label: Some("Render Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
@@ -442,10 +452,10 @@ impl Renderer {
 
                     profiling::scope!("drawable", &drawable.name);
 
-                    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                    #[cfg(not(target_os = "macos"))]
                     let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
 
-                    #[cfg(any(target_os = "macos", target_os = "linux"))]
+                    #[cfg(target_os = "macos")]
                     let mut drawable_scope = render_pass;
 
                     if !drawable.ready() {
@@ -476,7 +486,7 @@ impl Renderer {
                 }
             }
         } else {
-            #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+            #[cfg(not(target_os = "macos"))]
             mask_scope.scoped_render_pass(
                 "Clear Mask Texture",
                 &self.device,
@@ -499,7 +509,7 @@ impl Renderer {
                 },
             );
 
-            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            #[cfg(target_os = "macos")]
             mask_scope.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Clear Mask Texture"),
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -528,16 +538,16 @@ impl Renderer {
         constants: ShaderConstants,
         resources: &Resources,
     ) {
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        #[cfg(not(target_os = "macos"))]
         let mut content_scope = self
             .profiler
             .scope("content", context.encoder, &self.device);
 
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        #[cfg(target_os = "macos")]
         let content_scope = context.encoder;
 
         if *context.first {
-            #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+            #[cfg(not(target_os = "macos"))]
             content_scope.scoped_render_pass(
                 "Clear Offscreen Texture",
                 &self.device,
@@ -557,7 +567,7 @@ impl Renderer {
                 },
             );
 
-            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            #[cfg(target_os = "macos")]
             content_scope.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Clear Offscreen Texture"),
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -576,11 +586,11 @@ impl Renderer {
             'offscreen_copy: for batch in contents.primitives.iter() {
                 for drawable in self.drawables.iter() {
                     if drawable.has_work(batch) && drawable.requires_offscreen_copy() {
-                        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                        #[cfg(not(target_os = "macos"))]
                         let mut copy_scope =
                             content_scope.scope("Copy Frame to Offscreen", &self.device);
 
-                        #[cfg(any(target_os = "macos", target_os = "linux"))]
+                        #[cfg(target_os = "macos")]
                         let copy_scope = &mut *content_scope;
 
                         copy_scope.copy_texture_to_texture(
@@ -627,7 +637,7 @@ impl Renderer {
                     }
                 };
 
-                #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                #[cfg(not(target_os = "macos"))]
                 let mut render_pass = content_scope.scoped_render_pass(
                     "Layer Render Pass",
                     &self.device,
@@ -643,7 +653,7 @@ impl Renderer {
                     },
                 );
 
-                #[cfg(any(target_os = "macos", target_os = "linux"))]
+                #[cfg(target_os = "macos")]
                 let render_pass = content_scope.begin_render_pass(&RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
@@ -657,10 +667,10 @@ impl Renderer {
 
                 profiling::scope!("drawable", &drawable.name);
 
-                #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+                #[cfg(not(target_os = "macos"))]
                 let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
 
-                #[cfg(any(target_os = "macos", target_os = "linux"))]
+                #[cfg(target_os = "macos")]
                 let mut drawable_scope = render_pass;
 
                 if !drawable.ready() {
