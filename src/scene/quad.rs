@@ -1,8 +1,9 @@
-use crate::default_drawables::InstancedQuad;
 use glam::Vec4;
-use glamour::{AsRaw, Point2, Rect, Size2};
+use glamour::{AsRaw, Rect};
 use palette::Srgba;
 use serde::{Deserialize, Serialize};
+
+use crate::default_drawables::InstancedQuad;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Quad {
