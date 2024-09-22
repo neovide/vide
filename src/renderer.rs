@@ -158,25 +158,15 @@ impl Renderer {
         let shaders = shaders.await;
 
         #[cfg(not(target_os = "macos"))]
-        {
-            let mut profiler = GpuProfiler::new_with_tracy_client(
-                GpuProfilerSettings {
-                    // enable_timer_queries: false,
-                    ..Default::default()
-                },
-                adapter.get_info().backend,
-                &device,
-                &queue,
-            )
-            .expect("Could not create profiler");
-
-            profiler
-                .change_settings(GpuProfilerSettings {
-                    enable_timer_queries: false,
-                    ..Default::default()
-                })
-                .unwrap();
-        }
+        let mut profiler = GpuProfiler::new_with_tracy_client(
+            GpuProfilerSettings {
+                ..Default::default()
+            },
+            adapter.get_info().backend,
+            &device,
+            &queue,
+        )
+        .expect("Could not create profiler");
 
         Self {
             adapter,
