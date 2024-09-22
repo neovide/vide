@@ -215,7 +215,7 @@ impl Layer {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct LayerContents {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -320,14 +320,6 @@ impl LayerContents {
             .push(PrimitiveBatch::Shared(SharedPrimitiveBatch::Sprites(
                 sprites,
             )));
-    }
-}
-
-impl Default for LayerContents {
-    fn default() -> Self {
-        Self {
-            primitives: Vec::new(),
-        }
     }
 }
 

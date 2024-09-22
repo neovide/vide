@@ -74,12 +74,12 @@ impl<Vertex: bytemuck::Pod + GeometryVertex> GeometryBuffer<Vertex> {
 
         queue.write_buffer(
             &self.vertex_buffer,
-            new_vertex_memory_start as u64,
+            new_vertex_memory_start,
             bytemuck::cast_slice(vertices),
         );
         queue.write_buffer(
             &self.index_buffer,
-            new_index_memory_start as u64,
+            new_index_memory_start,
             bytemuck::cast_slice(indices),
         );
 

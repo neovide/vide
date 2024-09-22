@@ -72,7 +72,7 @@ fn firacode_normal() {
             "FiraCode Nerd Font",
         ))],
         "FiraCode Normal",
-        "FiraCode Nerd Font Reg".into(),
+        "FiraCode Nerd Font Reg",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -90,7 +90,7 @@ fn firacode_native_bold() {
             StyleProperty::FontWeight(FontWeight::BOLD),
         ],
         "FiraCode (Native) Bold",
-        "FiraCode Nerd Font Bold".into(),
+        "FiraCode Nerd Font Bold",
         Attributes::new(Stretch::NORMAL, Weight::BOLD, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -108,7 +108,7 @@ fn firacode_faux_italic() {
             StyleProperty::FontStyle(FontStyle::Italic),
         ],
         "FiraCode (Faux) Italic",
-        "FiraCode Nerd Font Reg".into(),
+        "FiraCode Nerd Font Reg",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -126,7 +126,7 @@ fn firacode_oblique_5_degrees() {
             StyleProperty::FontStyle(FontStyle::Oblique(Some(5.0))),
         ],
         "FiraCode Oblique 5 degrees",
-        "FiraCode Nerd Font Reg".into(),
+        "FiraCode Nerd Font Reg",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -144,7 +144,7 @@ fn firacode_synthetic_stretch_wide() {
             StyleProperty::FontStretch(FontStretch::EXPANDED),
         ],
         "FiraCode Synthetic Stretch Wide",
-        "FiraCode Nerd Font Reg".into(),
+        "FiraCode Nerd Font Reg",
         // FIXME: Fontique does not support synthetic stretch
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
@@ -163,7 +163,7 @@ fn profontwindows_nerd_font_faux_bold() {
             StyleProperty::FontWeight(FontWeight::BOLD),
         ],
         "ProFontWindows Nerd Font (Faux) Bold",
-        "ProFontWindows Nerd Font".into(),
+        "ProFontWindows Nerd Font",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -182,7 +182,7 @@ fn caskaydiacove_nerd_font_italic() {
             StyleProperty::FontStyle(FontStyle::Italic),
         ],
         "CaskaydiaCove Nerd Font Italic",
-        "CaskaydiaCove NF Italic".into(),
+        "CaskaydiaCove NF Italic",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
         Synthesis {
             vars: vec![],
@@ -193,13 +193,14 @@ fn caskaydiacove_nerd_font_italic() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var() {
     assert_attributes(
         vec![StyleProperty::FontStack(FontStack::Source(
             "Monaspace Xenon Var",
         ))],
         "Monaspace Xenon Var",
-        "Monaspace Xenon Var Regular".into(),
+        "Monaspace Xenon Var Regular",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -210,6 +211,7 @@ fn monaspace_xenon_var() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_variadic_bold() {
     assert_attributes(
         vec![
@@ -217,7 +219,7 @@ fn monaspace_xenon_var_variadic_bold() {
             StyleProperty::FontWeight(FontWeight::BOLD),
         ],
         "Monaspace Xenon Var (Variadic) Bold",
-        "Monaspace Xenon Var Regular".into(),
+        "Monaspace Xenon Var Regular",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![crate::Setting {
@@ -231,6 +233,7 @@ fn monaspace_xenon_var_variadic_bold() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_variadic_italic_buggy() {
     assert_attributes(
         vec![
@@ -238,7 +241,7 @@ fn monaspace_xenon_var_variadic_italic_buggy() {
             StyleProperty::FontStyle(FontStyle::Italic),
         ],
         "Monaspace Xenon Var (Variadic) Italic",
-        "Monaspace Xenon Var Regular".into(),
+        "Monaspace Xenon Var Regular",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![crate::Setting {
@@ -254,6 +257,7 @@ fn monaspace_xenon_var_variadic_italic_buggy() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_oblique_minus_10_degrees() {
     assert_attributes(
         vec![
@@ -261,7 +265,7 @@ fn monaspace_xenon_var_oblique_minus_10_degrees() {
             StyleProperty::FontStyle(FontStyle::Oblique(Some(-10.0))),
         ],
         "Monaspace Xenon Var Oblique -10 degrees",
-        "Monaspace Xenon Var Regular".into(),
+        "Monaspace Xenon Var Regular",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![crate::Setting {
@@ -275,6 +279,7 @@ fn monaspace_xenon_var_oblique_minus_10_degrees() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_oblique_5_degrees_no_italic() {
     assert_attributes(
         vec![
@@ -282,7 +287,7 @@ fn monaspace_xenon_var_oblique_5_degrees_no_italic() {
             StyleProperty::FontStyle(FontStyle::Oblique(Some(-5.0))),
         ],
         "Monaspace Xenon Var Oblique 5 degreees = no italic",
-        "Monaspace Xenon Var Regular".into(),
+        "Monaspace Xenon Var Regular",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![crate::Setting {
@@ -296,6 +301,7 @@ fn monaspace_xenon_var_oblique_5_degrees_no_italic() {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore = "Font not found on windows")]
 fn monaspace_xenon_var_stretch_113_weight_637_oblique_minus_8_degrees() {
     assert_attributes(
         vec![
@@ -305,7 +311,7 @@ fn monaspace_xenon_var_stretch_113_weight_637_oblique_minus_8_degrees() {
             StyleProperty::FontStretch(FontStretch::from_percentage(113.0)),
         ],
         "Monaspace Xenon Var Stretch=113 Weight = 637, Oblique -8 degrees",
-        "Monaspace Xenon Var Regular".into(),
+        "Monaspace Xenon Var Regular",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![
@@ -336,7 +342,7 @@ fn notoserif_normal() {
             "NotoSerif Nerd Font",
         ))],
         "Noto Serif Normal",
-        "NotoSerif NF Reg".into(),
+        "NotoSerif NF Reg",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -355,7 +361,7 @@ fn notoserif_bold() {
             StyleProperty::FontWeight(FontWeight::BOLD),
         ],
         "Noto Serif Bold",
-        "NotoSerif NF Bold".into(),
+        "NotoSerif NF Bold",
         Attributes::new(Stretch::NORMAL, Weight::BOLD, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -374,7 +380,7 @@ fn notoserif_condensed() {
             StyleProperty::FontStretch(FontStretch::CONDENSED),
         ],
         "Noto Serif Condensed",
-        "NotoSerif NF Cond Reg".into(),
+        "NotoSerif NF Cond Reg",
         Attributes::new(Stretch::CONDENSED, Weight::NORMAL, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -394,7 +400,7 @@ fn notoserif_bold_condensed() {
             StyleProperty::FontStretch(FontStretch::CONDENSED),
         ],
         "Noto Serif Bold Condensed",
-        "NotoSerif NF Cond Bold".into(),
+        "NotoSerif NF Cond Bold",
         Attributes::new(Stretch::CONDENSED, Weight::BOLD, Style::Normal),
         Synthesis {
             vars: vec![],
@@ -413,7 +419,7 @@ fn notoserif_italic() {
             StyleProperty::FontStyle(FontStyle::Italic),
         ],
         "Noto Serif Italic",
-        "NotoSerif NF Italic".into(),
+        "NotoSerif NF Italic",
         Attributes::new(Stretch::NORMAL, Weight::NORMAL, Style::Italic),
         Synthesis {
             vars: vec![],
@@ -434,7 +440,7 @@ fn notoserif_bold_condensed_italic() {
             StyleProperty::FontStyle(FontStyle::Italic),
         ],
         "Noto Serif Bold Condensed Italic",
-        "NotoSerif NF Cond Bold Italic".into(),
+        "NotoSerif NF Cond Bold Italic",
         Attributes::new(Stretch::CONDENSED, Weight::BOLD, Style::Italic),
         Synthesis {
             vars: vec![],

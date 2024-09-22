@@ -1,0 +1,290 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # Sourced from https://vulkan.lunarg.com/sdk/home#linux
+  VULKAN_SDK_VERSION: "1.3.268"
+  # Sourced from https://www.nuget.org/packages/Microsoft.Direct3D.WARP
+  WARP_VERSION: "1.0.8"
+  # Sourced from https://github.com/microsoft/DirectXShaderCompiler/releases
+  #
+  # Must also be changed in shaders.yaml
+  DXC_RELEASE: "v1.7.2308"
+  DXC_FILENAME: "dxc_2023_08_14.zip"
+
+  # Sourced from https://archive.mesa3d.org/. Bumping this requires
+  # updating the mesa build in https://github.com/gfx-rs/ci-build and creating a new release.
+  MESA_VERSION: "23.3.1"
+  # Corresponds to https://github.com/gfx-rs/ci-build/releases
+  CI_BINARY_BUILD: "build18"
+  WGPU_DX12_COMPILER: dxc
+  RUST_LOG: info
+  RUST_BACKTRACE: full
+
+  FONTS: "Monaspace FiraCode ProFont CascadiaCode Noto"
+  BREW_FONTS: "font-monaspace font-fira-code-nerd-font font-profont-nerd-font font-caskaydia-cove-nerd-font font-monaspace-nerd-font font-noto-nerd-font"
+  VERSION: "v3.2.1"
+  EXTENSION: ".zip"
+
+jobs:
+  fmt:
+    name: cargo fmt
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-22.04]
+        toolchain: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+  clippy:
+    name: cargo clippy
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-22.04]
+        toolchain: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+
+      - name: Show toolchain info
+        run: cargo --version --verbose
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
+        continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+
+  event-upload:
+    needs: test
+    name: Upload Test Event
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-event
+          path: ${{ github.event_path }}
+
+  test:
+    name: cargo test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-22.04]
+        toolchain: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: (linux) install vulkan sdk
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -e
+
+          sudo apt-get update -y -qq
+
+          # vulkan sdk
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-$VULKAN_SDK_VERSION-jammy.list https://packages.lunarg.com/vulkan/$VULKAN_SDK_VERSION/lunarg-vulkan-$VULKAN_SDK_VERSION-jammy.list
+
+          sudo apt-get update
+          sudo apt install -y vulkan-sdk
+      - name: (linux) install mesa
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -e
+
+          curl -L --retry 5 https://github.com/gfx-rs/ci-build/releases/download/$CI_BINARY_BUILD/mesa-$MESA_VERSION-linux-x86_64.tar.xz -o mesa.tar.xz
+          mkdir mesa
+          tar xpf mesa.tar.xz -C mesa
+
+          # The ICD provided by the mesa build is hardcoded to the build environment.
+          #
+          # We write out our own ICD file to point to the mesa vulkan
+          cat <<- EOF > icd.json
+          {
+            "ICD": {
+                "api_version": "1.1.255",
+                "library_path": "$PWD/mesa/lib/x86_64-linux-gnu/libvulkan_lvp.so"
+            },
+            "file_format_version": "1.0.0"
+          }
+          EOF
+
+          echo "VK_DRIVER_FILES=$PWD/icd.json" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PWD/mesa/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+          echo "LIBGL_DRIVERS_PATH=$PWD/mesa/lib/x86_64-linux-gnu/dri" >> "$GITHUB_ENV"
+
+      - name: (windows) install dxc
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: |
+          set -e
+
+          curl.exe -L --retry 5 https://github.com/microsoft/DirectXShaderCompiler/releases/download/$DXC_RELEASE/$DXC_FILENAME -o dxc.zip
+          7z.exe e dxc.zip -odxc bin/x64/{dxc.exe,dxcompiler.dll,dxil.dll}
+
+          # We need to use cygpath to convert PWD to a windows path as we're using bash.
+          cygpath --windows "$PWD/dxc" >> "$GITHUB_PATH"
+
+      - name: (windows) install warp
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: |
+          set -e
+
+          # Make sure dxc is in path.
+          dxc --version
+
+          curl.exe -L --retry 5 https://www.nuget.org/api/v2/package/Microsoft.Direct3D.WARP/$WARP_VERSION -o warp.zip
+          7z.exe e warp.zip -owarp build/native/amd64/d3d10warp.dll
+
+          mkdir -p target/llvm-cov-target/debug/deps
+
+          cp -v warp/d3d10warp.dll target/llvm-cov-target/debug/
+          cp -v warp/d3d10warp.dll target/llvm-cov-target/debug/deps
+
+      - name: (windows) install mesa
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: |
+          set -e
+
+          curl.exe -L --retry 5 https://github.com/pal1000/mesa-dist-win/releases/download/$MESA_VERSION/mesa3d-$MESA_VERSION-release-msvc.7z -o mesa.7z
+          7z.exe e mesa.7z -omesa x64/{opengl32.dll,libgallium_wgl.dll,libglapi.dll,vulkan_lvp.dll,lvp_icd.x86_64.json}
+
+          cp -v mesa/* target/llvm-cov-target/debug/
+          cp -v mesa/* target/llvm-cov-target/debug/deps
+
+          # We need to use cygpath to convert PWD to a windows path as we're using bash.
+          echo "VK_DRIVER_FILES=`cygpath --windows $PWD/mesa/lvp_icd.x86_64.json`" >> "$GITHUB_ENV"
+          echo "GALLIUM_DRIVER=llvmpipe" >> "$GITHUB_ENV"
+
+      - name: (windows) Install Fonts
+        if: matrix.os == 'windows-2022'
+        shell: powershell
+        run: |
+          Invoke-Expression (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')
+          scoop install git
+          scoop bucket add extras
+          scoop bucket add nerd-fonts 
+          scoop install Monaspace Monaspace-NF FiraCode-NF ProFont-NF CascadiaCode-NF Noto-NF
+
+      - name: Restart font cache
+        if: matrix.os == 'windows-2022'
+        shell: powershell
+        run: |
+          Add-Type -TypeDefinition @"
+          using System;
+          using System.Runtime.InteropServices;
+          public class FontHelper {
+            [DllImport("gdi32.dll")]
+            public static extern int AddFontResource(string lpFileName);
+          }
+          "@
+          $fontPaths = @(
+            "$env:USERPROFILE\scoop\apps\Monaspace-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\FiraCode-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\ProFont-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\CascadiaCode-NF\current\*.ttf",
+            "$env:USERPROFILE\scoop\apps\Noto-NF\current\*.ttf"
+          )
+          foreach ($path in $fontPaths) {
+            if (Test-Path -Path $path) {
+              foreach ($font in Get-ChildItem -Path $path) {
+                [FontHelper]::AddFontResource($font.FullName) | Out-Null
+              }
+            }
+          }
+          Write-Output "Fonts have been registered."
+
+      - name: (macos) Install Fonts
+        if: matrix.os == 'macos-latest'
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh && brew upgrade
+          brew install ${{ env.BREW_FONTS }}
+
+      - name: (linux) Install Fonts
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          FONT_DIR="${HOME}/.local/share/fonts"
+          mkdir -p "$FONT_DIR"
+          for font in ${{ env.FONTS }}; do
+            ZIP_FILE="${font}${EXTENSION}"
+            if [[ "$font" == "Monaspace" ]]; then
+              DOWNLOAD_URL="https://github.com/githubnext/monaspace/releases/download/v1.101/monaspace-v1.101.zip"
+            else
+              DOWNLOAD_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${VERSION}/${ZIP_FILE}"
+            fi
+            echo "Downloading and installing '$font'..."
+            wget --quiet "$DOWNLOAD_URL" -O "$ZIP_FILE"
+            unzip -oq "$ZIP_FILE" -d "$FONT_DIR"
+            rm "$ZIP_FILE"
+            echo "'$font' installed successfully."
+          done
+
+          # Refresh font cache
+          fc-cache -fv
+
+      - name: cargo test
+        run: RUST_BACKTRACE=full cargo test --workspace --locked --all-features
+
+  build:
+    name: cargo build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-22.04]
+        toolchain: [stable, nightly]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked --release

@@ -4,22 +4,35 @@ use futures::executor::block_on;
 use glam::*;
 use glamour::{AsRaw, Rect};
 use wgpu::*;
+
+#[cfg(not(target_os = "macos"))]
 use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 
 use crate::{
     default_drawables::{BlurState, GlyphState, PathState, QuadState, SpriteState},
     drawable::Drawable,
-    drawable_pipeline::DrawablePipeline,
+    drawable_pipeline::{
+        DrawableContext, DrawablePipeline, RenderContentParams, RenderDrawableParams,
+    },
     drawable_reference::ATLAS_SIZE,
     shader::{ShaderConstants, ShaderLoader},
     LayerContents, Resources, Scene,
 };
+
+pub struct DrawContext<'a> {
+    pub encoder: &'a mut CommandEncoder,
+    pub first: &'a mut bool,
+    pub frame: &'a Texture,
+    pub frame_view: &'a TextureView,
+}
 
 pub struct Renderer {
     pub adapter: Adapter,
     pub device: Device,
     pub queue: Queue,
     pub shaders: HashMap<String, ShaderModule>,
+
+    #[cfg(not(target_os = "macos"))]
     pub profiler: GpuProfiler,
 
     pub format: TextureFormat,
@@ -47,7 +60,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     required_features: Self::add_default_required_features(),
                     required_limits: Limits {
-                        max_push_constant_size: 256,
+                        max_push_constant_size: 128,
                         ..Default::default()
                     },
                     label: None,
@@ -144,8 +157,12 @@ impl Renderer {
         );
         let shaders = shaders.await;
 
+        #[cfg(not(target_os = "macos"))]
         let profiler = GpuProfiler::new_with_tracy_client(
-            GpuProfilerSettings::default(),
+            GpuProfilerSettings {
+                enable_timer_queries: false,
+                ..Default::default()
+            },
             adapter.get_info().backend,
             &device,
             &queue,
@@ -157,6 +174,8 @@ impl Renderer {
             device,
             queue,
             shaders,
+
+            #[cfg(not(target_os = "macos"))]
             profiler,
 
             format,
@@ -217,14 +236,20 @@ impl Renderer {
                 | Features::VERTEX_WRITABLE_STORAGE
                 | Features::CLEAR_TEXTURE
                 | Features::DUAL_SOURCE_BLENDING
-                | Features::TIMESTAMP_QUERY
-                | Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
         }
 
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "linux")]
         {
             Features::PUSH_CONSTANTS
-                | Features::SPIRV_SHADER_PASSTHROUGH
+                | Features::VERTEX_WRITABLE_STORAGE
+                | Features::CLEAR_TEXTURE
+                | Features::DUAL_SOURCE_BLENDING
+                | GpuProfiler::ALL_WGPU_TIMER_FEATURES
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            Features::PUSH_CONSTANTS
                 | Features::VERTEX_WRITABLE_STORAGE
                 | Features::CLEAR_TEXTURE
                 | Features::DUAL_SOURCE_BLENDING
@@ -332,24 +357,33 @@ impl Renderer {
                 &scene.resources,
             );
 
+            let draw_context = DrawContext {
+                encoder: &mut encoder,
+                first: &mut first,
+                frame,
+                frame_view: &frame_view,
+            };
+
             self.draw_content(
                 &layer.contents,
-                &mut encoder,
-                &mut first,
-                frame,
-                &frame_view,
+                draw_context,
                 layer.clip,
                 constants,
                 &scene.resources,
             );
         }
-        self.profiler.resolve_queries(&mut encoder);
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            self.profiler.resolve_queries(&mut encoder);
+
+            self.profiler.end_frame().unwrap();
+
+            self.profiler
+                .process_finished_frame(self.queue.get_timestamp_period());
+        }
+
         self.queue.submit(Some(encoder.finish()));
-
-        self.profiler.end_frame().unwrap();
-
-        self.profiler
-            .process_finished_frame(self.queue.get_timestamp_period());
     }
 
     pub fn draw_mask(
@@ -427,15 +461,19 @@ impl Renderer {
                         drawable_scope.set_scissor_rect(x, y, w, h);
                     }
 
-                    drawable.draw_mask(
-                        &self.queue,
-                        &mut drawable_scope,
+                    let draw_context = DrawableContext {
+                        queue: &self.queue,
+                        universal_bind_group: &self.universal_mask_bind_group,
+                    };
+
+                    let render_params = RenderDrawableParams {
                         constants,
-                        &self.universal_mask_bind_group,
                         resources,
                         clip,
                         batch,
-                    );
+                    };
+
+                    drawable.draw_mask(&draw_context, &mut drawable_scope, &render_params);
                 }
             }
         } else {
@@ -486,17 +524,21 @@ impl Renderer {
     pub fn draw_content(
         &mut self,
         contents: &LayerContents,
-        encoder: &mut CommandEncoder,
-        first: &mut bool,
-        frame: &Texture,
-        frame_view: &TextureView,
+        context: DrawContext,
         clip: Option<Rect<u32>>,
         constants: ShaderConstants,
         resources: &Resources,
     ) {
-        let mut content_scope = self.profiler.scope("content", encoder, &self.device);
+        #[cfg(not(target_os = "macos"))]
+        let mut content_scope = self
+            .profiler
+            .scope("content", context.encoder, &self.device);
 
-        if *first {
+        #[cfg(target_os = "macos")]
+        let content_scope = context.encoder;
+
+        if *context.first {
+            #[cfg(not(target_os = "macos"))]
             content_scope.scoped_render_pass(
                 "Clear Offscreen Texture",
                 &self.device,
@@ -515,34 +557,53 @@ impl Renderer {
                     timestamp_writes: None,
                 },
             );
+
+            #[cfg(target_os = "macos")]
+            content_scope.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Clear Offscreen Texture"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &self.offscreen_texture.view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color::WHITE),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
         } else {
             'offscreen_copy: for batch in contents.primitives.iter() {
                 for drawable in self.drawables.iter() {
-                    if drawable.has_work(batch) {
-                        if drawable.requires_offscreen_copy() {
-                            let mut copy_scope =
-                                content_scope.scope("Copy Frame to Offscreen", &self.device);
-                            copy_scope.copy_texture_to_texture(
-                                ImageCopyTexture {
-                                    texture: frame,
-                                    mip_level: 0,
-                                    origin: Origin3d::ZERO,
-                                    aspect: Default::default(),
-                                },
-                                ImageCopyTexture {
-                                    texture: &self.offscreen_texture.texture,
-                                    mip_level: 0,
-                                    origin: Origin3d::ZERO,
-                                    aspect: Default::default(),
-                                },
-                                Extent3d {
-                                    width: self.width,
-                                    height: self.height,
-                                    depth_or_array_layers: 1,
-                                },
-                            );
-                            break 'offscreen_copy;
-                        }
+                    if drawable.has_work(batch) && drawable.requires_offscreen_copy() {
+                        #[cfg(not(target_os = "macos"))]
+                        let mut copy_scope =
+                            content_scope.scope("Copy Frame to Offscreen", &self.device);
+
+                        #[cfg(target_os = "macos")]
+                        let copy_scope = &mut *content_scope;
+
+                        copy_scope.copy_texture_to_texture(
+                            ImageCopyTexture {
+                                texture: context.frame,
+                                mip_level: 0,
+                                origin: Origin3d::ZERO,
+                                aspect: Default::default(),
+                            },
+                            ImageCopyTexture {
+                                texture: &self.offscreen_texture.texture,
+                                mip_level: 0,
+                                origin: Origin3d::ZERO,
+                                aspect: Default::default(),
+                            },
+                            Extent3d {
+                                width: self.width,
+                                height: self.height,
+                                depth_or_array_layers: 1,
+                            },
+                        );
+                        break 'offscreen_copy;
                     }
                 }
             }
@@ -555,7 +616,7 @@ impl Renderer {
                 }
 
                 // The first drawable should clear the output texture
-                let attachment_op = if *first {
+                let attachment_op = if *context.first {
                     Operations::<Color> {
                         load: LoadOp::<_>::Clear(Color::WHITE),
                         store: StoreOp::Store,
@@ -567,13 +628,14 @@ impl Renderer {
                     }
                 };
 
+                #[cfg(not(target_os = "macos"))]
                 let mut render_pass = content_scope.scoped_render_pass(
                     "Layer Render Pass",
                     &self.device,
                     RenderPassDescriptor {
                         label: Some("Render Pass"),
                         color_attachments: &[Some(RenderPassColorAttachment {
-                            view: frame_view,
+                            view: context.frame_view,
                             resolve_target: None,
                             ops: attachment_op,
                         })],
@@ -582,8 +644,26 @@ impl Renderer {
                     },
                 );
 
+                #[cfg(target_os = "macos")]
+                let render_pass = content_scope.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: context.frame_view,
+                        resolve_target: None,
+                        ops: attachment_op,
+                    })],
+                    depth_stencil_attachment: None,
+                    ..Default::default()
+                });
+
                 profiling::scope!("drawable", &drawable.name);
+
+                #[cfg(not(target_os = "macos"))]
                 let mut drawable_scope = render_pass.scope(&drawable.name, &self.device);
+
+                #[cfg(target_os = "macos")]
+                let mut drawable_scope = render_pass;
+
                 if !drawable.ready() {
                     continue;
                 }
@@ -596,17 +676,21 @@ impl Renderer {
                     drawable_scope.set_scissor_rect(x, y, w, h);
                 }
 
-                drawable.draw_content(
-                    &self.queue,
-                    &mut drawable_scope,
+                let draw_context = DrawableContext {
+                    queue: &self.queue,
+                    universal_bind_group: &self.universal_content_bind_group,
+                };
+
+                let render_params = RenderContentParams {
                     constants,
-                    &self.universal_content_bind_group,
                     resources,
                     clip,
                     batch,
-                );
+                };
 
-                *first = false;
+                drawable.draw_content(&draw_context, &mut drawable_scope, &render_params);
+
+                *context.first = false;
             }
         }
     }
