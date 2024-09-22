@@ -26,7 +26,7 @@ fn main() {
         let layout = shaper.layout_with("Sphinx of black quartz judge my vow.", |builder| {
             builder.push_default(&StyleProperty::FontSize(font_size));
         });
-        scene.add_text_layout(layout, point2!(0., bottom));
+        scene.add_text_layout(&layout, point2!(0., bottom));
     }
 
     scene.add_layer(
@@ -41,8 +41,7 @@ fn main() {
                     .with_quadratic_bezier_to(point2!(180., 180.), point2!(20., 180.)),
             )
             .with_quad(Quad::new(
-                point2!(150., 100.),
-                size2!(100., 100.),
+                Rect::new(point2!(150., 100.), size2!(100., 100.)),
                 Srgba::new(1., 0., 0., 1.),
             )),
     );
@@ -59,8 +58,10 @@ fn main() {
 
     for (i, color) in colors.iter().enumerate() {
         scene.add_quad(Quad::new(
-            point2!(500., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
-            size2!(50., 50.),
+            Rect::new(
+                point2!(500., 10.) + vec2!(i as f32 * 10., i as f32 * 10.),
+                size2!(50., 50.),
+            ),
             *color,
         ));
     }
@@ -75,7 +76,7 @@ fn main() {
         let layout = shaper.layout_with("TestTestTestTestTestTestTestTest", |builder| {
             builder.push_default(&StyleProperty::FontSize(15.));
         });
-        mask_layer.add_text_layout(&mut scene.resources, layout, point2!(500., bottom));
+        mask_layer.add_text_layout(&mut scene.resources, &layout, point2!(500., bottom));
     }
 
     scene.set_mask(mask_layer);

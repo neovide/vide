@@ -65,7 +65,6 @@ impl ApplicationHandler for App {
                     )
                     .with_edge_blur(5.0),
                 );
-
                 self.renderer.as_mut().unwrap().draw(&scene);
             }
             WindowEvent::Resized(new_size) => {
