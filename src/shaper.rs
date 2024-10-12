@@ -1,7 +1,6 @@
 use palette::Srgba;
 use parley::{
-    context::RangedBuilder, fontique::Collection, style::StyleProperty, FontContext, Layout,
-    LayoutContext,
+    fontique::Collection, style::StyleProperty, FontContext, Layout, LayoutContext, RangedBuilder,
 };
 
 pub struct Shaper {
@@ -22,13 +21,13 @@ impl Shaper {
     pub fn layout_with<'a>(
         &'a mut self,
         text: &'a str,
-        build: impl FnOnce(&mut RangedBuilder<'a, Srgba, &'a str>),
+        build: impl FnOnce(&mut RangedBuilder<'a, Srgba>),
     ) -> Layout<Srgba> {
         let mut builder = self.layout_builder(text);
 
         build(&mut builder);
 
-        let mut layout = builder.build();
+        let mut layout = builder.build(text);
 
         layout.break_all_lines(None);
 
@@ -39,13 +38,13 @@ impl Shaper {
         &'a mut self,
         text: &'a str,
         max_advance: f32,
-        build: impl FnOnce(&mut RangedBuilder<'a, Srgba, &'a str>),
+        build: impl FnOnce(&mut RangedBuilder<'a, Srgba>),
     ) -> Layout<Srgba> {
         let mut builder = self.layout_builder(text);
 
         build(&mut builder);
 
-        let mut layout = builder.build();
+        let mut layout = builder.build(text);
 
         layout.break_all_lines(Some(max_advance));
 
@@ -54,26 +53,26 @@ impl Shaper {
 
     pub fn layout(&mut self, text: &str) -> Layout<Srgba> {
         let mut builder = self.layout_builder(text);
-        let mut layout = builder.build();
+        let mut layout = builder.build(text);
         layout.break_all_lines(None);
         layout
     }
 
     pub fn layout_within(&mut self, text: &str, max_advance: f32) -> Layout<Srgba> {
         let mut builder = self.layout_builder(text);
-        let mut layout = builder.build();
+        let mut layout = builder.build(text);
         layout.break_all_lines(Some(max_advance));
         layout
     }
 
-    pub fn layout_builder<'a>(&'a mut self, text: &'a str) -> RangedBuilder<'a, Srgba, &'a str> {
+    pub fn layout_builder<'a>(&'a mut self, text: &'a str) -> RangedBuilder<'a, Srgba> {
         let mut builder =
             // TODO: Dig through if this display scale is doing something important we need to
             // replicate
             self.layout_context
                 .ranged_builder(&mut self.font_context, text, 1.);
         for style in &self.default_styles {
-            builder.push_default(style);
+            builder.push_default(style.clone());
         }
 
         builder

@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use glamour::{point2, size2, vec2, Point2, Rect};
 use palette::Srgba;
-use parley::{layout::PositionedLayoutItem, Layout};
+use parley::{
+    layout::{editor::PlainEditor, Line, PositionedLayoutItem},
+    Layout,
+};
 use serde::{Deserialize, Serialize};
 
 use super::{Blur, Glyph, GlyphRun, Path, Quad, Resources, Sprite, TextureId};
@@ -159,6 +162,27 @@ impl Layer {
         self
     }
 
+    pub fn add_editor(
+        &mut self,
+        resources: &mut Resources,
+        editor: PlainEditor<Srgba>,
+        position: Point2,
+    ) {
+        for line in editor.lines() {
+            self.add_line(resources, line, position);
+        }
+    }
+
+    pub fn with_editor(
+        mut self,
+        resources: &mut Resources,
+        editor: PlainEditor<Srgba>,
+        position: Point2,
+    ) -> Self {
+        self.add_editor(resources, editor, position);
+        self
+    }
+
     pub fn add_text_layout(
         &mut self,
         resources: &mut Resources,
@@ -166,41 +190,7 @@ impl Layer {
         position: Point2,
     ) {
         for line in layout.lines() {
-            for item in line.items() {
-                let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
-                    continue;
-                };
-                let run = glyph_run.run();
-                let font = run.font();
-                let font_id = resources.store_font(font);
-                let style = glyph_run.style();
-                let color = style.brush;
-                let synthesis = glyph_run.run().synthesis().into();
-
-                let font_index = font.index as usize;
-                let size = run.font_size();
-                let normalized_coords = run.normalized_coords().to_vec();
-                let mut glyphs = Vec::new();
-                let mut current_x = 0.0;
-                for glyph in glyph_run.glyphs() {
-                    glyphs.push(Glyph {
-                        id: glyph.id,
-                        offset: vec2!(current_x + glyph.x, -glyph.y),
-                    });
-                    current_x += glyph.advance;
-                }
-
-                self.add_glyph_run(GlyphRun {
-                    position: position + vec2!(glyph_run.offset(), glyph_run.baseline()),
-                    font_id,
-                    font_index,
-                    color,
-                    size,
-                    normalized_coords,
-                    glyphs,
-                    synthesis,
-                });
-            }
+            self.add_line(resources, line, position);
         }
     }
 
@@ -211,6 +201,54 @@ impl Layer {
         position: Point2,
     ) -> Self {
         self.add_text_layout(resources, layout, position);
+        self
+    }
+
+    pub fn add_line(&mut self, resources: &mut Resources, line: Line<Srgba>, position: Point2) {
+        for item in line.items() {
+            let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
+                continue;
+            };
+            let run = glyph_run.run();
+            let font = run.font();
+            let font_id = resources.store_font(font);
+            let style = glyph_run.style();
+            let color = style.brush;
+            let synthesis = glyph_run.run().synthesis().into();
+
+            let font_index = font.index as usize;
+            let size = run.font_size();
+            let normalized_coords = run.normalized_coords().to_vec();
+            let mut glyphs = Vec::new();
+            let mut current_x = 0.0;
+            for glyph in glyph_run.glyphs() {
+                glyphs.push(Glyph {
+                    id: glyph.id,
+                    offset: vec2!(current_x + glyph.x, -glyph.y),
+                });
+                current_x += glyph.advance;
+            }
+
+            self.add_glyph_run(GlyphRun {
+                position: position + vec2!(glyph_run.offset(), glyph_run.baseline()),
+                font_id,
+                font_index,
+                color,
+                size,
+                normalized_coords,
+                glyphs,
+                synthesis,
+            });
+        }
+    }
+
+    pub fn with_line(
+        mut self,
+        resources: &mut Resources,
+        line: Line<Srgba>,
+        position: Point2,
+    ) -> Self {
+        self.add_line(resources, line, position);
         self
     }
 }

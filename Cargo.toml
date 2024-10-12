@@ -87,7 +87,7 @@ notify-debouncer-full = "0.3.1"
 ordered-float = {version = "4.2.0", features = ["serde"]}
 palette = { workspace = true }
 # Font layout and shaping crate. Handles font fallback
-parley = { git = "https://github.com/linebender/parley", rev="7a4cc48013f650de91fe0729e4b6027c535f10c4" }
+parley = { git = "https://github.com/linebender/parley", rev="352df194a5178aac3d08519b2e0b8814a8c08c28" }
 # Convenient macros for recording profiling data
 profiling = { version = "1.0.15", features = ["profile-with-tracy"] }
 # Random number generation

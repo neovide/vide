@@ -1,3 +1,6 @@
+pub use glamour::prelude::*;
+pub use palette::Srgba;
+
 pub use crate::offscreen_renderer::OffscreenRenderer;
 pub use crate::renderer::Renderer;
 pub use crate::scene::*;
